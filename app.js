@@ -673,78 +673,159 @@ function renderList() {
 }
 
 // ═══════════════════════════════════════
-//  QR СКАНЕР
+//  QR СКАНЕР (ИСПРАВЛЕННЫЙ)
 // ═══════════════════════════════════════
+
 let scanInterval = null;
+let videoStream = null;
+
 document.getElementById('btnScan')?.addEventListener('click', openScanner);
 
 function openScanner() {
-  document.getElementById('scannerModal')?.classList.remove('hidden');
+  const modal = document.getElementById('scannerModal');
+  if (modal) modal.classList.remove('hidden');
+  
   const video = document.getElementById('video');
   if (!video) return;
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+  
+  // Останавливаем предыдущий поток если есть
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+  }
+  
+  navigator.mediaDevices.getUserMedia({ 
+    video: { facingMode: { exact: "environment" } } 
+  })
+  .then(stream => {
+    videoStream = stream;
+    video.srcObject = stream;
+    video.setAttribute('playsinline', true);
+    video.play();
+    startQRScan();
+  })
+  .catch(() => {
+    // Пробуем без точного режима
+    navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: "environment" } 
+    })
     .then(stream => {
+      videoStream = stream;
       video.srcObject = stream;
+      video.setAttribute('playsinline', true);
       video.play();
       startQRScan();
     })
-    .catch(() => alert('Нет доступа к камере'));
+    .catch(err => {
+      alert('Нет доступа к камере: ' + err.message);
+    });
+  });
 }
 
 function closeScanner() {
-  document.getElementById('scannerModal')?.classList.add('hidden');
+  const modal = document.getElementById('scannerModal');
+  if (modal) modal.classList.add('hidden');
+  
   const video = document.getElementById('video');
   if (video && video.srcObject) {
-    video.srcObject.getTracks().forEach(t => t.stop());
+    const tracks = video.srcObject.getTracks();
+    tracks.forEach(track => track.stop());
     video.srcObject = null;
   }
-  if (scanInterval) clearInterval(scanInterval);
+  
+  if (scanInterval) {
+    clearInterval(scanInterval);
+    scanInterval = null;
+  }
 }
 
 function startQRScan() {
   const video = document.getElementById('video');
-  const qrCanvas = document.getElementById('qrCanvas');
-  if (!video || !qrCanvas) return;
-  const ctx = qrCanvas.getContext('2d');
+  const canvas = document.getElementById('qrCanvas');
+  
+  if (!video || !canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  let scanning = true;
+  
   scanInterval = setInterval(() => {
+    if (!scanning) return;
     if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
-    qrCanvas.width = video.videoWidth;
-    qrCanvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
-    const img = ctx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
-    const code = jsQR(img.data, img.width, img.height);
-    if (code) {
-      handleScan(code.data);
-      closeScanner();
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+    
+    // Устанавливаем размер canvas как у видео
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Рисуем кадр на canvas
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Получаем данные изображения
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    
+    // Пробуем найти QR код
+    try {
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "dontInvert",
+      });
+      
+      if (code) {
+        scanning = false;
+        console.log("QR найден:", code.data);
+        handleScan(code.data);
+        closeScanner();
+      }
+    } catch(e) {
+      console.log("Ошибка сканирования:", e);
     }
-  }, 200);
+  }, 300); // Интервал 300ms для стабильности
 }
 
 function handleScan(code) {
-  const p = parts.find(x => x.code === code || x.code === code.trim());
-  if (!p) {
-    alert('Деталь не найдена: ' + code);
+  console.log("Обработка кода:", code);
+  
+  // Поиск детали по коду
+  let found = parts.find(x => x.code === code || x.code === code.trim());
+  
+  // Если не нашли, пробуем без учета регистра
+  if (!found) {
+    found = parts.find(x => x.code.toLowerCase() === code.toLowerCase());
+  }
+  
+  // Если не нашли, пробуем частичное совпадение
+  if (!found) {
+    found = parts.find(x => code.includes(x.code) || x.code.includes(code));
+  }
+  
+  if (!found) {
+    alert('❌ Деталь не найдена!\nКод: ' + code);
     return;
   }
-  scanned.add(p.id);
-  selectPart(p.id);
+  
+  scanned.add(found.id);
+  selectPart(found.id);
   renderList();
-  smoothZoomToPart(p.id);
+  
+  // Визуальный фидбек
+  showToast('✅ Отсканировано: ' + found.name);
+  
+  // Опционально: плавный перелёт к детали
+  if (typeof smoothZoomToPart === 'function') {
+    smoothZoomToPart(found.id);
+  }
 }
 
-// Кнопка "Показать всё" в левой панели
-const leftPanel = document.querySelector('.panel-left');
-if (leftPanel && !document.getElementById('showAllBtnLeft')) {
-  const btn = document.createElement('button');
-  btn.id = 'showAllBtnLeft';
-  btn.className = 'btn-upload';
-  btn.innerHTML = '🎯 Показать всё';
-  btn.style.marginTop = '8px';
-  btn.style.background = '#2a6a3a';
-  btn.onclick = showAll;
-  leftPanel.appendChild(btn);
+// Добавьте эту функцию если её нет
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:#00ff88;padding:10px 20px;border-radius:30px;font-size:14px;z-index:2000;pointer-events:none;transition:opacity 0.3s;opacity:0';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  setTimeout(() => {
+    toast.style.opacity = '0';
+  }, 2000);
 }
-
-// Инициализация
-centerOnModel();
-console.log('✅ Приложение готово');
