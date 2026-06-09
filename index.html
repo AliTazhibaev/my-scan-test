@@ -10,55 +10,92 @@
 </head>
 <body>
   <div id="app">
+
     <header>
+      <button id="btnMenu" class="btn-icon">☰</button>
       <div class="logo">БАЗИС · СКАНЕР</div>
-      <button id="btnRot" class="btn-ctrl">▶ Вращение</button>
-      <button id="btnReset" class="btn-ctrl">⌂ Сброс</button>
-      <button id="btnScan" class="btn-scan">📷 Сканировать QR</button>
+      <button id="btnScan" class="btn-scan-header">📷</button>
     </header>
 
-    <main>
-      <!-- Левая панель: список деталей -->
-      <div class="panel-left">
+    <!-- 3D на весь экран -->
+    <div class="panel-center">
+      <canvas id="canvas3d"></canvas>
+      <div class="hint" id="hint">Загрузи JSON файл из Базиса</div>
+
+      <!-- Кнопки управления 3D — поверх канваса -->
+      <div class="float-controls">
+        <button id="btnRot" class="ctrl-btn">⟳</button>
+        <button id="btnReset" class="ctrl-btn">⌂</button>
+        <button class="ctrl-btn" onclick="document.getElementById('xmlFile').click()">📂</button>
+      </div>
+
+      <!-- Прогресс поверх канваса -->
+      <div class="float-progress" id="floatProgress" style="display:none">
+        <span id="progressText">0 / 0</span>
+        <div class="fp-bar"><div class="fp-fill" id="fpFill"></div></div>
+      </div>
+    </div>
+
+    <!-- Нижняя панель на мобиле -->
+    <div class="bottom-tabs" id="bottomTabs" style="display:none">
+      <button class="tab-btn active" id="tabInfo" onclick="switchTab('info')">ℹ️ Деталь</button>
+      <button class="tab-btn" id="tabList" onclick="switchTab('list')">☰ Список</button>
+    </div>
+
+    <!-- Боковая шторка (детали) — десктоп слева, мобил снизу -->
+    <div class="drawer" id="drawer">
+      <div class="drawer-header">
+        <span>Детали проекта</span>
+        <button onclick="closeDrawer()" class="drawer-close">✕</button>
+      </div>
+      <div id="partsList" class="parts-scroll"></div>
+    </div>
+    <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+
+    <!-- Правая панель инфо — десктоп справа, мобил снизу -->
+    <div class="info-panel" id="infoPanel">
+      <div class="no-select" id="noSelect">Выбери деталь</div>
+      <div id="partInfo"></div>
+    </div>
+
+    <!-- Десктоп лейаут -->
+    <div class="desktop-layout">
+      <div class="desktop-left">
         <div class="panel-title">Детали проекта</div>
         <input type="file" id="xmlFile" accept=".xml,.json" hidden>
         <button class="btn-upload" onclick="document.getElementById('xmlFile').click()">
-          📂 Загрузить XML / JSON
+          📂 Загрузить JSON
         </button>
-        <div id="partsList"></div>
+        <div id="partsListDesktop"></div>
       </div>
-
-      <!-- Центр: 3D модель -->
-      <div class="panel-center">
-        <canvas id="canvas3d"></canvas>
-        <div class="hint" id="hint">Загрузи XML файл из Базиса</div>
-      </div>
-
-      <!-- Правая панель: информация о детали -->
-      <div class="panel-right" id="partInfo">
+      <div class="desktop-right" id="partInfoDesktop">
         <div class="no-select">Выбери деталь</div>
       </div>
-    </main>
+    </div>
 
-    <!-- QR сканер (камера) -->
-    <div class="modal-box">
-  <div class="modal-title">Наведи камеру на QR код</div>
-  <video id="video" autoplay playsinline></video>
-  <canvas id="qrCanvas" hidden></canvas>
-  <div id="scanStatus" style="font-size:11px;color:#5a6680">Сканирование...</div>
-  <div style="display:flex;gap:8px;width:100%">
-    <input type="text" id="manualCode" placeholder="Или введи код вручную..."
-      style="flex:1;padding:8px;background:#1c2030;border:1px solid #252f45;
-      border-radius:6px;color:#e8eaf0;font-size:13px;outline:none"
-      onkeydown="if(event.key==='Enter'){handleScan(this.value);this.value='';closeScanner();}">
-    <button onclick="handleScan(document.getElementById('manualCode').value);document.getElementById('manualCode').value='';closeScanner();"
-      style="padding:8px 14px;background:#00d4ff;border:none;border-radius:6px;
-      font-size:12px;font-weight:600;color:#000;cursor:pointer">OK</button>
-  </div>
-  <button class="btn-close" onclick="closeScanner()">✕ Закрыть</button>
-</div>
+    <!-- QR сканер -->
+    <div id="scannerModal" class="modal hidden">
+      <div class="modal-box">
+        <div class="modal-title">Наведи камеру на QR код</div>
+        <video id="video" autoplay playsinline></video>
+        <canvas id="qrCanvas" hidden></canvas>
+        <div id="scanStatus" style="font-size:11px;color:#5a6680">Сканирование...</div>
+        <div style="display:flex;gap:8px;width:100%">
+          <input type="text" id="manualCode" placeholder="Или введи код вручную..."
+            style="flex:1;padding:10px;background:#1c2030;border:1px solid #252f45;
+            border-radius:6px;color:#e8eaf0;font-size:14px;outline:none"
+            onkeydown="if(event.key==='Enter'){handleScan(this.value);this.value='';closeScanner();}">
+          <button onclick="handleScan(document.getElementById('manualCode').value);document.getElementById('manualCode').value='';closeScanner();"
+            style="padding:10px 16px;background:#00d4ff;border:none;border-radius:6px;
+            font-size:13px;font-weight:600;color:#000;cursor:pointer">OK</button>
+        </div>
+        <button class="btn-close" onclick="closeScanner()">✕ Закрыть</button>
+      </div>
+    </div>
+
   </div>
 
+  <input type="file" id="xmlFileMobile" accept=".xml,.json" hidden>
   <script src="app.js"></script>
 </body>
 </html>
