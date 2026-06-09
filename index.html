@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Базис Сканер</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+  <link rel="stylesheet" href="public/style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+  <div class="logo">БАЗИС · СКАНЕР</div>
+  <button id="btnRot" class="btn-ctrl">▶ Вращение</button>
+  <button id="btnReset" class="btn-ctrl">⌂ Сброс</button>
+  <button id="btnScan" class="btn-scan">📷 Сканировать QR</button>
+</header>
+
+    <main>
+      <!-- Левая панель: список деталей -->
+      <div class="panel-left">
+        <div class="panel-title">Детали проекта</div>
+        <input type="file" id="xmlFile" accept=".xml,.json" hidden>
+        <button class="btn-upload" onclick="document.getElementById('xmlFile').click()">
+          📂 Загрузить XML / JSON
+        </button>
+        <div id="partsList"></div>
+      </div>
+
+      <!-- Центр: 3D модель -->
+      <div class="panel-center">
+        <canvas id="canvas3d"></canvas>
+        <div class="hint" id="hint">Загрузи XML файл из Базиса</div>
+      </div>
+
+      <!-- Правая панель: информация о детали -->
+      <div class="panel-right" id="partInfo">
+        <div class="no-select">Выбери деталь</div>
+      </div>
+    </main>
+
+    <!-- QR сканер (камера) -->
+    <div id="scannerModal" class="modal hidden">
+      <div class="modal-box">
+        <div class="modal-title">Наведи камеру на QR код</div>
+        <video id="video" autoplay playsinline></video>
+        <canvas id="qrCanvas" hidden></canvas>
+        <button class="btn-close" onclick="closeScanner()">✕ Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="public/app.js"></script>
+</body>
+</html>
