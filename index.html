@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Базис Сканер</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -41,14 +41,22 @@
     </main>
 
     <!-- QR сканер (камера) -->
-    <div id="scannerModal" class="modal hidden">
-      <div class="modal-box">
-        <div class="modal-title">Наведи камеру на QR код</div>
-        <video id="video" autoplay playsinline></video>
-        <canvas id="qrCanvas" hidden></canvas>
-        <button class="btn-close" onclick="closeScanner()">✕ Закрыть</button>
-      </div>
-    </div>
+    <div class="modal-box">
+  <div class="modal-title">Наведи камеру на QR код</div>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="qrCanvas" hidden></canvas>
+  <div id="scanStatus" style="font-size:11px;color:#5a6680">Сканирование...</div>
+  <div style="display:flex;gap:8px;width:100%">
+    <input type="text" id="manualCode" placeholder="Или введи код вручную..."
+      style="flex:1;padding:8px;background:#1c2030;border:1px solid #252f45;
+      border-radius:6px;color:#e8eaf0;font-size:13px;outline:none"
+      onkeydown="if(event.key==='Enter'){handleScan(this.value);this.value='';closeScanner();}">
+    <button onclick="handleScan(document.getElementById('manualCode').value);document.getElementById('manualCode').value='';closeScanner();"
+      style="padding:8px 14px;background:#00d4ff;border:none;border-radius:6px;
+      font-size:12px;font-weight:600;color:#000;cursor:pointer">OK</button>
+  </div>
+  <button class="btn-close" onclick="closeScanner()">✕ Закрыть</button>
+</div>
   </div>
 
   <script src="app.js"></script>

@@ -740,44 +740,36 @@ function closeScanner() {
 
 function startQRScan() {
   const video = document.getElementById('video');
-  const canvas = document.getElementById('qrCanvas');
-  
-  if (!video || !canvas) return;
-  
-  const ctx = canvas.getContext('2d');
-  let scanning = true;
-  
+  const qrCanvas = document.getElementById('qrCanvas');
+  const ctx = qrCanvas.getContext('2d');
+  const status = document.getElementById('scanStatus');
+
   scanInterval = setInterval(() => {
-    if (!scanning) return;
     if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
-    if (video.videoWidth === 0 || video.videoHeight === 0) return;
-    
-    // Устанавливаем размер canvas как у видео
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    // Рисуем кадр на canvas
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Получаем данные изображения
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    
-    // Пробуем найти QR код
+
+    qrCanvas.width = video.videoWidth;
+    qrCanvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
     try {
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "dontInvert",
+      const img = ctx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+      const code = jsQR(img.data, img.width, img.height, {
+        inversionAttempts: "dontInvert"
       });
-      
       if (code) {
-        scanning = false;
-        console.log("QR найден:", code.data);
-        handleScan(code.data);
-        closeScanner();
+        status.textContent = '✅ Найдено: ' + code.data;
+        status.style.color = '#00ff88';
+        setTimeout(() => {
+          handleScan(code.data);
+          closeScanner();
+        }, 300);
+      } else {
+        status.textContent = '🔍 Сканирование... ' + qrCanvas.width + 'x' + qrCanvas.height;
       }
     } catch(e) {
-      console.log("Ошибка сканирования:", e);
+      status.textContent = 'Ошибка: ' + e.message;
     }
-  }, 300); // Интервал 300ms для стабильности
+  }, 200);
 }
 
 function handleScan(code) {
