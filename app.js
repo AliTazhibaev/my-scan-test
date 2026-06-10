@@ -298,6 +298,7 @@ function getColor(mat) {
   if (m.includes('венге') || m.includes('wenge')) return '#2d1f0f';
   if (m.includes('графит')) return '#4a4a4a';
   if (m.includes('хром')) return '#d4d4dc';
+  if (m.includes('кашемир')) return '#b8a99a';
   return '#b0a898';
 }
 
@@ -504,6 +505,10 @@ function handleScan(code) {
   showToast('✅ Отсканировано: ' + found.name);
   smoothZoomToPart(found.id);
 }
+
+// ═══════════════════════════════════════
+//  TOAST УВЕДОМЛЕНИЯ
+// ═══════════════════════════════════════
 
 function showToast(msg) {
   let toast = document.getElementById('toast');

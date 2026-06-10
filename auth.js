@@ -5,6 +5,10 @@
 let currentUser = null;
 let currentTeam = null;
 
+// ═══════════════════════════════════════
+//  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ═══════════════════════════════════════
+
 // Проверка подписки команды
 async function checkTeamSubscription(teamId) {
   const { data, error } = await supabase
@@ -29,8 +33,44 @@ async function checkTeamSubscription(teamId) {
   return true;
 }
 
-// Регистрация устройства
+// Подсчёт активных пользователей (онлайн прямо сейчас)
+async function getActiveUsersCount(teamId) {
+  // Активным считается устройство, которое было активно в последние 5 минут
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  
+  const { count, error } = await supabase
+    .from('devices')
+    .select('*', { count: 'exact', head: true })
+    .eq('team_id', teamId)
+    .eq('is_active', true)
+    .gte('last_active', fiveMinutesAgo.toISOString());
+  
+  if (error) {
+    console.error('Ошибка подсчёта активных пользователей:', error);
+    return 0;
+  }
+  
+  return count || 0;
+}
+
+// Обновление времени последней активности устройства
+async function updateDeviceActivity(deviceId, teamId) {
+  const { error } = await supabase
+    .from('devices')
+    .update({ last_active: new Date() })
+    .eq('device_id', deviceId)
+    .eq('team_id', teamId);
+  
+  if (error) {
+    console.error('Ошибка обновления активности устройства:', error);
+  }
+}
+
+// Регистрация или обновление устройства
 async function registerDevice(teamId) {
+  const maxActiveUsers = 5; // Максимум 5 одновременных пользователей
+  
+  // Проверяем существующее устройство
   const { data: existing } = await supabase
     .from('devices')
     .select('*')
@@ -38,27 +78,21 @@ async function registerDevice(teamId) {
     .single();
   
   if (existing) {
-    await supabase
-      .from('devices')
-      .update({ last_active: new Date(), is_active: true })
-      .eq('device_id', DEVICE_ID);
+    // Устройство уже зарегистрировано — просто обновляем активность
+    await updateDeviceActivity(DEVICE_ID, teamId);
     return true;
   }
   
-  const { count } = await supabase
-    .from('devices')
-    .select('*', { count: 'exact', head: true })
-    .eq('team_id', teamId)
-    .eq('is_active', true);
+  // Проверяем, сколько активных пользователей сейчас
+  const activeUsers = await getActiveUsersCount(teamId);
   
-  const maxDevices = 5;
-  
-  if (count >= maxDevices) {
-    alert(`❌ Превышен лимит устройств (${maxDevices}).`);
+  if (activeUsers >= maxActiveUsers) {
+    alert(`❌ Слишком много активных пользователей (${maxActiveUsers}).\nПодождите, пока кто-то выйдет из системы.`);
     return false;
   }
   
-  await supabase
+  // Регистрируем новое устройство
+  const { error } = await supabase
     .from('devices')
     .insert({
       device_id: DEVICE_ID,
@@ -67,10 +101,20 @@ async function registerDevice(teamId) {
       is_active: true
     });
   
+  if (error) {
+    console.error('Ошибка регистрации устройства:', error);
+    alert('Ошибка регистрации устройства');
+    return false;
+  }
+  
   return true;
 }
 
-// Вход
+// ═══════════════════════════════════════
+//  ОСНОВНЫЕ ФУНКЦИИ ВХОДА/ВЫХОДА
+// ═══════════════════════════════════════
+
+// Вход в систему
 async function handleLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
@@ -83,6 +127,7 @@ async function handleLogin() {
   }
   
   try {
+    // Аутентификация через Supabase Auth
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password
@@ -114,28 +159,39 @@ async function handleLogin() {
     
     if (userError || !userData) {
       alert('Пользователь не найден в системе. Обратитесь к администратору.');
+      await supabase.auth.signOut();
       return;
     }
     
     // Проверяем подписку команды
     const subscriptionOk = await checkTeamSubscription(userData.team_id);
-    if (!subscriptionOk) return;
+    if (!subscriptionOk) {
+      await supabase.auth.signOut();
+      return;
+    }
     
-    // Регистрируем устройство
+    // Регистрируем устройство (с проверкой лимита одновременных пользователей)
     const deviceOk = await registerDevice(userData.team_id);
-    if (!deviceOk) return;
+    if (!deviceOk) {
+      await supabase.auth.signOut();
+      return;
+    }
     
     currentTeam = { id: userData.team_id, role: userData.role };
     
     // Сохраняем сессию
     localStorage.setItem('user_logged_in', 'true');
     localStorage.setItem('user_email', email);
+    localStorage.setItem('user_role', userData.role);
     
     // Показываем приложение
     document.getElementById('loginModal').classList.add('hidden');
     document.getElementById('app').style.display = 'block';
     
-    // Инициализируем приложение если функция существует
+    // Запускаем периодическое обновление активности
+    startActivityPing(userData.team_id);
+    
+    // Инициализируем приложение
     if (typeof initApp === 'function') {
       initApp();
     }
@@ -146,74 +202,151 @@ async function handleLogin() {
   }
 }
 
-// Выход
+// Периодическое обновление активности (каждые 30 секунд)
+let activityInterval = null;
+
+function startActivityPing(teamId) {
+  if (activityInterval) clearInterval(activityInterval);
+  
+  activityInterval = setInterval(async () => {
+    if (currentUser && currentTeam) {
+      await updateDeviceActivity(DEVICE_ID, teamId);
+      console.log('🔄 Активность обновлена');
+    }
+  }, 30000); // каждые 30 секунд
+}
+
+function stopActivityPing() {
+  if (activityInterval) {
+    clearInterval(activityInterval);
+    activityInterval = null;
+  }
+}
+
+// Выход из системы
 async function logout() {
   try {
+    // Деактивируем устройство
     await supabase
       .from('devices')
       .update({ is_active: false })
       .eq('device_id', DEVICE_ID);
-  } catch(e) { console.error(e); }
+    
+    console.log('🔌 Устройство деактивировано');
+  } catch(e) { 
+    console.error('Ошибка при деактивации устройства:', e); 
+  }
   
+  // Выход из Supabase Auth
   await supabase.auth.signOut();
   
+  // Останавливаем пинг активности
+  stopActivityPing();
+  
+  // Очищаем переменные
   currentUser = null;
   currentTeam = null;
   
+  // Очищаем localStorage
   localStorage.removeItem('user_logged_in');
   localStorage.removeItem('user_email');
+  localStorage.removeItem('user_role');
   
+  // Показываем модалку входа
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginModal').classList.remove('hidden');
   
-  // Очистка полей
+  // Очищаем поля ввода
   const emailInput = document.getElementById('loginEmail');
   const passInput = document.getElementById('loginPassword');
   if (emailInput) emailInput.value = '';
   if (passInput) passInput.value = '';
+  
+  console.log('👋 Выход выполнен');
 }
 
-// Проверка сессии при загрузке
+// ═══════════════════════════════════════
+//  ПРОВЕРКА СЕССИИ ПРИ ЗАГРУЗКЕ
+// ═══════════════════════════════════════
+
 async function checkSession() {
   const loggedIn = localStorage.getItem('user_logged_in');
   console.log('Проверка сессии, loggedIn:', loggedIn);
   
   if (loggedIn === 'true') {
     const { data } = await supabase.auth.getSession();
-    console.log('Текущая сессия:', data.session);
+    console.log('Текущая сессия:', data.session ? 'активна' : 'отсутствует');
     
     if (data.session) {
       currentUser = data.session.user;
       
-      const { data: userData } = await supabase
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('team_id, role')
         .eq('id', currentUser.id)
         .single();
       
+      if (userError) {
+        console.error('Ошибка получения данных пользователя:', userError);
+      }
+      
       if (userData) {
+        // Проверяем подписку
         const subOk = await checkTeamSubscription(userData.team_id);
-        if (subOk) {
-          const deviceOk = await registerDevice(userData.team_id);
-          if (deviceOk) {
-            document.getElementById('loginModal').classList.add('hidden');
-            document.getElementById('app').style.display = 'block';
-            if (typeof initApp === 'function') initApp();
-            return;
-          }
+        if (!subOk) {
+          await logout();
+          return;
         }
+        
+        // Проверяем/регистрируем устройство
+        const deviceOk = await registerDevice(userData.team_id);
+        if (!deviceOk) {
+          await logout();
+          return;
+        }
+        
+        currentTeam = { id: userData.team_id, role: userData.role };
+        
+        // Запускаем пинг активности
+        startActivityPing(userData.team_id);
+        
+        // Показываем приложение
+        document.getElementById('loginModal').classList.add('hidden');
+        document.getElementById('app').style.display = 'block';
+        
+        // Инициализируем приложение
+        if (typeof initApp === 'function') {
+          initApp();
+        }
+        return;
       }
     }
   }
   
+  // Если сессия недействительна — показываем вход
   document.getElementById('loginModal').classList.remove('hidden');
   document.getElementById('app').style.display = 'none';
 }
 
-// Кнопка выхода
+// ═══════════════════════════════════════
+//  ЗАПУСК ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
+// ═══════════════════════════════════════
+
 document.addEventListener('DOMContentLoaded', () => {
+  // Кнопка выхода
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) logoutBtn.onclick = logout;
   
+  // Проверяем сессию
   checkSession();
+});
+
+// При закрытии вкладки/браузера — деактивируем устройство
+window.addEventListener('beforeunload', async () => {
+  if (currentUser && currentTeam) {
+    await supabase
+      .from('devices')
+      .update({ is_active: false })
+      .eq('device_id', DEVICE_ID);
+  }
 });
