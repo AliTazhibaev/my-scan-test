@@ -13,10 +13,10 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 function getDeviceFingerprint() {
   let fingerprint = localStorage.getItem('device_fingerprint');
   if (!fingerprint) {
-    const screen = `${screen.width}x${screen.height}`;
+    const scr = `${screen.width}x${screen.height}`;
     const userAgent = navigator.userAgent;
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    fingerprint = btoa(`${screen}|${userAgent}|${timezone}|${Date.now()}`).substring(0, 32);
+    fingerprint = btoa(`${scr}|${userAgent}|${timezone}|${Date.now()}`).substring(0, 32);
     localStorage.setItem('device_fingerprint', fingerprint);
   }
   return fingerprint;
