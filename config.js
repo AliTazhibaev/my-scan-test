@@ -2,7 +2,7 @@
 //  КОНФИГУРАЦИЯ SUPABASE
 // ═══════════════════════════════════════
 
-const SUPABASE_URL = 'https://bobrkqxeqvkotozyzdp.supabase.co';
+const SUPABASE_URL = 'https://bobrkcqxeqvkotloyzdp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvYnJrY3F4ZXF2a290bG95emRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMDYxODQsImV4cCI6MjA5NjU4MjE4NH0.Fj9hCayj3j5TcmIXFlI2qmOEtE9d03ILxjxlrs3e4Zw';
 
 // ГЛОБАЛЬНЫЙ supabase (без промедлений)
