@@ -11,14 +11,23 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let supabase = null;
 
 function initSupabase() {
+  console.log('🔍 Проверка Supabase... window.supabase:', !!window.supabase);
+  
   if (!window.supabase) {
-    setTimeout(initSupabase, 50);
+    console.log('⏳ Supabase еще не загрузилась, повторная попытка через 100мс...');
+    setTimeout(initSupabase, 100);
     return;
   }
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  console.log('✓ Supabase инициализирован');
+  
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('✅ Supabase успешно инициализирован');
+  } catch (err) {
+    console.error('❌ Ошибка инициализации Supabase:', err);
+  }
 }
 
+// Запускаем инициализацию
 initSupabase();
 
 // Генерация уникального ID устройства (fingerprint)

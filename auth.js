@@ -116,7 +116,13 @@ async function registerDevice(teamId) {
 
 // Вход в систему
 async function handleLogin() {
-  // Проверяем, что Supabase загрузился
+  // Ждем инициализации Supabase (максимум 5 секунд)
+  let attempts = 0;
+  while (!supabase && attempts < 50) {
+    await new Promise(r => setTimeout(r, 100));
+    attempts++;
+  }
+  
   if (!supabase) {
     alert('Ошибка: Supabase не загрузился. Перезагрузите страницу.');
     console.error('supabase не инициализирован');
