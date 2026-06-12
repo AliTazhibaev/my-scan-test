@@ -116,6 +116,13 @@ async function registerDevice(teamId) {
 
 // Вход в систему
 async function handleLogin() {
+  // Проверяем, что Supabase загрузился
+  if (!supabase) {
+    alert('Ошибка: Supabase не загрузился. Перезагрузите страницу.');
+    console.error('supabase не инициализирован');
+    return;
+  }
+  
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   
@@ -270,6 +277,18 @@ async function logout() {
 // ═══════════════════════════════════════
 
 async function checkSession() {
+  // Ждем инициализации Supabase
+  let attempts = 0;
+  while (!supabase && attempts < 100) {
+    await new Promise(r => setTimeout(r, 50));
+    attempts++;
+  }
+  
+  if (!supabase) {
+    console.error('Supabase не загрузился');
+    return;
+  }
+  
   const loggedIn = localStorage.getItem('user_logged_in');
   console.log('Проверка сессии, loggedIn:', loggedIn);
   
@@ -343,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // При закрытии вкладки/браузера — деактивируем устройство
 window.addEventListener('beforeunload', async () => {
-  if (currentUser && currentTeam) {
+  if (supabase && currentUser && currentTeam) {
     await supabase
       .from('devices')
       .update({ is_active: false })
