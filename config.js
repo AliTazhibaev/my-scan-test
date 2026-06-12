@@ -6,17 +6,29 @@
 const SUPABASE_URL = 'https://bobrkcqxeqvkotloyzdp.supabase.co/rest/v1/';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvYnJrY3F4ZXF2a290bG95emRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMDYxODQsImV4cCI6MjA5NjU4MjE4NH0.Fj9hCayj3j5TcmIXFlI2qmOEtE9d03ILxjxlrs3e4Zw';
 
-// Инициализация Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Инициализация Supabase с проверкой загрузки библиотеки
+let supabase = null;
+
+function initSupabase() {
+  if (!window.supabase) {
+    setTimeout(initSupabase, 50);
+    return;
+  }
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  console.log('✓ Supabase инициализирован');
+}
+
+initSupabase();
 
 // Генерация уникального ID устройства (fingerprint)
 function getDeviceFingerprint() {
   let fingerprint = localStorage.getItem('device_fingerprint');
   if (!fingerprint) {
-    const scr = `${screen.width}x${screen.height}`;
+    const screen = `${screen.width}x${screen.height}`;
     const userAgent = navigator.userAgent;
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    fingerprint = btoa(`${scr}|${userAgent}|${timezone}|${Date.now()}`).substring(0, 32);
+    fingerprint = btoa(`${screen}|${userAgent}|${timezone}|${Date.now()}`).substring(0, 32);
     localStorage.setItem('device_fingerprint', fingerprint);
   }
   return fingerprint;
