@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Basis Scan — 3D сборочный сканер мебели</title>
+  <title>Basis Scan — 3D сканер мебели</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
@@ -15,17 +15,15 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'SF Pro Text', sans-serif;
-      background: #121212;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0c12;
       overflow: hidden;
       position: fixed;
-      top: 0;
-      left: 0;
       width: 100%;
       height: 100%;
     }
 
-    /* 3D canvas на весь экран */
+    /* 3D canvas - полный экран, ничто не перекрывает */
     #canvas3d {
       position: absolute;
       top: 0;
@@ -37,208 +35,216 @@
       touch-action: none;
     }
 
-    /* ========== НИЖНИЙ ТУЛБАР (НОВАЯ СИСТЕМА) ========== */
-    .bottom-toolbar {
+    /* ========== ВЕРТИКАЛЬНАЯ ПАНЕЛЬ КНОПОК (СЛЕВА, НЕ МЕШАЕТ) ========== */
+    .side-buttons {
       position: fixed;
-      bottom: 16px;
-      left: 16px;
-      right: 16px;
-      background: rgba(24, 24, 36, 0.85);
-      backdrop-filter: blur(20px);
-      border-radius: 40px;
-      padding: 8px 16px;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
       display: flex;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 25;
-      border: 0.5px solid rgba(0, 212, 255, 0.2);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
     }
 
-    .toolbar-btn {
-      background: transparent;
-      border: none;
-      width: 48px;
-      height: 48px;
-      border-radius: 30px;
+    .side-btn {
+      background: rgba(16, 18, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border: 0.5px solid rgba(0, 212, 255, 0.25);
+      width: 50px;
+      height: 50px;
+      border-radius: 28px;
       font-size: 22px;
       cursor: pointer;
-      color: #aaa;
+      color: #0cf;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.15s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-      box-shadow: none;
+      transition: 0.1s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
-    .toolbar-btn:active {
-      transform: scale(0.92);
-      background: rgba(0, 212, 255, 0.15);
-      color: #00d4ff;
+    .side-btn:active {
+      transform: scale(0.94);
+      background: #0cf;
+      color: #000;
     }
 
-    .toolbar-btn.active {
-      color: #00d4ff;
-      background: rgba(0, 212, 255, 0.12);
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.2), 0 1px 1px rgba(255,255,255,0.05);
+    .side-btn.active {
+      background: rgba(0, 212, 255, 0.25);
+      border-color: #0cf;
     }
 
-    /* ========== КОМПАКТНАЯ BOTTOM SHEET (над тулбаром) ========== */
-    .info-sheet {
+    /* КНОПКА МЕНЮ (СПРАВА ВВЕРХУ) */
+    .menu-btn {
       position: fixed;
-      bottom: 88px;
-      left: 16px;
+      top: 16px;
       right: 16px;
-      background: rgba(18, 18, 24, 0.96);
-      backdrop-filter: blur(28px);
+      background: rgba(16, 18, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border: 0.5px solid rgba(0, 212, 255, 0.25);
+      width: 48px;
+      height: 48px;
       border-radius: 28px;
-      transform: translateY(120%);
-      transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.2);
+      font-size: 22px;
       z-index: 20;
-      border: 0.5px solid rgba(0, 212, 255, 0.2);
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
-      pointer-events: auto;
-      max-height: 30vh;
+      color: #0cf;
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
     }
 
-    .info-sheet.open {
+    .menu-btn:active {
+      transform: scale(0.95);
+      background: #0cf;
+      color: #000;
+    }
+
+    /* ========== НИЖНЯЯ ИНФО-ПАНЕЛЬ (НЕ ПЕРЕКРЫВАЕТ 3D) ========== */
+    .bottom-sheet {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(12, 14, 20, 0.96);
+      backdrop-filter: blur(24px);
+      border-radius: 24px 24px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+      z-index: 15;
+      border-top: 0.5px solid rgba(0, 212, 255, 0.25);
+      pointer-events: auto;
+    }
+
+    .bottom-sheet.open {
       transform: translateY(0);
     }
 
     .sheet-handle {
-      width: 36px;
+      width: 40px;
       height: 4px;
-      background: rgba(255, 255, 255, 0.25);
+      background: rgba(255,255,255,0.25);
       border-radius: 4px;
-      margin: 12px auto 8px;
+      margin: 10px auto 6px;
     }
 
-    .info-header {
+    .sheet-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 6px 20px 4px 20px;
+      padding: 4px 20px 8px 20px;
     }
 
-    .info-title {
+    .sheet-title {
       font-size: 12px;
       font-weight: 500;
-      color: #00d4ff;
+      color: #0cf;
       letter-spacing: 0.5px;
-      text-transform: uppercase;
     }
 
-    .info-close {
+    .sheet-close {
       background: none;
       border: none;
       color: #888;
       font-size: 20px;
       cursor: pointer;
-      padding: 0 6px;
-      opacity: 0.7;
+      padding: 0 8px;
     }
 
-    .info-content {
-      padding: 6px 20px 20px 20px;
+    .sheet-content {
+      padding: 8px 20px 20px 20px;
+      max-height: 32vh;
       overflow-y: auto;
-      flex: 1;
     }
 
-    /* Стили карточки детали — строгая структура */
-    .detail-block {
+    /* Карточка детали — компактная */
+    .detail-card {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
-    .row-header {
+    .detail-row {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin-bottom: 4px;
+      flex-wrap: wrap;
     }
 
-    .part-position {
-      font-size: 13px;
+    .detail-position {
+      font-size: 14px;
       font-weight: 600;
       color: #fff;
     }
 
-    .part-code {
+    .detail-code {
       font-size: 11px;
-      color: #00d4ff;
+      color: #0cf;
       font-family: monospace;
     }
 
-    .part-name {
-      font-size: 14px;
-      font-weight: 500;
-      color: #ddd;
-      margin-bottom: 6px;
+    .detail-name {
+      font-size: 13px;
+      color: #ccc;
+      margin-bottom: 4px;
     }
 
-    .dimensions-row {
+    .dims {
       display: flex;
-      gap: 16px;
+      gap: 12px;
       margin: 6px 0;
     }
 
     .dim {
       background: rgba(255,255,255,0.06);
-      border-radius: 30px;
+      border-radius: 20px;
       padding: 4px 12px;
-      font-size: 12px;
+      font-size: 11px;
     }
 
-    .dim strong {
-      font-weight: 500;
-      color: #aaa;
-    }
+    .dim span:first-child { color: #888; }
+    .dim span:last-child { color: #0cf; font-weight: 500; }
 
-    .dim span {
-      color: #00d4ff;
-      font-weight: 500;
-      margin-left: 6px;
-    }
-
-    .material-badge {
+    .material {
       font-size: 10px;
       color: #ff9f6e;
-      background: rgba(255, 140, 90, 0.12);
+      background: rgba(255,140,90,0.12);
       padding: 4px 12px;
       border-radius: 20px;
       display: inline-block;
       width: fit-content;
     }
 
-    .status-badge {
+    .status {
       font-size: 11px;
-      margin: 6px 0 4px;
+      margin: 4px 0;
     }
-    .status-scanned { color: #2effb0; }
-    .status-wait { color: #ffc107; }
+    .status.scanned { color: #2effb0; }
+    .status.wait { color: #ffc107; }
 
-    .action-row {
+    .action-buttons {
       display: flex;
-      gap: 12px;
-      margin-top: 8px;
+      gap: 10px;
+      margin-top: 10px;
     }
 
-    .chip-btn {
+    .action-btn {
       flex: 1;
-      background: rgba(255, 255, 255, 0.06);
-      border: 0.5px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255,255,255,0.06);
+      border: 0.5px solid rgba(255,255,255,0.08);
       padding: 8px 0;
-      border-radius: 36px;
+      border-radius: 30px;
       font-size: 12px;
-      color: #ccc;
+      color: #ddd;
       text-align: center;
       cursor: pointer;
-      transition: 0.1s;
     }
-    .chip-btn:active { background: rgba(0,212,255,0.2); color: #00d4ff; }
+
+    .action-btn:active {
+      background: rgba(0,212,255,0.2);
+      color: #0cf;
+    }
 
     /* Шторка списка деталей */
     .drawer {
@@ -247,8 +253,8 @@
       left: 0;
       bottom: 0;
       width: 85%;
-      max-width: 360px;
-      background: rgba(18, 18, 24, 0.98);
+      max-width: 340px;
+      background: rgba(12, 14, 20, 0.98);
       backdrop-filter: blur(28px);
       transform: translateX(-100%);
       transition: transform 0.25s ease;
@@ -263,7 +269,7 @@
     .drawer-header {
       display: flex;
       justify-content: space-between;
-      padding: 24px 20px 16px;
+      padding: 20px 18px 16px;
       border-bottom: 0.5px solid rgba(255,255,255,0.1);
     }
 
@@ -284,61 +290,60 @@
     .upload-btn {
       width: 100%;
       background: rgba(0,212,255,0.12);
-      border: 0.5px solid rgba(0,212,255,0.4);
+      border: 0.5px dashed #0cf;
       padding: 14px;
-      border-radius: 40px;
-      color: #00d4ff;
+      border-radius: 32px;
+      color: #0cf;
       font-size: 14px;
       text-align: center;
       margin-bottom: 20px;
       cursor: pointer;
-      font-weight: 500;
     }
 
     .part-item {
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 12px;
-      background: rgba(255,255,255,0.03);
-      border-radius: 24px;
-      margin-bottom: 10px;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 20px;
+      margin-bottom: 8px;
       cursor: pointer;
-      transition: 0.05s linear;
     }
 
     .part-item.active {
-      background: rgba(0,212,255,0.12);
-      border-left: 3px solid #00d4ff;
+      background: rgba(0,212,255,0.15);
+      border-left: 3px solid #0cf;
     }
 
     .part-swatch {
-      width: 40px;
-      height: 40px;
-      border-radius: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
     }
 
     .part-info { flex: 1; }
-    .part-name { font-size: 14px; font-weight: 500; }
-    .part-code { font-size: 11px; color: #00d4ff; margin-top: 2px; }
-    .check { font-size: 20px; }
+    .part-name { font-size: 13px; font-weight: 500; }
+    .part-code { font-size: 10px; color: #0cf; margin-top: 2px; }
+    .check { font-size: 18px; }
     .check.done { color: #2effb0; }
+    .hidden-part { opacity: 0.4; }
 
-    /* Модалка QR */
+    /* Модалка сканера */
     .modal {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.96);
+      background: rgba(0,0,0,0.95);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 100;
+      z-index: 50;
     }
     .modal.hidden { display: none; }
     .modal-box {
-      background: #1a1a24;
-      border-radius: 40px;
-      padding: 24px;
+      background: #141722;
+      border-radius: 32px;
+      padding: 20px;
       width: 90%;
       max-width: 340px;
     }
@@ -346,17 +351,31 @@
       width: 100%;
       aspect-ratio: 1/1;
       object-fit: cover;
-      border-radius: 24px;
-      border: 2px solid #00d4ff;
+      border-radius: 20px;
+      border: 2px solid #0cf;
     }
     .input-field {
       width: 100%;
       padding: 12px;
       margin: 12px 0;
-      background: #252532;
+      background: #1e2432;
       border: none;
-      border-radius: 32px;
+      border-radius: 30px;
       color: white;
+    }
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #000c;
+      backdrop-filter: blur(12px);
+      padding: 8px 20px;
+      border-radius: 40px;
+      color: #0cf;
+      font-size: 13px;
+      z-index: 100;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -364,54 +383,56 @@
 
 <canvas id="canvas3d"></canvas>
 
-<!-- НИЖНИЙ ТУЛБАР (ГЛАВНЫЙ) -->
-<div class="bottom-toolbar">
-  <button class="toolbar-btn" id="menuBtn">☰</button>
-  <button class="toolbar-btn" id="scanBtn">📷</button>
-  <button class="toolbar-btn" id="xrayBtn">🔮</button>
-  <button class="toolbar-btn" id="rotateBtn">⟳</button>
-  <button class="toolbar-btn" id="resetViewBtn">⌂</button>
+<!-- КНОПКИ УПРАВЛЕНИЯ (ВЕРТИКАЛЬНО СЛЕВА) -->
+<div class="side-buttons">
+  <button class="side-btn" id="scanBtn">📷</button>
+  <button class="side-btn" id="xrayBtn">🔮</button>
+  <button class="side-btn" id="rotateBtn">⟳</button>
+  <button class="side-btn" id="resetViewBtn">⌂</button>
 </div>
 
-<!-- BOTTOM SHEET (ИНФОРМАЦИЯ О ДЕТАЛИ) -->
-<div id="infoSheet" class="info-sheet">
+<!-- КНОПКА МЕНЮ (СПРАВА ВВЕРХУ) -->
+<div class="menu-btn" id="menuBtn">☰</div>
+
+<!-- НИЖНЯЯ ПАНЕЛЬ ИНФОРМАЦИИ -->
+<div id="bottomSheet" class="bottom-sheet">
   <div class="sheet-handle"></div>
-  <div class="info-header">
-    <span class="info-title">Информация о детали</span>
-    <button class="info-close" id="closeInfoBtn">✕</button>
+  <div class="sheet-header">
+    <span class="sheet-title">ДЕТАЛЬ</span>
+    <button class="sheet-close" id="closeSheetBtn">✕</button>
   </div>
-  <div id="infoContent" class="info-content">
-    <div style="text-align:center;color:#666;padding:12px">👆 Нажмите на деталь в 3D</div>
+  <div id="sheetContent" class="sheet-content">
+    <div style="text-align:center;color:#666;padding:16px">👆 Нажмите на деталь в 3D</div>
   </div>
 </div>
 
-<!-- ШТОРКА (СПИСОК ДЕТАЛЕЙ) -->
+<!-- ШТОРКА СПИСКА ДЕТАЛЕЙ -->
 <div id="drawer" class="drawer">
   <div class="drawer-header">
-    <span style="font-weight:600;">📋 Спецификация</span>
+    <span>📋 СПЕЦИФИКАЦИЯ</span>
     <button class="drawer-close" id="closeDrawerBtn">✕</button>
   </div>
   <div class="drawer-content">
-    <div class="upload-btn" id="uploadBtn">📂 Загрузить JSON (Базис)</div>
-    <div id="partsListContainer"></div>
+    <div class="upload-btn" id="uploadBtn">📂 ЗАГРУЗИТЬ JSON</div>
+    <div id="partsList"></div>
   </div>
   <input type="file" id="fileInput" accept=".json" hidden>
 </div>
 
-<!-- QR СКАНЕР МОДАЛ -->
+<!-- QR СКАНЕР -->
 <div id="scannerModal" class="modal hidden">
   <div class="modal-box">
-    <div style="color:#00d4ff; text-align:center; margin-bottom:12px;">📷 Сканирование QR</div>
+    <div style="color:#0cf; text-align:center; margin-bottom:12px;">📷 НАВЕДИТЕ НА QR</div>
     <video id="video" autoplay playsinline></video>
     <canvas id="qrCanvas" hidden></canvas>
-    <input type="text" id="manualCode" placeholder="Ввести артикул вручную" class="input-field">
-    <button id="manualSubmit" style="width:100%;padding:12px;background:#00d4ff;border:none;border-radius:32px;font-weight:bold;">Найти</button>
-    <button id="closeScannerBtn" style="width:100%;margin-top:8px;background:#2c2c3a;border:none;border-radius:32px;padding:12px;color:white;">Закрыть</button>
+    <input type="text" id="manualCode" placeholder="Или введите артикул" class="input-field">
+    <button id="manualSubmit" style="width:100%;padding:12px;background:#0cf;border:none;border-radius:30px;font-weight:bold;">Проверить</button>
+    <button id="closeScannerBtn" style="width:100%;margin-top:8px;padding:12px;background:#2c3e44;border:none;border-radius:30px;color:white;">Закрыть</button>
   </div>
 </div>
 
 <script>
-  // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+  // ========== ПЕРЕМЕННЫЕ ==========
   let parts = [];
   let selectedId = null;
   let scannedSet = new Set();
@@ -424,53 +445,42 @@
   let target = new THREE.Vector3(0, 0.5, 0);
   let isDragging = false, prevMouse = { x: 0, y: 0 };
   let autoRotate = false;
-
-  // Плавный зум
   let isSmoothZoom = false;
-  let zoomTargetPos = new THREE.Vector3();
-  let zoomStartPos = new THREE.Vector3();
-  let zoomStartTarget = new THREE.Vector3();
-  let zoomProgress = 0;
+  let zoomTarget = new THREE.Vector3();
 
-  // ==================== THREE.JS ИНИЦИАЛИЗАЦИЯ ====================
+  // ========== THREE.JS ИНИЦИАЛИЗАЦИЯ ==========
   const canvas = document.getElementById('canvas3d');
+  
   function initThree() {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x121212);
-    scene.fog = new THREE.FogExp2(0x121212, 0.015);
-
-    camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.01, 100);
+    scene.background = new THREE.Color(0x0a0c12);
+    scene.fog = new THREE.FogExp2(0x0a0c12, 0.02);
+    
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
     camera.position.set(3, 2.5, 3);
-
-    // Освещение премиум
+    
+    // Освещение
     const ambient = new THREE.AmbientLight(0x404060);
     scene.add(ambient);
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    mainLight.position.set(5, 8, 4);
+    const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    mainLight.position.set(5, 10, 5);
     scene.add(mainLight);
-    const backLight = new THREE.DirectionalLight(0x88aaff, 0.45);
-    backLight.position.set(-3, 2, -4);
-    scene.add(backLight);
-    const fillLight = new THREE.PointLight(0x4466aa, 0.25);
-    fillLight.position.set(1, 1.5, 2);
+    const fillLight = new THREE.DirectionalLight(0x88aaff, 0.4);
+    fillLight.position.set(-3, 2, -4);
     scene.add(fillLight);
     
-    const grid = new THREE.GridHelper(6, 18, 0x3a4a6a, 0x2a3a5a);
+    const grid = new THREE.GridHelper(6, 20, 0x2a4a6a, 0x1a2a3a);
     grid.position.y = -0.02;
     scene.add(grid);
     
     setupControls();
     animate();
   }
-
-  // ==================== УПРАВЛЕНИЕ (ТАЧИ + МЫШЬ) ====================
-  let touchStartPos = null;
-  let isPinching = false;
-  let pinchStartDist = 0, pinchStartCamDist = 0;
-
+  
   function setupControls() {
     canvas.addEventListener('touchstart', onTouchStart, { passive: false });
     canvas.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -480,7 +490,11 @@
     window.addEventListener('mouseup', onMouseUp);
     canvas.addEventListener('wheel', onWheel);
   }
-
+  
+  let touchStartPos = null;
+  let isPinching = false;
+  let pinchStartDist = 0, pinchStartCamDist = 0;
+  
   function onTouchStart(e) {
     e.preventDefault();
     const touches = e.touches;
@@ -497,26 +511,24 @@
       pinchStartCamDist = camDist;
     }
   }
-
+  
   function onTouchMove(e) {
     e.preventDefault();
     const touches = e.touches;
     if (touches.length === 1 && isDragging) {
-      const deltaX = touches[0].clientX - prevMouse.x;
-      const deltaY = touches[0].clientY - prevMouse.y;
-      theta -= deltaX * 0.007;
-      phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - deltaY * 0.007));
+      theta -= (touches[0].clientX - prevMouse.x) * 0.008;
+      phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - (touches[0].clientY - prevMouse.y) * 0.008));
       prevMouse = { x: touches[0].clientX, y: touches[0].clientY };
-      updateCameraTransform();
+      updateCamera();
     } else if (touches.length === 2 && isPinching) {
       const dx = touches[0].clientX - touches[1].clientX;
       const dy = touches[0].clientY - touches[1].clientY;
       const dist = Math.hypot(dx, dy);
-      camDist = Math.max(0.6, Math.min(12, pinchStartCamDist + (pinchStartDist - dist) * 0.012));
-      updateCameraTransform();
+      camDist = Math.max(0.5, Math.min(12, pinchStartCamDist + (pinchStartDist - dist) * 0.015));
+      updateCamera();
     }
   }
-
+  
   function onTouchEnd(e) {
     // Определяем тап (если палец не двигался)
     if (touchStartPos && !isDragging && !isPinching) {
@@ -532,73 +544,77 @@
     isPinching = false;
     touchStartPos = null;
   }
-
+  
   function onMouseDown(e) {
-    if (e.button === 0) { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; autoRotate = false; }
+    if (e.button === 0) {
+      isDragging = true;
+      prevMouse = { x: e.clientX, y: e.clientY };
+      autoRotate = false;
+    }
   }
+  
   function onMouseMove(e) {
     if (!isDragging) return;
     theta -= (e.clientX - prevMouse.x) * 0.005;
     phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - (e.clientY - prevMouse.y) * 0.005));
     prevMouse = { x: e.clientX, y: e.clientY };
-    updateCameraTransform();
+    updateCamera();
   }
+  
   function onMouseUp() { isDragging = false; }
-  function onWheel(e) { camDist = Math.max(0.6, Math.min(12, camDist + camDist * e.deltaY * 0.001)); updateCameraTransform(); e.preventDefault(); }
-
-  function updateCameraTransform() {
+  
+  function onWheel(e) {
+    camDist = Math.max(0.5, Math.min(12, camDist + camDist * e.deltaY * 0.001));
+    updateCamera();
+    e.preventDefault();
+  }
+  
+  function updateCamera() {
     if (isSmoothZoom) return;
-    const x = target.x + camDist * Math.sin(phi) * Math.sin(theta);
-    const y = target.y + camDist * Math.cos(phi);
-    const z = target.z + camDist * Math.sin(phi) * Math.cos(theta);
-    camera.position.set(x, y, z);
+    camera.position.x = target.x + camDist * Math.sin(phi) * Math.sin(theta);
+    camera.position.y = target.y + camDist * Math.cos(phi);
+    camera.position.z = target.z + camDist * Math.sin(phi) * Math.cos(theta);
     camera.lookAt(target);
   }
-
-  // Raycaster с нормализацией координат
+  
+  // Плавное приближение
+  function startSmoothZoom(partId) {
+    const part = parts.find(p => p.id === partId);
+    if (!part || !part._pos) return;
+    zoomTarget.copy(new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
+    isSmoothZoom = true;
+    autoRotate = false;
+  }
+  
+  function animateSmoothZoom() {
+    if (!isSmoothZoom) return;
+    camera.position.lerp(zoomTarget, 0.12);
+    target.lerp(zoomTarget, 0.12);
+    camera.lookAt(target);
+    if (camera.position.distanceTo(zoomTarget) < 0.05) {
+      isSmoothZoom = false;
+      camDist = camera.position.distanceTo(target);
+    }
+  }
+  
+  // Рейкастинг для выбора детали
   function handleTap(clientX, clientY, rect) {
     const mouse = new THREE.Vector2();
     mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
     const visibleMeshes = Array.from(meshMap.values()).filter(m => m.visible === true);
     const hits = raycaster.intersectObjects(visibleMeshes);
-    if (hits.length) {
-      const partId = hits[0].object.userData.partId;
-      if (!hiddenSet.has(partId)) selectPart(partId);
+    
+    if (hits.length > 0) {
+      const hitId = hits[0].object.userData.partId;
+      if (!hiddenSet.has(hitId)) selectPart(hitId);
     }
   }
-
-  // =============== ПЛАВНЫЙ ПОЛЕТ КАМЕРЫ (LERP) ===============
-  function startSmoothZoom(partId) {
-    const part = parts.find(p => p.id === partId);
-    if (!part || !part._pos) return;
-    zoomTargetPos.copy(new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
-    zoomStartPos.copy(camera.position);
-    zoomStartTarget.copy(target);
-    isSmoothZoom = true;
-    zoomProgress = 0;
-    autoRotate = false;
-  }
-
-  function updateSmoothZoom() {
-    if (!isSmoothZoom) return;
-    zoomProgress += 0.09;
-    if (zoomProgress >= 1) {
-      isSmoothZoom = false;
-      target.copy(zoomTargetPos);
-      camDist = 0.7;
-      updateCameraTransform();
-      return;
-    }
-    const ease = 1 - Math.pow(1 - zoomProgress, 2);
-    camera.position.lerpVectors(zoomStartPos, zoomTargetPos, ease);
-    target.lerpVectors(zoomStartTarget, zoomTargetPos, ease);
-    camera.lookAt(target);
-  }
-
-  // ==================== ЗАГРУЗКА / ПОСТРОЕНИЕ СЦЕНЫ ====================
+  
+  // ========== ЗАГРУЗКА JSON И ПОСТРОЕНИЕ ==========
   function autoLayout(partsArr) {
     let minY = Infinity;
     partsArr.forEach(p => { if (p.pos && p.pos.y !== undefined) minY = Math.min(minY, p.pos.y); });
@@ -609,40 +625,40 @@
         const cols = Math.ceil(Math.sqrt(partsArr.length));
         const row = Math.floor(p.id / cols);
         const col = p.id % cols;
-        p._pos = { x: (col - cols/2) * 0.16, y: 0, z: (row - cols/2) * 0.16 };
-        p._size = { x: 0.09, y: 0.09, z: 0.09 };
+        p._pos = { x: (col - cols/2) * 0.15, y: 0, z: (row - cols/2) * 0.15 };
+        p._size = { x: 0.1, y: 0.1, z: 0.1 };
         return;
       }
       p._pos = { x: (p.pos.x + p.gab.w/2) * sc, y: (p.pos.y - minY + p.gab.h/2) * sc, z: (p.pos.z + p.gab.d/2) * sc };
-      p._size = { x: Math.max(p.gab.w,1)*sc, y: Math.max(p.gab.h,1)*sc, z: Math.max(p.gab.d,1)*sc };
+      p._size = { x: Math.max(p.gab.w,1) * sc, y: Math.max(p.gab.h,1) * sc, z: Math.max(p.gab.d,1) * sc };
     });
   }
-
+  
   function getColor(mat) {
     const m = (mat || '').toLowerCase();
-    if (m.includes('белый')) return '#e8e4db';
-    if (m.includes('дуб сонома')) return '#cdb38c';
-    if (m.includes('дуб')) return '#c2a070';
-    if (m.includes('венге')) return '#4a3422';
-    if (m.includes('графит')) return '#5a5e64';
-    if (m.includes('хром')) return '#cbd2db';
-    if (m.includes('кашемир')) return '#cfc4b6';
-    return '#a89a88';
+    if (m.includes('белый')) return '#ece7e0';
+    if (m.includes('дуб сонома')) return '#c8aa76';
+    if (m.includes('дуб')) return '#b89062';
+    if (m.includes('венге')) return '#3b2a1c';
+    if (m.includes('графит')) return '#4f5154';
+    if (m.includes('хром')) return '#bfc7d0';
+    if (m.includes('кашемир')) return '#c7bcac';
+    return '#9c8e7c';
   }
-
+  
   function buildScene() {
     meshMap.forEach(m => scene.remove(m));
     meshMap.clear();
     parts.forEach(p => {
-      const geometry = new THREE.BoxGeometry(p._size.x, p._size.y, p._size.z);
-      const material = new THREE.MeshStandardMaterial({
+      const geo = new THREE.BoxGeometry(p._size.x, p._size.y, p._size.z);
+      const mat = new THREE.MeshStandardMaterial({
         color: getColor(p.material),
         roughness: 0.55,
-        metalness: 0.12,
+        metalness: 0.1,
         emissive: new THREE.Color(0x000000),
         emissiveIntensity: 0
       });
-      const mesh = new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(p._pos.x, p._pos.y, p._pos.z);
       mesh.userData = { partId: p.id };
       scene.add(mesh);
@@ -651,7 +667,7 @@
     centerCamera();
     renderPartsList();
   }
-
+  
   function centerCamera() {
     if (!parts.length) return;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -666,11 +682,11 @@
     });
     target.set((minX+maxX)/2, (minY+maxY)/2, (minZ+maxZ)/2);
     const size = Math.max(maxX-minX, maxY-minY, maxZ-minZ);
-    camDist = Math.max(size * 1.5, 2.2);
-    updateCameraTransform();
+    camDist = Math.max(size * 1.5, 2);
+    updateCamera();
   }
-
-  // =============== ВЫБОР ДЕТАЛИ И ПОДСВЕТКА (EMISSIVE) ===============
+  
+  // ========== ВЫБОР ДЕТАЛИ И ПОДСВЕТКА ==========
   function selectPart(id) {
     selectedId = id;
     meshMap.forEach(mesh => {
@@ -679,47 +695,47 @@
     });
     const selected = meshMap.get(id);
     if (selected) {
-      selected.material.emissive.setHex(0x00aaff);
-      selected.material.emissiveIntensity = 0.6;
+      selected.material.emissive.setHex(0x00d4ff);
+      selected.material.emissiveIntensity = 0.55;
     }
     if (xrayActive) applyXray();
-    updateInfoPanel(parts.find(p => p.id === id));
+    updateSheet(parts.find(p => p.id === id));
     renderPartsList();
-    openInfoSheet();
+    openSheet();
   }
-
-  function updateInfoPanel(p) {
-    const container = document.getElementById('infoContent');
+  
+  function updateSheet(p) {
+    const container = document.getElementById('sheetContent');
     if (!p) {
-      container.innerHTML = '<div style="text-align:center;color:#666;padding:16px">👆 Нажмите на деталь</div>';
+      container.innerHTML = '<div style="text-align:center;color:#666;padding:16px">👆 Нажмите на деталь в 3D</div>';
       return;
     }
-    const scanned = scannedSet.has(p.id);
+    const isScanned = scannedSet.has(p.id);
     container.innerHTML = `
-      <div class="detail-block">
-        <div class="row-header">
-          <span class="part-position">📌 Позиция: ${p.name}</span>
-          <span class="part-code">${escapeHtml(p.code)}</span>
+      <div class="detail-card">
+        <div class="detail-row">
+          <span class="detail-position">📌 ${escapeHtml(p.name)}</span>
+          <span class="detail-code">${escapeHtml(p.code)}</span>
         </div>
-        <div class="dimensions-row">
-          <div class="dim"><strong>L</strong> <span>${p.L}</span></div>
-          <div class="dim"><strong>W</strong> <span>${p.W}</span></div>
-          <div class="dim"><strong>T</strong> <span>${p.T}</span></div>
+        <div class="dims">
+          <div class="dim"><span>Длина</span> <span>${p.L}</span></div>
+          <div class="dim"><span>Ширина</span> <span>${p.W}</span></div>
+          <div class="dim"><span>Толщина</span> <span>${p.T}</span></div>
         </div>
-        <div class="material-badge">${escapeHtml(p.material)}</div>
-        <div class="status-badge ${scanned ? 'status-scanned' : 'status-wait'}">${scanned ? '✅ Отсканировано' : '⏳ Ожидает сборки'}</div>
-        <div class="action-row">
-          <div class="chip-btn" id="hidePartBtn">🙈 Скрыть</div>
-          <div class="chip-btn" id="showAllFromSheet">👁 Показать всё</div>
-          <div class="chip-btn" id="zoomPartBtn">🔍 Приблизить</div>
+        <div class="material">${escapeHtml(p.material)}</div>
+        <div class="status ${isScanned ? 'scanned' : 'wait'}">${isScanned ? '✅ ОТСКАНИРОВАНО' : '⏳ ОЖИДАЕТ'}</div>
+        <div class="action-buttons">
+          <div class="action-btn" id="hideBtn">🙈 Скрыть</div>
+          <div class="action-btn" id="showAllBtn">👁 Показать всё</div>
+          <div class="action-btn" id="zoomBtn">🔍 Приблизить</div>
         </div>
       </div>
     `;
-    document.getElementById('hidePartBtn')?.addEventListener('click', (e) => { e.stopPropagation(); toggleVisibility(p.id); });
-    document.getElementById('showAllFromSheet')?.addEventListener('click', (e) => { e.stopPropagation(); showAllParts(); });
-    document.getElementById('zoomPartBtn')?.addEventListener('click', (e) => { e.stopPropagation(); startSmoothZoom(p.id); });
+    document.getElementById('hideBtn')?.addEventListener('click', (e) => { e.stopPropagation(); toggleVisibility(p.id); });
+    document.getElementById('showAllBtn')?.addEventListener('click', (e) => { e.stopPropagation(); showAllParts(); });
+    document.getElementById('zoomBtn')?.addEventListener('click', (e) => { e.stopPropagation(); startSmoothZoom(p.id); });
   }
-
+  
   function toggleVisibility(id) {
     const mesh = meshMap.get(id);
     if (!mesh) return;
@@ -731,24 +747,35 @@
       mesh.visible = false;
       if (selectedId === id) {
         selectedId = null;
-        updateInfoPanel(null);
-        closeInfoSheet();
+        updateSheet(null);
+        closeSheet();
       }
     }
     renderPartsList();
     if (xrayActive) applyXray();
   }
-
+  
   function showAllParts() {
     hiddenSet.clear();
     meshMap.forEach(mesh => { mesh.visible = true; });
-    if (selectedId === null) updateInfoPanel(null);
+    if (selectedId === null) updateSheet(null);
     renderPartsList();
     if (xrayActive) applyXray();
     showToast('👁 Все детали показаны');
   }
-
-  // =============== X-RAY РЕЖИМ ===============
+  
+  function applyXray() {
+    meshMap.forEach((mesh, id) => {
+      if (xrayActive && selectedId !== null && id !== selectedId && mesh.visible) {
+        mesh.material.transparent = true;
+        mesh.material.opacity = 0.2;
+      } else {
+        mesh.material.transparent = false;
+        mesh.material.opacity = 1;
+      }
+    });
+  }
+  
   function toggleXray() {
     xrayActive = !xrayActive;
     document.getElementById('xrayBtn').classList.toggle('active', xrayActive);
@@ -758,25 +785,13 @@
       applyXray();
     }
   }
-
-  function applyXray() {
-    meshMap.forEach((mesh, id) => {
-      if (xrayActive && selectedId !== null && id !== selectedId && mesh.visible) {
-        mesh.material.transparent = true;
-        mesh.material.opacity = 0.18;
-      } else {
-        mesh.material.transparent = false;
-        mesh.material.opacity = 1;
-      }
-    });
-  }
-
-  // =============== UI СПИСОК ===============
+  
+  // ========== UI ==========
   function renderPartsList() {
-    const container = document.getElementById('partsListContainer');
+    const container = document.getElementById('partsList');
     if (!container) return;
-    if (!parts.length) {
-      container.innerHTML = '<div style="padding:20px;text-align:center;color:#666">📁 Загрузите JSON-файл из Базис</div>';
+    if (parts.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:#666">📁 Загрузите JSON-файл</div>';
       return;
     }
     container.innerHTML = '';
@@ -797,21 +812,21 @@
       container.appendChild(div);
     });
   }
-
+  
   function showToast(msg) {
-    let el = document.getElementById('toastMsg');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'toastMsg';
-      el.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#000c;backdrop-filter:blur(12px);padding:8px 20px;border-radius:40px;color:#0cf;font-size:13px;z-index:200;pointer-events:none';
-      document.body.appendChild(el);
+    let toast = document.getElementById('customToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'customToast';
+      toast.className = 'toast';
+      document.body.appendChild(toast);
     }
-    el.textContent = msg;
-    el.style.opacity = '1';
-    setTimeout(() => el.style.opacity = '0', 2000);
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    setTimeout(() => toast.style.opacity = '0', 2000);
   }
-
-  // =============== QR СКАНЕР ===============
+  
+  // ========== QR СКАНЕР ==========
   let scanInterval, videoStream;
   function openScanner() {
     document.getElementById('scannerModal').classList.remove('hidden');
@@ -822,13 +837,15 @@
         video.srcObject = stream;
         video.play();
         startQRScan();
-      }).catch(() => alert('Нет доступа к камере'));
+      }).catch(() => alert('❌ Нет доступа к камере'));
   }
+  
   function closeScanner() {
     document.getElementById('scannerModal').classList.add('hidden');
     if (videoStream) videoStream.getTracks().forEach(t => t.stop());
     if (scanInterval) clearInterval(scanInterval);
   }
+  
   function startQRScan() {
     const video = document.getElementById('video');
     const qrCanvas = document.getElementById('qrCanvas');
@@ -840,15 +857,17 @@
       ctx.drawImage(video, 0, 0);
       const img = ctx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
       const code = jsQR(img.data, img.width, img.height);
-      if (code) { handleScanCode(code.data); closeScanner(); }
+      if (code) { handleScan(code.data); closeScanner(); }
     }, 200);
   }
+  
   function handleManualCode() {
     const code = document.getElementById('manualCode').value.trim();
-    if (code) handleScanCode(code);
+    if (code) handleScan(code);
     closeScanner();
   }
-  function handleScanCode(code) {
+  
+  function handleScan(code) {
     let found = parts.find(p => p.code === code || p.code.trim() === code.trim() || p.code.toLowerCase() === code.toLowerCase());
     if (!found) found = parts.find(p => code.includes(p.code) || p.code.includes(code));
     if (!found) { alert('❌ Деталь не найдена: ' + code); return; }
@@ -856,16 +875,16 @@
     selectPart(found.id);
     renderPartsList();
     startSmoothZoom(found.id);
-    showToast(`✅ ${found.name} отсканирована`);
+    showToast(`✅ ${found.name}`);
   }
-
-  function openInfoSheet() { document.getElementById('infoSheet').classList.add('open'); }
-  function closeInfoSheet() { document.getElementById('infoSheet').classList.remove('open'); }
+  
+  // ========== СОБЫТИЯ ИНТЕРФЕЙСА ==========
   function openDrawer() { document.getElementById('drawer').classList.add('open'); }
   function closeDrawer() { document.getElementById('drawer').classList.remove('open'); }
+  function openSheet() { document.getElementById('bottomSheet').classList.add('open'); }
+  function closeSheet() { document.getElementById('bottomSheet').classList.remove('open'); }
   function escapeHtml(str) { return (str || '').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
-
-  // ==================== ЗАГРУЗКА ФАЙЛА И СОБЫТИЯ ====================
+  
   document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
   document.getElementById('fileInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -885,38 +904,35 @@
         centerCamera();
         closeDrawer();
         showToast(`✅ Загружено ${parts.length} деталей`);
-      } catch(err) { alert('Ошибка файла'); }
+      } catch(err) { alert('Ошибка файла: ' + err.message); }
     };
     reader.readAsText(file, 'UTF-8');
   });
-
+  
   document.getElementById('menuBtn').addEventListener('click', openDrawer);
   document.getElementById('closeDrawerBtn').addEventListener('click', closeDrawer);
-  document.getElementById('closeInfoBtn').addEventListener('click', closeInfoSheet);
+  document.getElementById('closeSheetBtn').addEventListener('click', closeSheet);
   document.getElementById('scanBtn').addEventListener('click', openScanner);
   document.getElementById('rotateBtn').addEventListener('click', () => { autoRotate = !autoRotate; });
   document.getElementById('resetViewBtn').addEventListener('click', () => { centerCamera(); autoRotate = false; isSmoothZoom = false; });
   document.getElementById('xrayBtn').addEventListener('click', () => toggleXray());
   document.getElementById('closeScannerBtn').addEventListener('click', closeScanner);
   document.getElementById('manualSubmit').addEventListener('click', handleManualCode);
-
-  // АНИМАЦИОННЫЙ ЦИКЛ
+  
+  // Анимация
   function animate() {
     requestAnimationFrame(animate);
-    if (autoRotate && !isDragging && !isSmoothZoom) {
-      theta += 0.0025;
-      updateCameraTransform();
-    }
-    if (isSmoothZoom) updateSmoothZoom();
+    if (autoRotate && !isDragging && !isSmoothZoom) { theta += 0.0025; updateCamera(); }
+    if (isSmoothZoom) animateSmoothZoom();
     renderer.render(scene, camera);
   }
-
+  
   window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
   });
-
+  
   initThree();
 </script>
 </body>
