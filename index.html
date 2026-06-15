@@ -6,71 +6,464 @@
   <title>Баzis Scan — 3D сканер мебели</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #000;
+      overflow: hidden;
+      height: 100vh;
+      position: fixed;
+      width: 100%;
+    }
+
+    /* 3D КОНТЕЙНЕР - весь экран */
+    #canvas3d {
+      width: 100%;
+      height: 100%;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* ПЛАВАЮЩАЯ ПАНЕЛЬ - кнопки */
+    .floating-panel {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(15px);
+      padding: 10px 18px;
+      border-radius: 50px;
+      z-index: 20;
+      border: 0.5px solid rgba(255,255,255,0.15);
+    }
+
+    .float-btn {
+      background: rgba(20, 20, 30, 0.9);
+      border: none;
+      width: 52px;
+      height: 52px;
+      border-radius: 40px;
+      font-size: 24px;
+      cursor: pointer;
+      color: #00d4ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.1s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .float-btn:active {
+      transform: scale(0.94);
+      background: #00d4ff;
+      color: #000;
+    }
+
+    /* НИЖНЯЯ ПАНЕЛЬ - информация о детали */
+    .bottom-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(20px);
+      border-radius: 20px 20px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      z-index: 15;
+      max-height: 60vh;
+      overflow-y: auto;
+      border-top: 0.5px solid rgba(255,255,255,0.1);
+    }
+
+    .bottom-panel.open {
+      transform: translateY(0);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      border-bottom: 0.5px solid rgba(255,255,255,0.1);
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #00d4ff;
+    }
+
+    .close-panel {
+      background: none;
+      border: none;
+      font-size: 22px;
+      color: #888;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+    }
+
+    .panel-content {
+      padding: 16px;
+    }
+
+    /* Карточка детали */
+    .detail-card {
+      margin-bottom: 16px;
+    }
+
+    .detail-code {
+      font-size: 12px;
+      color: #00d4ff;
+      margin-bottom: 4px;
+    }
+
+    .detail-name {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .detail-specs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .spec-item {
+      background: rgba(255,255,255,0.08);
+      padding: 8px 12px;
+      border-radius: 12px;
+      text-align: center;
+      flex: 1;
+    }
+
+    .spec-label {
+      font-size: 10px;
+      color: #888;
+    }
+
+    .spec-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #00d4ff;
+    }
+
+    .detail-material {
+      font-size: 12px;
+      color: #ff6b35;
+      margin-bottom: 12px;
+    }
+
+    .detail-status {
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .status-scanned {
+      color: #00ff88;
+    }
+
+    .status-waiting {
+      color: #ffd700;
+    }
+
+    /* Кнопки действий */
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 12px;
+      background: rgba(255,255,255,0.1);
+      border: 0.5px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .action-btn:active {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .action-btn.danger {
+      color: #ff6b6b;
+    }
+
+    /* ЛЕВАЯ ШТОРКА (список деталей) */
+    .left-drawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 85%;
+      max-width: 320px;
+      background: rgba(0, 0, 0, 0.95);
+      backdrop-filter: blur(20px);
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .left-drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 16px;
+      border-bottom: 0.5px solid rgba(255,255,255,0.1);
+    }
+
+    .drawer-header span {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .close-drawer {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #888;
+      cursor: pointer;
+    }
+
+    .drawer-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .btn-upload {
+      width: 100%;
+      padding: 14px;
+      background: rgba(0, 212, 255, 0.15);
+      border: 0.5px solid rgba(0, 212, 255, 0.3);
+      border-radius: 14px;
+      color: #00d4ff;
+      font-size: 15px;
+      margin-bottom: 16px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .part-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      background: rgba(255,255,255,0.05);
+      cursor: pointer;
+    }
+
+    .part-item.active {
+      background: rgba(0, 212, 255, 0.15);
+      border-left: 3px solid #00d4ff;
+    }
+
+    .part-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+    }
+
+    .part-info {
+      flex: 1;
+    }
+
+    .part-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .part-code {
+      font-size: 10px;
+      color: #00d4ff;
+    }
+
+    .part-check {
+      font-size: 18px;
+    }
+
+    .part-check.done {
+      color: #00ff88;
+    }
+
+    .scanned {
+      opacity: 0.6;
+    }
+
+    /* МОДАЛКА СКАНЕРА */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .modal.hidden {
+      display: none;
+    }
+
+    .modal-box {
+      background: #111;
+      border-radius: 24px;
+      padding: 20px;
+      width: 90%;
+      max-width: 340px;
+      text-align: center;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: #00d4ff;
+    }
+
+    #video {
+      width: 100%;
+      border-radius: 16px;
+      aspect-ratio: 1/1;
+      object-fit: cover;
+      border: 2px solid #00d4ff;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 12px;
+      margin: 12px 0;
+      background: #1c1c2a;
+      border: 0.5px solid #333;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: #00d4ff;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #000;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 0.5px solid #333;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 14px;
+      color: #fff;
+      cursor: pointer;
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: #00ff88;
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-size: 13px;
+      z-index: 100;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+  </style>
 </head>
 <body>
 
-  <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
-  <div id="app">
-    
-    <!-- ПЛАВАЮЩАЯ ПАНЕЛЬ -->
-    <div class="floating-panel">
-      <button class="float-btn" id="menuBtn">☰</button>
-      <button class="float-btn" id="scanFloatBtn">📷</button>
-      <button class="float-btn" id="rotateBtn">⟳</button>
-      <button class="float-btn" id="resetViewBtn">⌂</button>
-    </div>
+  <canvas id="canvas3d"></canvas>
 
-    <!-- ЛЕВАЯ ШТОРКА (список деталей) -->
-    <div id="leftDrawer" class="drawer left-drawer">
-      <div class="drawer-header">
-        <span>📋 Детали проекта</span>
-        <button class="close-drawer" onclick="closeLeftDrawer()">✕</button>
-      </div>
-      <div class="drawer-content">
-        <button class="btn-upload-full" onclick="document.getElementById('xmlFile').click()">
-          📂 Загрузить XML / JSON
-        </button>
-        <input type="file" id="xmlFile" accept=".xml,.json" hidden>
-        <div id="partsList">📂 Загрузите файл проекта</div>
-      </div>
-    </div>
+  <!-- ПЛАВАЮЩАЯ ПАНЕЛЬ -->
+  <div class="floating-panel">
+    <button class="float-btn" id="menuBtn">☰</button>
+    <button class="float-btn" id="scanFloatBtn">📷</button>
+    <button class="float-btn" id="rotateBtn">⟳</button>
+    <button class="float-btn" id="resetViewBtn">⌂</button>
+  </div>
 
-    <!-- ПРАВАЯ ШТОРКА (информация) -->
-    <div id="rightDrawer" class="drawer right-drawer">
-      <div class="drawer-header">
-        <span>🔍 Информация</span>
-        <button class="close-drawer" onclick="closeRightDrawer()">✕</button>
-      </div>
-      <div class="drawer-content" id="partInfo">
-        <div class="no-select">👆 Нажми на деталь</div>
-      </div>
+  <!-- НИЖНЯЯ ПАНЕЛЬ ИНФОРМАЦИИ -->
+  <div id="bottomPanel" class="bottom-panel">
+    <div class="panel-header">
+      <span class="panel-title">🔍 Информация</span>
+      <button class="close-panel" onclick="closeBottomPanel()">✕</button>
     </div>
-
-    <!-- 3D КАНВАС -->
-    <div class="canvas-container">
-      <canvas id="canvas3d"></canvas>
-      <div class="hint" id="hint">📂 Загрузите файл</div>
+    <div id="partInfo" class="panel-content">
+      <div style="text-align:center;color:#666;padding:20px">👆 Нажми на деталь</div>
     </div>
+  </div>
 
-    <!-- СКАНЕР QR -->
-    <div id="scannerModal" class="modal hidden">
-      <div class="modal-box">
-        <div class="modal-title">📷 Наведи на QR-код</div>
-        <video id="video" autoplay playsinline></video>
-        <canvas id="qrCanvas" hidden></canvas>
-        <div id="scanStatus">Сканирование...</div>
-        <input type="text" id="manualCode" placeholder="Или введите код" class="input-field">
-        <button onclick="handleManualCode()" class="btn-primary">Проверить</button>
-        <button onclick="closeScanner()" class="btn-secondary">Закрыть</button>
-      </div>
+  <!-- ЛЕВАЯ ШТОРКА (СПИСОК ДЕТАЛЕЙ) -->
+  <div id="leftDrawer" class="left-drawer">
+    <div class="drawer-header">
+      <span>📋 Детали</span>
+      <button class="close-drawer" onclick="closeLeftDrawer()">✕</button>
     </div>
+    <div class="drawer-content">
+      <button class="btn-upload" onclick="document.getElementById('xmlFile').click()">
+        📂 Загрузить проект
+      </button>
+      <input type="file" id="xmlFile" accept=".json" hidden>
+      <div id="partsList"></div>
+    </div>
+  </div>
 
+  <!-- СКАНЕР QR -->
+  <div id="scannerModal" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-title">📷 Наведи на QR-код</div>
+      <video id="video" autoplay playsinline></video>
+      <canvas id="qrCanvas" hidden></canvas>
+      <div id="scanStatus" style="font-size:12px;color:#888;margin:8px">Сканирование...</div>
+      <input type="text" id="manualCode" placeholder="Или введите код" class="input-field">
+      <button onclick="handleManualCode()" class="btn-primary">Проверить</button>
+      <button onclick="closeScanner()" class="btn-secondary">Закрыть</button>
+    </div>
   </div>
 
   <script>
     // ═══════════════════════════════════════
-    //  ОСНОВНАЯ ЛОГИКА 3D + ШТОРКИ
+    //  ОСНОВНАЯ ЛОГИКА
     // ═══════════════════════════════════════
 
     let parts = [];
@@ -78,67 +471,47 @@
     let scanned = new Set();
     let hiddenIds = new Set();
     let meshMap = {};
-    let xrayEnabled = false;
     let autoRot = false;
 
-    // DOM элементы
     let canvas, renderer, scene, camera;
     let theta = 0.8, phi = 0.9, camDist = 3.5;
     let target = new THREE.Vector3(0, 0.5, 0);
     let isDragging = false, prevMouse = { x: 0, y: 0 };
 
-    // ═══════════════════════════════════════
-    //  ШТОРКИ
-    // ═══════════════════════════════════════
+    // Шторки
+    function openLeftDrawer() { document.getElementById('leftDrawer').classList.add('open'); }
+    function closeLeftDrawer() { document.getElementById('leftDrawer').classList.remove('open'); }
+    function openBottomPanel() { document.getElementById('bottomPanel').classList.add('open'); }
+    function closeBottomPanel() { document.getElementById('bottomPanel').classList.remove('open'); }
 
-    function openLeftDrawer() {
-      document.getElementById('leftDrawer').classList.add('open');
-    }
-    function closeLeftDrawer() {
-      document.getElementById('leftDrawer').classList.remove('open');
-    }
-    function openRightDrawer() {
-      document.getElementById('rightDrawer').classList.add('open');
-    }
-    function closeRightDrawer() {
-      document.getElementById('rightDrawer').classList.remove('open');
-    }
-
-    // ═══════════════════════════════════════
-    //  ИНИЦИАЛИЗАЦИЯ THREE.JS
-    // ═══════════════════════════════════════
-
+    // 3D инициализация
     function initThree() {
       canvas = document.getElementById('canvas3d');
       const container = canvas.parentElement;
       
       renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0a0c12);
-      scene.fog = new THREE.FogExp2(0x0a0c12, 0.03);
+      scene.background = new THREE.Color(0x050508);
       
-      camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
       camera.position.set(3, 2.5, 3);
       
       // Освещение
-      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
       const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
       mainLight.position.set(5, 10, 5);
       scene.add(mainLight);
-      scene.add(new THREE.DirectionalLight(0x88aaff, 0.4).position.set(-3, 2, -4));
-      scene.add(new THREE.DirectionalLight(0xffaa88, 0.3).position.set(0, 2, -5));
+      scene.add(new THREE.DirectionalLight(0x88aaff, 0.3).position.set(-3, 2, -4));
       
-      // Пол
-      const gridHelper = new THREE.GridHelper(8, 20, 0x2a3a5a, 0x1a2a4a);
+      // Пол-сетка
+      const gridHelper = new THREE.GridHelper(6, 15, 0x2a3a5a, 0x1a2a4a);
       gridHelper.position.y = -0.01;
       scene.add(gridHelper);
       
-      // Управление
       setupControls();
-      
       animate();
     }
 
@@ -150,7 +523,6 @@
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup', onMouseUp);
       canvas.addEventListener('wheel', onWheel);
-      canvas.addEventListener('contextmenu', (e) => e.preventDefault());
       canvas.addEventListener('click', onClickCanvas);
     }
 
@@ -212,6 +584,7 @@
     }
 
     function updateCam() {
+      if (!camera) return;
       camera.position.x = target.x + camDist * Math.sin(phi) * Math.sin(theta);
       camera.position.y = target.y + camDist * Math.cos(phi);
       camera.position.z = target.z + camDist * Math.sin(phi) * Math.cos(theta);
@@ -242,10 +615,7 @@
       if (renderer && scene && camera) renderer.render(scene, camera);
     }
 
-    // ═══════════════════════════════════════
-    //  ЗАГРУЗКА ФАЙЛА
-    // ═══════════════════════════════════════
-
+    // Загрузка файла
     document.getElementById('xmlFile').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -257,9 +627,9 @@
           autoLayout(parts);
           buildScene();
           renderList();
-          document.getElementById('hint').style.display = 'none';
           centerOnModel();
           closeLeftDrawer();
+          showToast('✅ Загружено ' + parts.length + ' деталей');
         } catch(err) { alert('Ошибка: ' + err.message); }
       };
       reader.readAsText(file, 'UTF-8');
@@ -308,36 +678,37 @@
         scene.add(mesh);
         meshMap[p.id] = mesh;
       });
-      centerOnModel();
     }
 
     function selectPart(id) {
       selectedId = id;
       Object.values(meshMap).forEach(m => { m.material.emissiveIntensity = 0; });
-      if (meshMap[id]) meshMap[id].material.emissiveIntensity = 0.7;
-      updateRightPanel(parts.find(x => x.id === id));
+      if (meshMap[id]) meshMap[id].material.emissiveIntensity = 0.5;
+      updateBottomPanel(parts.find(x => x.id === id));
       renderList();
-      openRightDrawer();
+      openBottomPanel();
     }
 
-    function updateRightPanel(p) {
+    function updateBottomPanel(p) {
       const panel = document.getElementById('partInfo');
-      if (!p) { panel.innerHTML = '<div class="no-select">👆 Нажми на деталь</div>'; return; }
-      const status = scanned.has(p.id) ? '<span style="color:#00ff88">✅ Отсканировано</span>' : '<span style="color:#ffd700">⏳ Ждёт</span>';
+      if (!p) { panel.innerHTML = '<div style="text-align:center;color:#666;padding:20px">👆 Нажми на деталь</div>'; return; }
+      const status = scanned.has(p.id) ? '<span class="status-scanned">✅ Отсканировано</span>' : '<span class="status-waiting">⏳ Ждёт</span>';
       panel.innerHTML = `
-        <div class="info-block"><div class="info-label">Код</div><div class="info-value accent">${escapeHtml(p.code)}</div></div>
-        <div class="info-block"><div class="info-label">Название</div><div class="info-value">${escapeHtml(p.name)}</div></div>
-        <div class="info-block"><div class="info-label">Размеры</div>
-          <div class="dim-row">
-            <div class="dim-box"><div class="dk">Д</div><div class="dv">${p.L}</div></div>
-            <div class="dim-box"><div class="dk">Ш</div><div class="dv">${p.W}</div></div>
-            <div class="dim-box"><div class="dk">Т</div><div class="dv">${p.T}</div></div>
+        <div class="detail-card">
+          <div class="detail-code">${escapeHtml(p.code)}</div>
+          <div class="detail-name">${escapeHtml(p.name)}</div>
+          <div class="detail-specs">
+            <div class="spec-item"><div class="spec-label">Длина</div><div class="spec-value">${p.L}</div></div>
+            <div class="spec-item"><div class="spec-label">Ширина</div><div class="spec-value">${p.W}</div></div>
+            <div class="spec-item"><div class="spec-label">Толщина</div><div class="spec-value">${p.T}</div></div>
+          </div>
+          <div class="detail-material">${escapeHtml(p.material)}</div>
+          <div class="detail-status">${status}</div>
+          <div class="action-buttons">
+            <button class="action-btn" onclick="toggleVisibility(${p.id})">🙈 Скрыть</button>
+            <button class="action-btn" onclick="smoothZoomToPart(${p.id})">🔍 Приблизить</button>
           </div>
         </div>
-        <div class="info-block"><div class="info-label">Материал</div><div class="info-value" style="color:#ff6b35">${escapeHtml(p.material)}</div></div>
-        <div class="info-block"><div class="info-label">Статус</div>${status}</div>
-        <button class="btn-toggle-vis" onclick="toggleVisibility(${p.id})">🙈 Скрыть</button>
-        <button class="btn-toggle-vis" onclick="smoothZoomToPart(${p.id})">🔍 Приблизить</button>
       `;
     }
 
@@ -347,8 +718,8 @@
       renderList();
       if (selectedId === id && hiddenIds.has(id)) {
         selectedId = null;
-        updateRightPanel(null);
-        closeRightDrawer();
+        updateBottomPanel(null);
+        closeBottomPanel();
       }
     }
 
@@ -361,17 +732,19 @@
       const list = document.getElementById('partsList');
       if (!list) return;
       if (parts.length === 0) {
-        list.innerHTML = '<div style="text-align:center;padding:20px;color:#5a6680">📂 Загрузите файл проекта</div>';
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:#666">📂 Загрузите файл</div>';
         return;
       }
       list.innerHTML = '';
       parts.forEach(p => {
-        const isHidden = hiddenIds.has(p.id);
         const div = document.createElement('div');
-        div.className = `part-item ${scanned.has(p.id) ? 'scanned' : ''} ${selectedId === p.id ? 'active' : ''} ${isHidden ? 'hidden-part' : ''}`;
+        div.className = `part-item ${scanned.has(p.id) ? 'scanned' : ''} ${selectedId === p.id ? 'active' : ''}`;
         div.innerHTML = `
           <div class="part-swatch" style="background:${getColor(p.material)}"></div>
-          <div style="flex:1"><div class="part-name">${escapeHtml(p.name)}</div><div class="part-code">${escapeHtml(p.code)}</div></div>
+          <div class="part-info">
+            <div class="part-name">${escapeHtml(p.name)}</div>
+            <div class="part-code">${escapeHtml(p.code)}</div>
+          </div>
           <div class="part-check ${scanned.has(p.id) ? 'done' : ''}">${scanned.has(p.id) ? '✅' : '○'}</div>
         `;
         div.onclick = () => selectPart(p.id);
@@ -381,25 +754,19 @@
 
     function escapeHtml(str) { return (str || '').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
 
-    // ═══════════════════════════════════════
-    //  QR СКАНЕР
-    // ═══════════════════════════════════════
-
+    // QR СКАНЕР
     let scanInterval = null, videoStream = null;
-
     function openScanner() {
       document.getElementById('scannerModal').classList.remove('hidden');
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         .then(stream => { videoStream = stream; document.getElementById('video').srcObject = stream; startQRScan(); })
         .catch(() => alert('Нет доступа к камере'));
     }
-
     function closeScanner() {
       document.getElementById('scannerModal').classList.add('hidden');
       if (videoStream) videoStream.getTracks().forEach(t => t.stop());
       if (scanInterval) clearInterval(scanInterval);
     }
-
     function startQRScan() {
       const video = document.getElementById('video');
       const qrCanvas = document.getElementById('qrCanvas');
@@ -413,13 +780,11 @@
         if (code) { handleScan(code.data); closeScanner(); }
       }, 200);
     }
-
     function handleManualCode() { 
       const code = document.getElementById('manualCode').value.trim(); 
       if (code) handleScan(code); 
       closeScanner(); 
     }
-
     function handleScan(code) {
       let found = parts.find(x => x.code === code || x.code === code.trim() || x.code.toLowerCase() === code.toLowerCase());
       if (!found) found = parts.find(x => code.includes(x.code) || x.code.includes(code));
@@ -430,13 +795,12 @@
       showToast('✅ Отсканировано: ' + found.name);
       smoothZoomToPart(found.id);
     }
-
     function showToast(msg) {
       let toast = document.getElementById('toast');
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'toast';
-        toast.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:#00ff88;padding:10px 20px;border-radius:30px;font-size:14px;z-index:200;pointer-events:none';
+        toast.className = 'toast';
         document.body.appendChild(toast);
       }
       toast.textContent = msg;
@@ -444,23 +808,13 @@
       setTimeout(() => toast.style.opacity = '0', 2000);
     }
 
-    // ═══════════════════════════════════════
-    //  ЗАПУСК
-    // ═══════════════════════════════════════
-
+    // Запуск
     initThree();
     window.addEventListener('resize', () => {
-      const container = canvas.parentElement;
-      renderer.setSize(container.clientWidth, container.clientHeight);
-      camera.aspect = container.clientWidth / container.clientHeight;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
     });
-    setTimeout(() => {
-      const container = canvas.parentElement;
-      renderer.setSize(container.clientWidth, container.clientHeight);
-      camera.aspect = container.clientWidth / container.clientHeight;
-      camera.updateProjectionMatrix();
-    }, 100);
     
     document.getElementById('menuBtn').onclick = openLeftDrawer;
     document.getElementById('scanFloatBtn').onclick = openScanner;
