@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Basis Scan — 3D сборочный сканер мебели</title>
+  <title>Basis Scan — 3D сборочный сканер</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
@@ -15,7 +15,7 @@
     }
 
     body {
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #05070a;
       overflow: hidden;
       position: fixed;
@@ -34,58 +34,55 @@
       height: 100%;
       display: block;
       z-index: 1;
+      touch-action: none;
     }
 
-    /* ========== КОМПАКТНЫЙ НИЖНИЙ ТУЛБАР (ГЛАВНОЕ УПРАВЛЕНИЕ) ========== */
-    .action-bar {
+    /* ВЕРТИКАЛЬНАЯ ПАНЕЛЬ КНОПОК (СЛЕВА, НЕ МЕШАЕТ) */
+    .side-buttons {
       position: fixed;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
       display: flex;
-      gap: 10px;
-      background: rgba(10, 12, 18, 0.8);
-      backdrop-filter: blur(18px);
-      padding: 8px 18px;
-      border-radius: 60px;
-      border: 0.5px solid rgba(0, 212, 255, 0.25);
+      flex-direction: column;
+      gap: 12px;
       z-index: 25;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
-    .action-btn {
-      background: rgba(20, 24, 36, 0.9);
-      border: none;
+    .side-btn {
+      background: rgba(10, 12, 18, 0.85);
+      backdrop-filter: blur(12px);
+      border: 0.5px solid rgba(0, 212, 255, 0.3);
       width: 52px;
       height: 52px;
-      border-radius: 40px;
+      border-radius: 32px;
       font-size: 24px;
       cursor: pointer;
       color: #0cf;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.1s ease;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: 0.1s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
-    .action-btn:active {
+    .side-btn:active {
       transform: scale(0.94);
       background: #0cf;
       color: #000;
     }
 
-    /* Дополнительная кнопка-меню слева (прилипает к краю) */
+    /* КНОПКА МЕНЮ (СПРАВА ВВЕРХУ) */
     .menu-btn {
       position: fixed;
-      bottom: 24px;
-      left: 16px;
-      background: rgba(10, 12, 18, 0.7);
+      top: 16px;
+      right: 16px;
+      background: rgba(10, 12, 18, 0.85);
       backdrop-filter: blur(12px);
-      border: 0.5px solid rgba(0,212,255,0.3);
+      border: 0.5px solid rgba(0, 212, 255, 0.3);
       width: 48px;
       height: 48px;
-      border-radius: 40px;
+      border-radius: 32px;
       font-size: 24px;
       z-index: 25;
       color: #0cf;
@@ -101,22 +98,22 @@
       color: #000;
     }
 
-    /* ========== КОМПАКТНАЯ ИНФО-ПАНЕЛЬ (СНИЗУ) ========== */
+    /* КОМПАКТНАЯ ИНФО-ПАНЕЛЬ СНИЗУ */
     .info-sheet {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(8, 10, 15, 0.92);
+      background: rgba(8, 10, 15, 0.96);
       backdrop-filter: blur(20px);
       border-radius: 24px 24px 0 0;
       transform: translateY(100%);
       transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
       z-index: 20;
-      max-height: 30vh;
       display: flex;
       flex-direction: column;
       border-top: 0.5px solid rgba(0, 212, 255, 0.3);
+      pointer-events: auto;
     }
 
     .info-sheet.open {
@@ -134,16 +131,14 @@
     .info-header {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
+      align-items: center;
       padding: 4px 20px 8px 20px;
-      border-bottom: 0.5px solid rgba(255,255,255,0.08);
     }
 
     .info-title {
       font-size: 13px;
       font-weight: 500;
       color: #0cf;
-      letter-spacing: 0.5px;
     }
 
     .info-close {
@@ -152,109 +147,91 @@
       color: #aaa;
       font-size: 20px;
       cursor: pointer;
-      padding: 0 6px;
+      padding: 0 8px;
     }
 
     .info-content {
-      padding: 12px 20px 20px 20px;
+      padding: 8px 20px 20px 20px;
       overflow-y: auto;
-      flex: 1;
+      max-height: 30vh;
     }
 
-    /* Компактная карточка детали — 2 строки */
-    .compact-detail .row-code {
-      font-size: 12px;
+    /* Карточка детали */
+    .detail-card .code {
+      font-size: 11px;
       color: #0cf;
       margin-bottom: 4px;
     }
 
-    .compact-detail .row-name {
+    .detail-card .name {
       font-size: 15px;
       font-weight: 600;
-      margin-bottom: 12px;
-      letter-spacing: -0.2px;
+      margin-bottom: 10px;
     }
 
-    .dim-row {
+    .dims {
       display: flex;
-      gap: 16px;
-      margin-bottom: 12px;
+      gap: 12px;
+      margin-bottom: 10px;
       flex-wrap: wrap;
     }
 
-    .dim-chip {
+    .dim {
       background: rgba(255,255,255,0.08);
       border-radius: 20px;
-      padding: 6px 14px;
-      font-size: 13px;
-      display: inline-flex;
-      gap: 8px;
+      padding: 5px 12px;
+      font-size: 12px;
     }
 
-    .dim-chip span:first-child {
-      color: #aaa;
-    }
+    .dim span:first-child { color: #888; }
+    .dim span:last-child { color: #0cf; font-weight: 500; }
 
-    .dim-chip span:last-child {
-      color: #0cf;
-      font-weight: 500;
-    }
-
-    .material-chip {
+    .material {
       font-size: 11px;
       color: #ff8c5a;
       background: rgba(255,140,90,0.12);
       padding: 4px 12px;
-      border-radius: 30px;
+      border-radius: 20px;
       display: inline-block;
       margin-bottom: 12px;
     }
 
-    .status-badge {
+    .status {
       font-size: 12px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
-    .status-scanned {
-      color: #2effb0;
-    }
-
-    .status-wait {
-      color: #ffc107;
-    }
+    .status.scanned { color: #2effb0; }
+    .status.wait { color: #ffc107; }
 
     .action-row {
       display: flex;
-      gap: 12px;
-      margin-top: 6px;
+      gap: 10px;
     }
 
     .mini-btn {
       flex: 1;
       background: rgba(255,255,255,0.07);
       border: 0.5px solid rgba(255,255,255,0.1);
-      padding: 10px 0;
-      border-radius: 32px;
-      font-size: 13px;
+      padding: 9px 0;
+      border-radius: 30px;
+      font-size: 12px;
       color: #eee;
       text-align: center;
       cursor: pointer;
-      transition: 0.1s;
     }
 
-    .mini-btn:active {
-      background: rgba(0,212,255,0.2);
-    }
+    .mini-btn:active { background: rgba(0,212,255,0.2); }
 
-    /* Шторка списка деталей (слева) */
-    .drawer-left {
+    /* Шторка списка деталей */
+    .drawer {
       position: fixed;
       top: 0;
       left: 0;
       bottom: 0;
-      width: 82%;
-      max-width: 320px;
-      background: rgba(8, 10, 15, 0.96);
+      width: 85%;
+      max-width: 340px;
+      background: rgba(8, 10, 15, 0.98);
       backdrop-filter: blur(24px);
       transform: translateX(-100%);
       transition: transform 0.25s ease;
@@ -264,16 +241,13 @@
       border-right: 0.5px solid rgba(0,212,255,0.2);
     }
 
-    .drawer-left.open {
-      transform: translateX(0);
-    }
+    .drawer.open { transform: translateX(0); }
 
     .drawer-header {
       display: flex;
       justify-content: space-between;
       padding: 20px 18px;
       border-bottom: 0.5px solid rgba(255,255,255,0.1);
-      font-weight: 600;
     }
 
     .drawer-close {
@@ -281,6 +255,7 @@
       border: none;
       font-size: 24px;
       color: #aaa;
+      cursor: pointer;
     }
 
     .drawer-content {
@@ -289,7 +264,7 @@
       padding: 16px;
     }
 
-    .upload-btn {
+    .upload-btn, .show-all-btn {
       width: 100%;
       background: rgba(0,212,255,0.12);
       border: 0.5px dashed #0cf;
@@ -298,11 +273,17 @@
       color: #0cf;
       font-size: 14px;
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       cursor: pointer;
     }
 
-    .part-list-item {
+    .show-all-btn {
+      background: rgba(255,140,90,0.12);
+      border-color: #ff8c5a;
+      color: #ff8c5a;
+    }
+
+    .part-item {
       display: flex;
       align-items: center;
       gap: 12px;
@@ -311,10 +292,9 @@
       border-radius: 18px;
       margin-bottom: 8px;
       cursor: pointer;
-      transition: 0.05s linear;
     }
 
-    .part-list-item.active {
+    .part-item.active {
       background: rgba(0,212,255,0.18);
       border-left: 3px solid #0cf;
     }
@@ -322,40 +302,25 @@
     .part-swatch {
       width: 32px;
       height: 32px;
-      border-radius: 12px;
+      border-radius: 10px;
     }
 
-    .part-info {
-      flex: 1;
-    }
+    .part-info { flex: 1; }
+    .part-name { font-size: 13px; font-weight: 500; }
+    .part-code { font-size: 10px; color: #0cf; }
+    .check { font-size: 18px; }
+    .check.done { color: #2effb0; }
+    .hidden-part { opacity: 0.4; }
 
-    .part-name {
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .part-code {
-      font-size: 10px;
-      color: #0cf;
-    }
-
-    .check {
-      font-size: 18px;
-    }
-
-    .check.done {
-      color: #2effb0;
-    }
-
-    /* Модалка сканера */
+    /* СКАНЕР */
     .modal {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.94);
+      background: rgba(0,0,0,0.95);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 200;
+      z-index: 100;
     }
     .modal.hidden { display: none; }
     .modal-box {
@@ -372,24 +337,33 @@
       border-radius: 20px;
       border: 2px solid #0cf;
     }
+    .input-field {
+      width: 100%;
+      padding: 12px;
+      margin: 12px 0;
+      background: #1a2533;
+      border: none;
+      border-radius: 30px;
+      color: white;
+    }
   </style>
 </head>
 <body>
 
 <canvas id="canvas3d"></canvas>
 
-<!-- ГЛАВНЫЙ ТУЛБАР (центр) -->
-<div class="action-bar">
-  <button class="action-btn" id="scanBtn">📷</button>
-  <button class="action-btn" id="rotateBtn">⟳</button>
-  <button class="action-btn" id="xrayBtn">🔮</button>
-  <button class="action-btn" id="resetViewBtn">⌂</button>
+<!-- КНОПКИ УПРАВЛЕНИЯ (ВЕРТИКАЛЬНО СЛЕВА) -->
+<div class="side-buttons">
+  <button class="side-btn" id="scanBtn">📷</button>
+  <button class="side-btn" id="rotateBtn">⟳</button>
+  <button class="side-btn" id="xrayBtn">🔮</button>
+  <button class="side-btn" id="resetViewBtn">⌂</button>
 </div>
 
-<!-- КНОПКА МЕНЮ (список деталей) -->
+<!-- КНОПКА МЕНЮ (СПРАВА ВВЕРХУ) -->
 <div class="menu-btn" id="menuBtn">☰</div>
 
-<!-- КОМПАКТНАЯ ИНФО-ПАНЕЛЬ СНИЗУ -->
+<!-- ИНФОРМАЦИОННАЯ ПАНЕЛЬ СНИЗУ -->
 <div id="infoSheet" class="info-sheet">
   <div class="sheet-handle"></div>
   <div class="info-header">
@@ -397,37 +371,38 @@
     <button class="info-close" id="closeInfoBtn">✕</button>
   </div>
   <div id="infoContent" class="info-content">
-    <div style="text-align:center;color:#aaa;padding:12px">👆 Тапните по детали</div>
+    <div style="text-align:center;color:#888;padding:12px">👆 Нажмите на деталь</div>
   </div>
 </div>
 
-<!-- ЛЕВАЯ ШТОРКА (список деталей) -->
-<div id="drawer" class="drawer-left">
+<!-- ШТОРКА СПИСКА ДЕТАЛЕЙ -->
+<div id="drawer" class="drawer">
   <div class="drawer-header">
     <span>📋 СПИСОК ДЕТАЛЕЙ</span>
     <button class="drawer-close" id="closeDrawerBtn">✕</button>
   </div>
   <div class="drawer-content">
     <div class="upload-btn" id="uploadBtn">📂 ЗАГРУЗИТЬ JSON</div>
+    <div class="show-all-btn" id="showAllBtn">🎯 ПОКАЗАТЬ ВСЕ ДЕТАЛИ</div>
     <input type="file" id="fileInput" accept=".json" hidden>
-    <div id="partsListContainer"></div>
+    <div id="partsList"></div>
   </div>
 </div>
 
-<!-- QR СКАНЕР МОДАЛ -->
+<!-- QR СКАНЕР -->
 <div id="scannerModal" class="modal hidden">
   <div class="modal-box">
-    <div class="modal-title" style="color:#0cf;margin-bottom:12px;">📷 Наведи на QR</div>
+    <div style="color:#0cf; text-align:center; margin-bottom:12px;">📷 НАВЕДИТЕ НА QR</div>
     <video id="video" autoplay playsinline></video>
     <canvas id="qrCanvas" hidden></canvas>
-    <input type="text" id="manualCodeInput" placeholder="Введите код вручную" style="width:100%;margin-top:12px;padding:10px;background:#1e2a3a;border:none;border-radius:30px;color:white;">
-    <button id="manualSubmitBtn" style="margin-top:10px;width:100%;padding:10px;background:#0cf;border:none;border-radius:40px;font-weight:bold;">Проверить</button>
-    <button id="closeScannerBtn" style="margin-top:8px;width:100%;background:#2c3e44;border:none;border-radius:40px;padding:10px;color:white;">Закрыть</button>
+    <input type="text" id="manualCode" placeholder="Или введите код" class="input-field">
+    <button id="manualSubmit" style="width:100%;padding:12px;background:#0cf;border:none;border-radius:30px;font-weight:bold;">Проверить</button>
+    <button id="closeScannerBtn" style="width:100%;margin-top:8px;padding:12px;background:#2c3e44;border:none;border-radius:30px;color:white;">Закрыть</button>
   </div>
 </div>
 
 <script>
-  // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+  // ========== ПЕРЕМЕННЫЕ ==========
   let parts = [];
   let selectedId = null;
   let scannedSet = new Set();
@@ -440,28 +415,22 @@
   let target = new THREE.Vector3(0, 0.5, 0);
   let isDragging = false, prevMouse = { x: 0, y: 0 };
   let autoRot = false;
-  let animationId = null;
-
-  // Для плавного приближения
+  let isZooming = false;
   let smoothTargetPos = new THREE.Vector3();
   let smoothTargetLook = new THREE.Vector3();
-  let isZooming = false;
 
-  // DOM элементы
+  // ========== ИНИЦИАЛИЗАЦИЯ THREE ==========
   const canvas = document.getElementById('canvas3d');
-  const partsListDiv = document.getElementById('partsListContainer');
-  const infoContent = document.getElementById('infoContent');
-  const drawer = document.getElementById('drawer');
-  const infoSheet = document.getElementById('infoSheet');
-
-  // ========== ИНИЦИАЛИЗАЦИЯ THREE.JS ==========
+  
   function initThree() {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x05070a);
     scene.fog = new THREE.FogExp2(0x05070a, 0.02);
+    
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
     camera.position.set(3, 2.5, 3);
     
@@ -469,17 +438,16 @@
     const ambient = new THREE.AmbientLight(0x404060);
     scene.add(ambient);
     const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    mainLight.position.set(4, 8, 3);
+    mainLight.position.set(5, 10, 5);
     scene.add(mainLight);
     const fillLight = new THREE.DirectionalLight(0x88aaff, 0.4);
-    fillLight.position.set(-2, 3, -3);
+    fillLight.position.set(-3, 2, -4);
     scene.add(fillLight);
     
     const grid = new THREE.GridHelper(6, 20, 0x2a4a6a, 0x1a2a3a);
     grid.position.y = -0.02;
     scene.add(grid);
     
-    // Инициализация управления
     setupControls();
     animate();
   }
@@ -495,9 +463,7 @@
     canvas.addEventListener('click', onClickCanvas);
   }
   
-  let pinchStartDist = 0;
-  let pinchStartCamDist = 0;
-  let isPinching = false;
+  let pinchStartDist = 0, pinchStartCamDist = 0, isPinching = false;
   
   function onTouchStart(e) {
     e.preventDefault();
@@ -522,63 +488,56 @@
       theta -= (touches[0].clientX - prevMouse.x) * 0.008;
       phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - (touches[0].clientY - prevMouse.y) * 0.008));
       prevMouse = { x: touches[0].clientX, y: touches[0].clientY };
-      updateCameraTransform();
+      updateCameraPos();
     } else if (touches.length === 2 && isPinching) {
       const dx = touches[0].clientX - touches[1].clientX;
       const dy = touches[0].clientY - touches[1].clientY;
       const dist = Math.hypot(dx, dy);
       camDist = Math.max(0.5, Math.min(12, pinchStartCamDist + (pinchStartDist - dist) * 0.015));
-      updateCameraTransform();
+      updateCameraPos();
     }
   }
   
   function onTouchEnd() { isDragging = false; isPinching = false; }
   function onMouseDown(e) { if (e.button === 0) { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; autoRot = false; } }
-  function onMouseMove(e) { if (!isDragging) return; theta -= (e.clientX - prevMouse.x) * 0.005; phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - (e.clientY - prevMouse.y) * 0.005)); prevMouse = { x: e.clientX, y: e.clientY }; updateCameraTransform(); }
+  function onMouseMove(e) { if (!isDragging) return; theta -= (e.clientX - prevMouse.x) * 0.005; phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - (e.clientY - prevMouse.y) * 0.005)); prevMouse = { x: e.clientX, y: e.clientY }; updateCameraPos(); }
   function onMouseUp() { isDragging = false; }
-  function onWheel(e) { camDist = Math.max(0.5, Math.min(12, camDist + camDist * e.deltaY * 0.001)); updateCameraTransform(); e.preventDefault(); }
+  function onWheel(e) { camDist = Math.max(0.5, Math.min(12, camDist + camDist * e.deltaY * 0.001)); updateCameraPos(); e.preventDefault(); }
   
-  function updateCameraTransform() {
+  function updateCameraPos() {
     if (isZooming) return;
-    const x = target.x + camDist * Math.sin(phi) * Math.sin(theta);
-    const y = target.y + camDist * Math.cos(phi);
-    const z = target.z + camDist * Math.sin(phi) * Math.cos(theta);
-    camera.position.set(x, y, z);
+    camera.position.x = target.x + camDist * Math.sin(phi) * Math.sin(theta);
+    camera.position.y = target.y + camDist * Math.cos(phi);
+    camera.position.z = target.z + camDist * Math.sin(phi) * Math.cos(theta);
     camera.lookAt(target);
   }
   
-  // Плавное приближение (Lerp)
+  // Плавное приближение
   function startSmoothZoom(partId) {
     const part = parts.find(p => p.id === partId);
     if (!part || !part._pos) return;
-    const targetPos = new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z);
-    smoothTargetPos.copy(targetPos);
-    smoothTargetLook.copy(targetPos);
+    smoothTargetPos.copy(new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
+    smoothTargetLook.copy(smoothTargetPos);
     isZooming = true;
     autoRot = false;
   }
   
-  // Анимация: плавный lerp камеры
-  function animateCameraToTarget() {
+  function animateCameraZoom() {
     if (!isZooming) return;
-    const currentPos = camera.position;
-    const newPos = currentPos.clone().lerp(smoothTargetPos, 0.12);
-    const newTarget = target.clone().lerp(smoothTargetLook, 0.12);
-    camera.position.copy(newPos);
-    target.copy(newTarget);
+    camera.position.lerp(smoothTargetPos, 0.12);
+    target.lerp(smoothTargetLook, 0.12);
     camera.lookAt(target);
-    const distToTarget = currentPos.distanceTo(smoothTargetPos);
-    if (distToTarget < 0.05) {
+    if (camera.position.distanceTo(smoothTargetPos) < 0.05) {
       isZooming = false;
       camDist = camera.position.distanceTo(target);
     }
-    updateCameraTransform();
   }
   
-  // Рейкастинг для телефона
+  // Рейкастинг для выбора детали (РАБОТАЕТ НА ТЕЛЕФОНЕ)
   function onClickCanvas(e) {
     const rect = canvas.getBoundingClientRect();
     let clientX, clientY;
+    
     if (e.touches) {
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
@@ -586,20 +545,23 @@
       clientX = e.clientX;
       clientY = e.clientY;
     }
+    
     const mouse = new THREE.Vector2();
     mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
-    const visibleMeshes = Array.from(meshMap.values()).filter(m => m.visible);
-    const intersects = raycaster.intersectObjects(visibleMeshes);
-    if (intersects.length > 0) {
-      const hitId = intersects[0].object.userData.partId;
+    const visibleMeshes = Array.from(meshMap.values()).filter(m => m.visible === true);
+    const hits = raycaster.intersectObjects(visibleMeshes);
+    
+    if (hits.length > 0) {
+      const hitId = hits[0].object.userData.partId;
       if (!hiddenSet.has(hitId)) selectPart(hitId);
     }
   }
   
-  // Построение сцены
+  // ========== ЗАГРУЗКА JSON И ПОСТРОЕНИЕ СЦЕНЫ ==========
   function autoLayout(partsArr) {
     let minY = Infinity;
     partsArr.forEach(p => { if (p.pos && p.pos.y !== undefined) minY = Math.min(minY, p.pos.y); });
@@ -615,12 +577,12 @@
         return;
       }
       p._pos = { x: (p.pos.x + p.gab.w/2) * sc, y: (p.pos.y - minY + p.gab.h/2) * sc, z: (p.pos.z + p.gab.d/2) * sc };
-      p._size = { x: Math.max(p.gab.w,1)*sc, y: Math.max(p.gab.h,1)*sc, z: Math.max(p.gab.d,1)*sc };
+      p._size = { x: Math.max(p.gab.w,1) * sc, y: Math.max(p.gab.h,1) * sc, z: Math.max(p.gab.d,1) * sc };
     });
   }
   
-  function getMaterialColor(matName) {
-    const m = (matName || '').toLowerCase();
+  function getColor(mat) {
+    const m = (mat || '').toLowerCase();
     if (m.includes('белый')) return '#ece7e0';
     if (m.includes('дуб сонома')) return '#c8aa76';
     if (m.includes('дуб')) return '#b89062';
@@ -635,36 +597,53 @@
     meshMap.forEach(m => scene.remove(m));
     meshMap.clear();
     parts.forEach(p => {
-      const geometry = new THREE.BoxGeometry(p._size.x, p._size.y, p._size.z);
-      const material = new THREE.MeshStandardMaterial({
-        color: getMaterialColor(p.material),
+      const geo = new THREE.BoxGeometry(p._size.x, p._size.y, p._size.z);
+      const mat = new THREE.MeshStandardMaterial({
+        color: getColor(p.material),
         roughness: 0.55,
         metalness: 0.1,
         emissive: new THREE.Color(0x111111),
-        emissiveIntensity: 0.0
+        emissiveIntensity: 0
       });
-      const mesh = new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(p._pos.x, p._pos.y, p._pos.z);
       mesh.userData = { partId: p.id };
       scene.add(mesh);
       meshMap.set(p.id, mesh);
     });
     centerCamera();
+    renderPartsList();
+  }
+  
+  function centerCamera() {
+    if (!parts.length) return;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    parts.forEach(p => {
+      if (!p._pos) return;
+      minX = Math.min(minX, p._pos.x - p._size.x/2);
+      maxX = Math.max(maxX, p._pos.x + p._size.x/2);
+      minY = Math.min(minY, p._pos.y - p._size.y/2);
+      maxY = Math.max(maxY, p._pos.y + p._size.y/2);
+      minZ = Math.min(minZ, p._pos.z - p._size.z/2);
+      maxZ = Math.max(maxZ, p._pos.z + p._size.z/2);
+    });
+    target.set((minX+maxX)/2, (minY+maxY)/2, (minZ+maxZ)/2);
+    const size = Math.max(maxX-minX, maxY-minY, maxZ-minZ);
+    camDist = Math.max(size * 1.5, 2);
+    updateCameraPos();
   }
   
   function selectPart(id) {
     selectedId = id;
-    // Сброс подсветки
     meshMap.forEach(mesh => {
-      mesh.material.emissiveIntensity = 0.0;
+      mesh.material.emissiveIntensity = 0;
       mesh.material.emissive.setHex(0x000000);
     });
-    const selectedMesh = meshMap.get(id);
-    if (selectedMesh) {
-      selectedMesh.material.emissiveIntensity = 0.55;
-      selectedMesh.material.emissive.setHex(0x00aaff);
+    const selected = meshMap.get(id);
+    if (selected) {
+      selected.material.emissiveIntensity = 0.55;
+      selected.material.emissive.setHex(0x00aaff);
     }
-    // Обновить X-Ray если включен
     if (xrayMode) applyXray();
     updateInfoPanel(parts.find(p => p.id === id));
     renderPartsList();
@@ -672,22 +651,23 @@
   }
   
   function updateInfoPanel(p) {
+    const container = document.getElementById('infoContent');
     if (!p) {
-      infoContent.innerHTML = `<div style="text-align:center;color:#aaa;padding:12px">👆 Тапните по детали</div>`;
+      container.innerHTML = '<div style="text-align:center;color:#888;padding:12px">👆 Нажмите на деталь</div>';
       return;
     }
     const isScanned = scannedSet.has(p.id);
-    infoContent.innerHTML = `
-      <div class="compact-detail">
-        <div class="row-code">${escapeHtml(p.code)}</div>
-        <div class="row-name">${escapeHtml(p.name)}</div>
-        <div class="dim-row">
-          <div class="dim-chip"><span>📏 Д</span><span>${p.L}</span></div>
-          <div class="dim-chip"><span>📐 Ш</span><span>${p.W}</span></div>
-          <div class="dim-chip"><span>📏 Т</span><span>${p.T}</span></div>
+    container.innerHTML = `
+      <div class="detail-card">
+        <div class="code">${escapeHtml(p.code)}</div>
+        <div class="name">${escapeHtml(p.name)}</div>
+        <div class="dims">
+          <div class="dim"><span>📏 Длина</span> <span>${p.L}</span></div>
+          <div class="dim"><span>📐 Ширина</span> <span>${p.W}</span></div>
+          <div class="dim"><span>📏 Толщина</span> <span>${p.T}</span></div>
         </div>
-        <div class="material-chip">${escapeHtml(p.material)}</div>
-        <div class="status-badge">${isScanned ? '<span class="status-scanned">✅ ОТСКАНИРОВАНО</span>' : '<span class="status-wait">⏳ ОЖИДАНИЕ</span>'}</div>
+        <div class="material">${escapeHtml(p.material)}</div>
+        <div class="status ${isScanned ? 'scanned' : 'wait'}">${isScanned ? '✅ ОТСКАНИРОВАНО' : '⏳ ОЖИДАНИЕ'}</div>
         <div class="action-row">
           <div class="mini-btn" id="hidePartBtn">🙈 Скрыть</div>
           <div class="mini-btn" id="zoomPartBtn">🔍 Приблизить</div>
@@ -717,11 +697,23 @@
     if (xrayMode) applyXray();
   }
   
+  function showAllParts() {
+    hiddenSet.clear();
+    meshMap.forEach(mesh => { mesh.visible = true; });
+    if (selectedId === null) {
+      updateInfoPanel(null);
+      closeInfoSheet();
+    }
+    renderPartsList();
+    if (xrayMode) applyXray();
+    showToast('👁 Все детали показаны');
+  }
+  
   function applyXray() {
     meshMap.forEach((mesh, id) => {
       if (xrayMode && selectedId !== null && id !== selectedId && mesh.visible) {
         mesh.material.transparent = true;
-        mesh.material.opacity = 0.22;
+        mesh.material.opacity = 0.25;
       } else {
         mesh.material.transparent = false;
         mesh.material.opacity = 1;
@@ -739,17 +731,19 @@
   }
   
   function renderPartsList() {
-    if (!partsListDiv) return;
+    const container = document.getElementById('partsList');
+    if (!container) return;
     if (parts.length === 0) {
-      partsListDiv.innerHTML = '<div style="padding:20px;text-align:center;color:#666">📁 Нет данных</div>';
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:#666">📁 Загрузите файл</div>';
       return;
     }
-    partsListDiv.innerHTML = '';
+    container.innerHTML = '';
     parts.forEach(p => {
+      const isHidden = hiddenSet.has(p.id);
       const div = document.createElement('div');
-      div.className = `part-list-item ${selectedId === p.id ? 'active' : ''}`;
+      div.className = `part-item ${selectedId === p.id ? 'active' : ''} ${isHidden ? 'hidden-part' : ''}`;
       div.innerHTML = `
-        <div class="part-swatch" style="background:${getMaterialColor(p.material)}"></div>
+        <div class="part-swatch" style="background:${getColor(p.material)}"></div>
         <div class="part-info">
           <div class="part-name">${escapeHtml(p.name)}</div>
           <div class="part-code">${escapeHtml(p.code)}</div>
@@ -757,29 +751,11 @@
         <div class="check ${scannedSet.has(p.id) ? 'done' : ''}">${scannedSet.has(p.id) ? '✅' : '○'}</div>
       `;
       div.addEventListener('click', () => selectPart(p.id));
-      partsListDiv.appendChild(div);
+      container.appendChild(div);
     });
   }
   
-  function centerCamera() {
-    if (!parts.length) return;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    parts.forEach(p => {
-      if (!p._pos) return;
-      minX = Math.min(minX, p._pos.x - p._size.x/2);
-      maxX = Math.max(maxX, p._pos.x + p._size.x/2);
-      minY = Math.min(minY, p._pos.y - p._size.y/2);
-      maxY = Math.max(maxY, p._pos.y + p._size.y/2);
-      minZ = Math.min(minZ, p._pos.z - p._size.z/2);
-      maxZ = Math.max(maxZ, p._pos.z + p._size.z/2);
-    });
-    target.set((minX+maxX)/2, (minY+maxY)/2, (minZ+maxZ)/2);
-    const size = Math.max(maxX-minX, maxY-minY, maxZ-minZ);
-    camDist = Math.max(size * 1.4, 1.8);
-    updateCameraTransform();
-  }
-  
-  // QR-сканер
+  // ========== QR СКАНЕР ==========
   let scanInterval, videoStream;
   function openScanner() {
     document.getElementById('scannerModal').classList.remove('hidden');
@@ -789,34 +765,38 @@
         const video = document.getElementById('video');
         video.srcObject = stream;
         video.play();
-        startQRScanning();
+        startQRScan();
       }).catch(() => alert('❌ Нет доступа к камере'));
   }
+  
   function closeScanner() {
     document.getElementById('scannerModal').classList.add('hidden');
     if (videoStream) videoStream.getTracks().forEach(t => t.stop());
     if (scanInterval) clearInterval(scanInterval);
   }
-  function startQRScanning() {
+  
+  function startQRScan() {
     const video = document.getElementById('video');
-    const canvas = document.getElementById('qrCanvas');
-    const ctx = canvas.getContext('2d');
+    const qrCanvas = document.getElementById('qrCanvas');
+    const ctx = qrCanvas.getContext('2d');
     scanInterval = setInterval(() => {
       if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      qrCanvas.width = video.videoWidth;
+      qrCanvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imgData.data, canvas.width, canvas.height);
-      if (code) { handleScanCode(code.data); closeScanner(); }
+      const img = ctx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+      const code = jsQR(img.data, img.width, img.height);
+      if (code) { handleScan(code.data); closeScanner(); }
     }, 200);
   }
+  
   function handleManualCode() {
-    const code = document.getElementById('manualCodeInput').value.trim();
-    if (code) handleScanCode(code);
+    const code = document.getElementById('manualCode').value.trim();
+    if (code) handleScan(code);
     closeScanner();
   }
-  function handleScanCode(code) {
+  
+  function handleScan(code) {
     let found = parts.find(p => p.code === code || p.code.trim() === code.trim() || p.code.toLowerCase() === code.toLowerCase());
     if (!found) found = parts.find(p => code.includes(p.code) || p.code.includes(code));
     if (!found) { alert('❌ Деталь не найдена: ' + code); return; }
@@ -826,27 +806,29 @@
     startSmoothZoom(found.id);
     showToast(`✅ ${found.name}`);
   }
+  
   function showToast(msg) {
-    let toast = document.getElementById('customToast');
+    let toast = document.getElementById('toastMsg');
     if (!toast) {
       toast = document.createElement('div');
-      toast.id = 'customToast';
-      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#000c;backdrop-filter:blur(12px);padding:8px 20px;border-radius:60px;color:#0cf;font-size:13px;z-index:300;pointer-events:none';
+      toast.id = 'toastMsg';
+      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#000c;backdrop-filter:blur(12px);padding:8px 20px;border-radius:60px;color:#0cf;font-size:13px;z-index:200;pointer-events:none';
       document.body.appendChild(toast);
     }
     toast.textContent = msg;
     toast.style.opacity = '1';
-    setTimeout(() => toast.style.opacity = '0', 1800);
+    setTimeout(() => toast.style.opacity = '0', 2000);
   }
   
-  function openInfoSheet() { infoSheet.classList.add('open'); }
-  function closeInfoSheet() { infoSheet.classList.remove('open'); }
-  function openDrawer() { drawer.classList.add('open'); }
-  function closeDrawer() { drawer.classList.remove('open'); }
+  // ========== UI СОБЫТИЯ ==========
+  function openDrawer() { document.getElementById('drawer').classList.add('open'); }
+  function closeDrawer() { document.getElementById('drawer').classList.remove('open'); }
+  function openInfoSheet() { document.getElementById('infoSheet').classList.add('open'); }
+  function closeInfoSheet() { document.getElementById('infoSheet').classList.remove('open'); }
   
   function escapeHtml(str) { return (str || '').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
   
-  // Загрузка JSON
+  // Загрузка файла
   document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
   document.getElementById('fileInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -859,7 +841,6 @@
         parts.forEach((p, idx) => { if (p.id === undefined) p.id = idx; });
         autoLayout(parts);
         buildScene();
-        renderPartsList();
         selectedId = null;
         scannedSet.clear();
         hiddenSet.clear();
@@ -867,12 +848,12 @@
         centerCamera();
         closeDrawer();
         showToast(`✅ Загружено ${parts.length} деталей`);
-      } catch(err) { alert('Ошибка JSON'); }
+      } catch(err) { alert('Ошибка файла: ' + err.message); }
     };
     reader.readAsText(file, 'UTF-8');
   });
   
-  // UI события
+  // Кнопки
   document.getElementById('menuBtn').addEventListener('click', openDrawer);
   document.getElementById('closeDrawerBtn').addEventListener('click', closeDrawer);
   document.getElementById('closeInfoBtn').addEventListener('click', closeInfoSheet);
@@ -880,13 +861,15 @@
   document.getElementById('rotateBtn').addEventListener('click', () => { autoRot = !autoRot; });
   document.getElementById('resetViewBtn').addEventListener('click', () => { centerCamera(); autoRot = false; isZooming = false; });
   document.getElementById('xrayBtn').addEventListener('click', () => toggleXrayMode());
+  document.getElementById('showAllBtn').addEventListener('click', () => showAllParts());
   document.getElementById('closeScannerBtn').addEventListener('click', closeScanner);
-  document.getElementById('manualSubmitBtn').addEventListener('click', handleManualCode);
+  document.getElementById('manualSubmit').addEventListener('click', handleManualCode);
   
+  // АНИМАЦИЯ
   function animate() {
     requestAnimationFrame(animate);
-    if (autoRot && !isDragging && !isZooming) { theta += 0.0025; updateCameraTransform(); }
-    if (isZooming) animateCameraToTarget();
+    if (autoRot && !isDragging && !isZooming) { theta += 0.0025; updateCameraPos(); }
+    if (isZooming) animateCameraZoom();
     renderer.render(scene, camera);
   }
   
