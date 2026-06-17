@@ -717,6 +717,7 @@
     </div>
   </div>
   <div class="top-buttons">
+    <button class="top-btn" id="exportBtn" title="Экспорт JSON">📊</button>
     <button class="top-btn" id="printBtn" title="Печать">🖨️</button>
     <button class="top-btn" id="menuBtn" title="Меню">☰</button>
   </div>
@@ -1097,10 +1098,32 @@
       mesh.receiveShadow = true;
       scene.add(mesh);
 
+      // Черные края для видимости стыков
       const edges = new THREE.EdgesGeometry(geo, 15);
       const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x1a1a1a, linewidth: 1 }));
       line.position.copy(mesh.position);
       scene.add(line);
+
+      // Визуализация пазов/отверстий если есть в JSON
+      if (p.grooves && Array.isArray(p.grooves)) {
+        p.grooves.forEach(groove => {
+          const grooveGeo = new THREE.BoxGeometry(groove.w * 0.001, groove.h * 0.001, groove.d * 0.001);
+          const grooveMat = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            roughness: 0.8,
+            metalness: 0,
+            emissive: 0x111111
+          });
+          const grooveMesh = new THREE.Mesh(grooveGeo, grooveMat);
+          const sc = 0.001;
+          grooveMesh.position.set(
+            mesh.position.x + groove.x * sc,
+            mesh.position.y + groove.y * sc,
+            mesh.position.z + groove.z * sc
+          );
+          scene.add(grooveMesh);
+        });
+      }
 
       meshMap.set(p.id, mesh);
       edgeLineMap.set(p.id, line);
@@ -1314,6 +1337,36 @@
     w.print();
   }
 
+  function exportJSON() {
+    const exportData = {
+      project: document.getElementById('projectTitle').textContent,
+      exportDate: new Date().toISOString(),
+      totalParts: parts.length,
+      scannedParts: scannedSet.size,
+      progress: Math.round((scannedSet.size / parts.length) * 100) + '%',
+      parts: parts.map(p => ({
+        id: p.id,
+        name: p.name,
+        code: p.code,
+        material: p.material,
+        dimensions: { L: p.L, W: p.W, T: p.T },
+        size: p._size,
+        position: p._pos,
+        grooves: p.grooves || [],
+        scanned: scannedSet.has(p.id),
+        hidden: hiddenSet.has(p.id)
+      }))
+    };
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bazis-report-${Date.now()}.json`;
+    link.click();
+    showToast('✅ JSON экспортирован');
+  }
+
   // ========== QR СКАНЕР ==========
   let scanInterval, videoStream;
 
@@ -1453,6 +1506,7 @@
   document.getElementById('xrayBtn').addEventListener('click', () => toggleXray());
   document.getElementById('resetProgressBtn').addEventListener('click', resetProgress);
   document.getElementById('printBtn').addEventListener('click', printSpecification);
+  document.getElementById('exportBtn').addEventListener('click', exportJSON);
   document.getElementById('closeScannerBtn').addEventListener('click', closeScanner);
   document.getElementById('manualSubmit').addEventListener('click', handleManualCode);
   document.getElementById('searchInput').addEventListener('input', renderPartsList);
