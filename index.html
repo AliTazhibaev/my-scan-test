@@ -717,7 +717,6 @@
     </div>
   </div>
   <div class="top-buttons">
-    <button class="top-btn" id="exportBtn" title="Экспорт JSON">📊</button>
     <button class="top-btn" id="printBtn" title="Печать">🖨️</button>
     <button class="top-btn" id="menuBtn" title="Меню">☰</button>
   </div>
@@ -1337,36 +1336,6 @@
     w.print();
   }
 
-  function exportJSON() {
-    const exportData = {
-      project: document.getElementById('projectTitle').textContent,
-      exportDate: new Date().toISOString(),
-      totalParts: parts.length,
-      scannedParts: scannedSet.size,
-      progress: Math.round((scannedSet.size / parts.length) * 100) + '%',
-      parts: parts.map(p => ({
-        id: p.id,
-        name: p.name,
-        code: p.code,
-        material: p.material,
-        dimensions: { L: p.L, W: p.W, T: p.T },
-        size: p._size,
-        position: p._pos,
-        grooves: p.grooves || [],
-        scanned: scannedSet.has(p.id),
-        hidden: hiddenSet.has(p.id)
-      }))
-    };
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `bazis-report-${Date.now()}.json`;
-    link.click();
-    showToast('✅ JSON экспортирован');
-  }
-
   // ========== QR СКАНЕР ==========
   let scanInterval, videoStream;
 
@@ -1506,7 +1475,6 @@
   document.getElementById('xrayBtn').addEventListener('click', () => toggleXray());
   document.getElementById('resetProgressBtn').addEventListener('click', resetProgress);
   document.getElementById('printBtn').addEventListener('click', printSpecification);
-  document.getElementById('exportBtn').addEventListener('click', exportJSON);
   document.getElementById('closeScannerBtn').addEventListener('click', closeScanner);
   document.getElementById('manualSubmit').addEventListener('click', handleManualCode);
   document.getElementById('searchInput').addEventListener('input', renderPartsList);
