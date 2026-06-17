@@ -62,7 +62,7 @@
     /* TOP PANEL */
     .top-panel {
       position: fixed; top: 0; left: 0; right: 0;
-      height: 56px;
+      height: 46px;
       background: var(--bg-secondary);
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
@@ -106,20 +106,20 @@
     /* BOTTOM TOOLBAR */
     .bottom-toolbar {
       position: fixed; bottom: 0; left: 0; right: 0;
-      height: 64px;
+      height: 52px;
       background: var(--bg-secondary);
       border-top: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-around;
-      padding: 0 8px 12px 8px;
+      padding: 0 6px 6px 6px;
       z-index: 19;
       backdrop-filter: blur(20px);
     }
     .toolbar-btn {
       background: var(--bg-tertiary);
       border: 1px solid var(--border);
-      width: 48px; height: 48px;
-      border-radius: 14px;
-      font-size: 20px;
+      width: 40px; height: 40px;
+      border-radius: 11px;
+      font-size: 17px;
       cursor: pointer;
       color: var(--accent);
       display: flex; align-items: center; justify-content: center;
@@ -132,14 +132,14 @@
     /* BOTTOM SHEET */
     .bottom-sheet {
       position: fixed;
-      bottom: 64px; left: 0; right: 0;
+      bottom: 52px; left: 0; right: 0;
       background: var(--bg-secondary);
       border-radius: 20px 20px 0 0;
       transform: translateY(100%);
       transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
       z-index: 18;
       border-top: 1px solid var(--border);
-      max-height: 40vh;
+      max-height: 28vh;
       backdrop-filter: blur(24px);
     }
     .bottom-sheet.open { transform: translateY(0); }
@@ -168,7 +168,7 @@
     .sheet-content {
       padding: 0 16px 14px;
       overflow-y: auto;
-      max-height: calc(40vh - 50px);
+      max-height: calc(28vh - 40px);
     }
 
     /* DETAIL CARD */
@@ -253,7 +253,7 @@
     /* DRAWER */
     .drawer {
       position: fixed;
-      top: 56px; left: 0; bottom: 0;
+      top: 46px; left: 0; bottom: 0;
       width: 85%; max-width: 340px;
       background: var(--bg-secondary);
       transform: translateX(-100%);
@@ -455,7 +455,7 @@
     /* TOAST */
     .toast {
       position: fixed;
-      bottom: 80px; left: 50%;
+      bottom: 64px; left: 50%;
       transform: translateX(-50%);
       background: var(--bg-secondary);
       border: 1px solid var(--border);
@@ -473,7 +473,7 @@
     /* ASSEMBLY GUIDE OVERLAY */
     .assembly-overlay {
       position: fixed;
-      top: 56px; left: 0; right: 0;
+      top: 50px; left: 0; right: 0;
       background: var(--bg-secondary);
       border-bottom: 1px solid var(--border);
       padding: 8px 12px;
@@ -736,19 +736,24 @@
     renderer.shadowMap.enabled = true;
     scene = new THREE.Scene();
     scene.background = new THREE.Color(isDarkTheme ? 0x0f0f1a : 0xe8e9ef);
-    scene.fog = new THREE.FogExp2(isDarkTheme ? 0x0f0f1a : 0xe8e9ef, 0.015);
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
+    scene.fog = new THREE.FogExp2(isDarkTheme ? 0x0f0f1a : 0xe8e9ef, 0.003);
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
     camera.position.set(3, 2.5, 3);
     const ambient = new THREE.AmbientLight(0x404060, 0.9);
     scene.add(ambient);
     const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    mainLight.position.set(5, 10, 5);
+    mainLight.position.set(10, 20, 10);
     mainLight.castShadow = true;
+    mainLight.shadow.mapSize.set(2048, 2048);
+    mainLight.shadow.camera.left = -50;
+    mainLight.shadow.camera.right = 50;
+    mainLight.shadow.camera.top = 50;
+    mainLight.shadow.camera.bottom = -50;
     scene.add(mainLight);
     const fillLight = new THREE.DirectionalLight(0x88aaff, 0.45);
-    fillLight.position.set(-3, 2, -4);
+    fillLight.position.set(-5, 4, -8);
     scene.add(fillLight);
-    const grid = new THREE.GridHelper(8, 30, 0x2a3a5a, 0x1a2a3a);
+    const grid = new THREE.GridHelper(40, 80, 0x2a3a5a, 0x1a2a3a);
     grid.position.y = -0.02;
     scene.add(grid);
     setupControls();
@@ -793,7 +798,7 @@
       const dx = touches[0].clientX - touches[1].clientX;
       const dy = touches[0].clientY - touches[1].clientY;
       const dist = Math.hypot(dx, dy);
-      camDist = Math.max(0.5, Math.min(30, pinchStartCamDist + (pinchStartDist - dist) * 0.015));
+      camDist = Math.max(0.5, Math.min(80, pinchStartCamDist + (pinchStartDist - dist) * 0.015));
       updateCamera();
     }
   }
@@ -835,7 +840,7 @@
   }
   function onWheel(e) {
     e.preventDefault();
-    camDist = Math.max(0.5, Math.min(30, camDist + camDist * e.deltaY * 0.001));
+    camDist = Math.max(0.5, Math.min(80, camDist + camDist * e.deltaY * 0.001));
     updateCamera();
   }
   function updateCamera() {
@@ -922,12 +927,102 @@
     return '#8a7f76';
   }
 
+  // DETAIL MESHES (grooves, holes, cutouts, edges)
+  function buildPartDetails(p, parentMesh) {
+    const details = [];
+    const grooves = p.grooves || [];
+    const holes = p.holes || [];
+    const cutouts = p.cutouts || [];
+    const edges = p.edges || [];
+    if (!grooves.length && !holes.length && !cutouts.length && !edges.length) return details;
+    const pp = parentMesh.position;
+
+    grooves.forEach(g => {
+      const gw = (g.w || 20) * sc;
+      const gh = (g.h || 20) * sc;
+      const gd = (g.d || p.T || 16) * sc;
+      const geo = new THREE.BoxGeometry(gw, gh, gd);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9, metalness: 0 });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(pp.x + (g.x || 0) * sc, pp.y + (g.y || 0) * sc, pp.z + (g.z || 0) * sc);
+      m.userData = { partId: p.id, detailType: 'groove' };
+      scene.add(m);
+      const edges2 = new THREE.EdgesGeometry(geo, 15);
+      const line = new THREE.LineSegments(edges2, new THREE.LineBasicMaterial({ color: 0x555555 }));
+      line.position.copy(m.position);
+      scene.add(line);
+      details.push(m, line);
+    });
+
+    holes.forEach(h => {
+      const hr = ((h.d || h.r || 8) / 2) * sc;
+      const hh = ((h.depth || p.T || 16)) * sc;
+      const geo = new THREE.CylinderGeometry(hr, hr, hh, 12);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2 });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(pp.x + (h.x || 0) * sc, pp.y + (h.y || 0) * sc, pp.z + (h.z || 0) * sc);
+      if (h.angleX) m.rotation.x = h.angleX * Math.PI / 180;
+      if (h.angleZ) m.rotation.z = h.angleZ * Math.PI / 180;
+      m.userData = { partId: p.id, detailType: 'hole' };
+      scene.add(m);
+      details.push(m);
+    });
+
+    cutouts.forEach(c => {
+      const cw = (c.w || 30) * sc;
+      const ch = (c.h || 30) * sc;
+      const cd = (c.d || p.T || 16) * sc;
+      const geo = new THREE.BoxGeometry(cw, ch, cd);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.95, metalness: 0, transparent: true, opacity: 0.7 });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(pp.x + (c.x || 0) * sc, pp.y + (c.y || 0) * sc, pp.z + (c.z || 0) * sc);
+      m.userData = { partId: p.id, detailType: 'cutout' };
+      scene.add(m);
+      const edges2 = new THREE.EdgesGeometry(geo, 15);
+      const line = new THREE.LineSegments(edges2, new THREE.LineBasicMaterial({ color: 0x666666 }));
+      line.position.copy(m.position);
+      scene.add(line);
+      details.push(m, line);
+    });
+
+    edges.forEach(e => {
+      const side = (e.side || '').toLowerCase();
+      const len = (e.length || 0) * sc;
+      const thick = 0.002;
+      let ew, eh, ed, ex, ey, ez;
+      if (side.includes('w') || side.includes('длин')) {
+        ew = len; eh = thick; ed = thick;
+        ex = pp.x; ey = pp.y; ez = pp.z + (e.offset || 0) * sc;
+      } else if (side.includes('h') || side.includes('выс')) {
+        ew = thick; eh = len; ed = thick;
+        ex = pp.x + (e.offset || 0) * sc; ey = pp.y; ez = pp.z;
+      } else {
+        ew = thick; eh = thick; ed = len;
+        ex = pp.x; ey = pp.y + (e.offset || 0) * sc; ez = pp.z;
+      }
+      const geo = new THREE.BoxGeometry(ew || 0.01, eh || 0.01, ed || 0.01);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x3a7a3a, roughness: 0.6, metalness: 0.1 });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(ex, ey, ez);
+      m.userData = { partId: p.id, detailType: 'edge' };
+      scene.add(m);
+      details.push(m);
+    });
+
+    return details;
+  }
+
   // BUILD SCENE
+  const detailMeshes = new Map();
+  const sc = 0.001;
+
   function buildScene() {
     meshMap.forEach(m => scene.remove(m));
     edgeLineMap.forEach(l => scene.remove(l));
+    detailMeshes.forEach(arr => arr.forEach(m => scene.remove(m)));
     meshMap.clear();
     edgeLineMap.clear();
+    detailMeshes.clear();
     originalPositions.clear();
     parts.forEach(p => {
       const geo = new THREE.BoxGeometry(p._size.x, p._size.y, p._size.z);
@@ -951,6 +1046,8 @@
       originalPositions.set(p.id, new THREE.Vector3(p._pos.x, p._pos.y, p._pos.z));
       meshMap.set(p.id, mesh);
       edgeLineMap.set(p.id, line);
+      const details = buildPartDetails(p, mesh);
+      if (details.length) detailMeshes.set(p.id, details);
     });
     centerCamera();
     updateStats();
@@ -1049,10 +1146,6 @@
     const modKey = getModuleKey(p.code);
     const modName = getModuleName(p.code);
     const modColor = getModuleColor(p.code);
-    const weight = p.L && p.W && p.T ? ((p.L * p.W * p.T / 1000) * 0.00000065).toFixed(2) : '—';
-    const sameCodeCount = parts.filter(pp => pp.code === p.code).length;
-    const partIndex = parts.indexOf(p) + 1;
-    const dims = p.gab ? `${p.gab.w}×${p.gab.h}×${p.gab.d}` : `${p.L || '—'}×${p.W || '—'}×${p.T || '—'}`;
 
     let assemblyHint = '';
     if (modKey !== 'HARDWARE' && modKey !== 'OTHER') {
@@ -1064,33 +1157,20 @@
     container.innerHTML = `
       <div class="detail-card">
         <div class="detail-row">
-          <span class="detail-label">Позиция:</span>
-          <span class="detail-value">${escapeHtml(p.name || '—')}</span>
+          <span class="detail-label">Наименование:</span>
+          <span class="detail-value" style="font-size:13px;font-weight:600">${escapeHtml(p.name || '—')}</span>
         </div>
         <div class="detail-row">
-          <span class="detail-label">Артикул:</span>
+          <span class="detail-label">Обозначение:</span>
           <span class="detail-code">${escapeHtml(p.code || '—')}</span>
         </div>
-        <div class="dims-row">
-          <div class="dim"><span class="dim-label">Длина</span><span class="dim-value">${p.L || '—'}</span></div>
-          <div class="dim"><span class="dim-label">Ширина</span><span class="dim-value">${p.W || '—'}</span></div>
-          <div class="dim"><span class="dim-label">Толщина</span><span class="dim-value">${p.T || '—'}</span></div>
-        </div>
-        <div class="dims-row">
-          <div class="dim"><span class="dim-label">Габарит X</span><span class="dim-value">${p.gab?.w || '—'}</span></div>
-          <div class="dim"><span class="dim-label">Габарит Y</span><span class="dim-value">${p.gab?.h || '—'}</span></div>
-          <div class="dim"><span class="dim-label">Габарит Z</span><span class="dim-value">${p.gab?.d || '—'}</span></div>
-        </div>
-        <div class="detail-row" style="margin-top:4px">
+        <div class="detail-row" style="margin-top:2px">
           <span class="material-tag">${escapeHtml(p.material || 'Материал')}</span>
           <span class="module-badge" style="color:${modColor};background:${modColor}18;border-color:${modColor}30">${modName}</span>
         </div>
-        <div class="detail-row" style="margin-top:4px">
+        <div class="detail-row" style="margin-top:3px">
           <span class="status-badge ${isScanned ? 'scanned' : 'waiting'}">${isScanned ? '✅ ОТСКАНИРОВАНО' : '⏳ ОЖИДАЕТ'}</span>
-          <span style="font-size:9px;color:var(--text-secondary)">Масса ≈ ${weight} кг</span>
         </div>
-        ${p.qty > 1 ? `<div style="font-size:9px;color:var(--text-secondary);margin-top:2px">Кол-во в комплекте: ${p.qty}</div>` : ''}
-        ${sameCodeCount > 1 ? `<div style="font-size:9px;color:var(--text-secondary)">Таких деталей в проекте: ${sameCodeCount} шт.</div>` : ''}
         ${assemblyHint}
         ${renderProcessingInfo(p)}
         <div class="action-buttons">
@@ -1201,9 +1281,19 @@
 
       const offset = explodeProgress * dist * 0.8;
       const newPos = orig.clone().add(dir.multiplyScalar(offset));
+      const delta = new THREE.Vector3().subVectors(newPos, orig);
 
       mesh.position.copy(newPos);
       if (line) line.position.copy(newPos);
+
+      const details = detailMeshes.get(p.id);
+      if (details) {
+        details.forEach(d => {
+          if (d.isMesh || d.isLineSegments) {
+            d.position.add(delta);
+          }
+        });
+      }
     });
   }
 
@@ -1480,7 +1570,7 @@
     let html = '<html><head><title>Спецификация</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f0f0f0;font-weight:700}.mod{background:#e8e8ff;font-weight:700}</style></head><body>';
     html += '<h2>Спецификация — ' + document.getElementById('projectTitle').textContent + '</h2>';
     html += `<p>Всего деталей: ${parts.length} | Собрано: ${scannedSet.size}</p>`;
-    html += '<table><tr><th>#</th><th>Артикул</th><th>Позиция</th><th>Материал</th><th>Размеры (мм)</th><th>Статус</th></tr>';
+    html += '<table><tr><th>#</th><th>Обозначение</th><th>Наименование</th><th>Материал</th><th>Размеры (мм)</th><th>Статус</th></tr>';
     let lastMod = '';
     parts.forEach((p, i) => {
       const mod = getModuleKey(p.code);
