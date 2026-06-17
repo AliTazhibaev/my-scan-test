@@ -16,7 +16,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', Roboto, sans-serif;
-      background: #121212;
+      background: #1f1f2e;
       overflow: hidden;
       position: fixed;
       width: 100%;
@@ -651,6 +651,8 @@
   let touchStartPos = null;
   let isPinching = false;
   let pinchStartDist = 0, pinchStartCamDist = 0;
+  let mouseStartPos = null;
+  let mouseMovedDistance = 0;
 
   // ========== THREE.JS ИНИЦИАЛИЗАЦИЯ ==========
   const canvas = document.getElementById('canvas3d');
@@ -662,27 +664,27 @@
     renderer.shadowMap.enabled = true;
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x121212);
-    scene.fog = new THREE.FogExp2(0x121212, 0.022);
+    scene.background = new THREE.Color(0x1f1f2e);
+    scene.fog = new THREE.FogExp2(0x1f1f2e, 0.018);
 
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
     camera.position.set(3, 2.5, 3);
 
     // Освещение
-    const ambient = new THREE.AmbientLight(0x404060, 0.7);
+    const ambient = new THREE.AmbientLight(0x404060, 0.85);
     scene.add(ambient);
 
-    const mainLight = new THREE.DirectionalLight(0xffffff, 0.95);
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
     mainLight.position.set(5, 10, 5);
     mainLight.castShadow = true;
     scene.add(mainLight);
 
-    const fillLight = new THREE.DirectionalLight(0x88aaff, 0.35);
+    const fillLight = new THREE.DirectionalLight(0x88aaff, 0.45);
     fillLight.position.set(-3, 2, -4);
     scene.add(fillLight);
 
     // Grid
-    const grid = new THREE.GridHelper(6, 20, 0x2a4a6a, 0x1a2a3a);
+    const grid = new THREE.GridHelper(6, 20, 0x3a6a8a, 0x2a3a4a);
     grid.position.y = -0.02;
     scene.add(grid);
 
@@ -730,7 +732,7 @@
       const dx = touches[0].clientX - touches[1].clientX;
       const dy = touches[0].clientY - touches[1].clientY;
       const dist = Math.hypot(dx, dy);
-      camDist = Math.max(0.5, Math.min(12, pinchStartCamDist + (pinchStartDist - dist) * 0.015));
+      camDist = Math.max(0.5, Math.min(30, pinchStartCamDist + (pinchStartDist - dist) * 0.015));
       updateCamera();
     }
   }
@@ -752,6 +754,8 @@
 
   function onMouseDown(e) {
     if (e.button === 0) {
+      mouseStartPos = { x: e.clientX, y: e.clientY };
+      mouseMovedDistance = 0;
       isDragging = true;
       prevMouse = { x: e.clientX, y: e.clientY };
       autoRotate = false;
@@ -760,19 +764,28 @@
 
   function onMouseMove(e) {
     if (!isDragging) return;
-    theta -= (e.clientX - prevMouse.x) * 0.005;
-    phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - (e.clientY - prevMouse.y) * 0.005));
+    const dx = e.clientX - prevMouse.x;
+    const dy = e.clientY - prevMouse.y;
+    mouseMovedDistance += Math.abs(dx) + Math.abs(dy);
+    theta -= dx * 0.005;
+    phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - dy * 0.005));
     prevMouse = { x: e.clientX, y: e.clientY };
     updateCamera();
   }
 
-  function onMouseUp() {
+  function onMouseUp(e) {
+    if (isDragging && mouseStartPos && mouseMovedDistance < 5) {
+      const rect = canvas.getBoundingClientRect();
+      handleRaycast(mouseStartPos.x, mouseStartPos.y, rect);
+    }
     isDragging = false;
+    mouseStartPos = null;
+    mouseMovedDistance = 0;
   }
 
   function onWheel(e) {
     e.preventDefault();
-    camDist = Math.max(0.5, Math.min(12, camDist + camDist * e.deltaY * 0.001));
+    camDist = Math.max(0.5, Math.min(30, camDist + camDist * e.deltaY * 0.001));
     updateCamera();
   }
 
@@ -844,14 +857,34 @@
 
   function getColor(mat) {
     const m = (mat || '').toLowerCase();
-    if (m.includes('белый')) return '#ece7e0';
-    if (m.includes('дуб сонома')) return '#c8aa76';
-    if (m.includes('дуб')) return '#b89062';
+    // Белые материалы
+    if (m.includes('белый') || m.includes('белая') || m.includes('snow')) return '#ece7e0';
+    // Светлые дубы
+    if (m.includes('дуб сонома')) return '#d4af8f';
+    if (m.includes('дуб светлый')) return '#c8b896';
+    if (m.includes('дуб янтарь')) return '#d4a574';
+    // Средние дубы
+    if (m.includes('дуб') && !m.includes('сонома')) return '#b89062';
+    // Венге и темные
     if (m.includes('венге')) return '#3b2a1c';
-    if (m.includes('графит')) return '#4f5154';
-    if (m.includes('хром')) return '#bfc7d0';
+    if (m.includes('темный') || m.includes('черный')) return '#2c2c2c';
+    if (m.includes('графит') || m.includes('серый')) return '#5a5a60';
+    // Металл
+    if (m.includes('хром') || m.includes('металл')) return '#d0d8e0';
+    // Теплые оттенки
     if (m.includes('кашемир')) return '#c7bcac';
-    return '#9c8e7c';
+    if (m.includes('мдф') || m.includes('лдсп')) return '#9c8e7c';
+    if (m.includes('сосна') || m.includes('ель')) return '#d4c4b0';
+    if (m.includes('клен')) return '#e8d4b8';
+    if (m.includes('ясень')) return '#c9a882';
+    if (m.includes('ольха')) return '#a67c52';
+    // Ламинаты и пластики
+    if (m.includes('черный лам')) return '#1a1a1a';
+    if (m.includes('белый лам')) return '#f5f1ed';
+    // Матовые
+    if (m.includes('матовый')) return '#8a7f76';
+    // По умолчанию
+    return '#a89878';
   }
 
   function buildScene() {
