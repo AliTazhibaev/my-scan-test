@@ -139,7 +139,7 @@
       transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
       z-index: 18;
       border-top: 1px solid var(--border);
-      max-height: 28vh;
+      max-height: 32vh;
       backdrop-filter: blur(24px);
     }
     .bottom-sheet.open { transform: translateY(0); }
@@ -168,7 +168,7 @@
     .sheet-content {
       padding: 0 16px 14px;
       overflow-y: auto;
-      max-height: calc(28vh - 40px);
+      max-height: calc(32vh - 40px);
     }
 
     /* DETAIL CARD */
@@ -303,6 +303,19 @@
       cursor: pointer; font-weight: 600;
     }
     .upload-btn:active { background: var(--accent); color: #fff; }
+    .drawer-actions {
+      display: flex; gap: 6px; margin-bottom: 8px;
+    }
+    .drawer-action-btn {
+      flex: 1;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      padding: 7px 0; border-radius: 8px;
+      font-size: 10px; color: var(--text-secondary);
+      text-align: center; cursor: pointer; font-weight: 600;
+      transition: all 0.15s;
+    }
+    .drawer-action-btn:active { background: var(--accent); color: #fff; }
 
     /* MODULE GROUP */
     .module-group { margin-bottom: 8px; }
@@ -566,10 +579,9 @@
   <button class="toolbar-btn" id="scanBtn" title="Сканировать QR">📷</button>
   <button class="toolbar-btn" id="xrayBtn" title="X-Ray">👁</button>
   <button class="toolbar-btn" id="explodeBtn" title="Взрыв">💥</button>
-  <button class="toolbar-btn" id="assembleBtn" title="Пошаговая сборка">🔧</button>
   <button class="toolbar-btn" id="rotateBtn" title="Авто-вращение">⟳</button>
   <button class="toolbar-btn" id="resetViewBtn" title="Центр">⌂</button>
-  <button class="toolbar-btn" id="resetProgressBtn" title="Сбросить">🔄</button>
+  <button class="toolbar-btn" id="focusBtn" title="Фокус на выбранной">🎯</button>
 </div>
 
 <!-- DRAWER -->
@@ -583,11 +595,11 @@
   </div>
   <div class="drawer-content">
     <div class="upload-btn" id="uploadBtn">📂 ЗАГРУЗИТЬ JSON</div>
+    <div class="drawer-actions">
+      <button class="drawer-action-btn" id="assembleBtn" title="Пошаговая сборка">🔧 Пошаговая сборка</button>
+      <button class="drawer-action-btn" id="resetProgressBtn" title="Сбросить прогресс">🔄 Сбросить прогресс</button>
+    </div>
     <div id="partsList"></div>
-  </div>
-  <div class="material-summary" id="materialSummary" style="display:none">
-    <div class="summary-title">📊 СВОДКА</div>
-    <div id="summaryContent"></div>
   </div>
   <input type="file" id="fileInput" accept=".json" hidden>
 </div>
@@ -734,21 +746,24 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     scene = new THREE.Scene();
     scene.background = new THREE.Color(isDarkTheme ? 0x0f0f1a : 0xe8e9ef);
     scene.fog = new THREE.FogExp2(isDarkTheme ? 0x0f0f1a : 0xe8e9ef, 0.003);
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
     camera.position.set(3, 2.5, 3);
-    const ambient = new THREE.AmbientLight(0x404060, 0.9);
+    const ambient = new THREE.AmbientLight(0x606080, 1.2);
     scene.add(ambient);
     const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
     mainLight.position.set(10, 20, 10);
     mainLight.castShadow = true;
-    mainLight.shadow.mapSize.set(2048, 2048);
+    mainLight.shadow.mapSize.set(1024, 1024);
     mainLight.shadow.camera.left = -50;
     mainLight.shadow.camera.right = 50;
     mainLight.shadow.camera.top = 50;
     mainLight.shadow.camera.bottom = -50;
+    mainLight.shadow.bias = -0.001;
+    mainLight.shadow.radius = 4;
     scene.add(mainLight);
     const fillLight = new THREE.DirectionalLight(0x88aaff, 0.45);
     fillLight.position.set(-5, 4, -8);
@@ -1053,7 +1068,7 @@
     updateStats();
     buildModuleMap();
     renderPartsList();
-    updateSummary();
+    
   }
 
   function buildModuleMap() {
@@ -1168,7 +1183,12 @@
           <span class="material-tag">${escapeHtml(p.material || 'Материал')}</span>
           <span class="module-badge" style="color:${modColor};background:${modColor}18;border-color:${modColor}30">${modName}</span>
         </div>
-        <div class="detail-row" style="margin-top:3px">
+        <div class="dims-row" style="margin-top:3px">
+          <div class="dim"><span class="dim-label">Д</span><span class="dim-value">${p.L || '—'}</span></div>
+          <div class="dim"><span class="dim-label">Ш</span><span class="dim-value">${p.W || '—'}</span></div>
+          <div class="dim"><span class="dim-label">Т</span><span class="dim-value">${p.T || '—'}</span></div>
+        </div>
+        <div class="detail-row" style="margin-top:2px">
           <span class="status-badge ${isScanned ? 'scanned' : 'waiting'}">${isScanned ? '✅ ОТСКАНИРОВАНО' : '⏳ ОЖИДАЕТ'}</span>
         </div>
         ${assemblyHint}
@@ -1635,7 +1655,7 @@
     startSmoothZoom(found.id);
     showToast(`✅ ${found.name}`);
     saveProgress();
-    updateSummary();
+    
     renderPartsList();
   }
 
@@ -1663,7 +1683,7 @@
       closeSheet();
       updateStats();
       renderPartsList();
-      updateSummary();
+      
       localStorage.removeItem('bazisProgress');
       showToast('🔄 Прогресс сброшен');
     }
@@ -1709,7 +1729,7 @@
         centerCamera();
         closeDrawer();
         updateStats();
-        updateSummary();
+        
         showToast(`✅ Загружено ${parts.length} деталей`);
         document.getElementById('projectTitle').textContent = file.name.replace('.json', '');
         saveProgress();
@@ -1726,6 +1746,7 @@
   document.getElementById('scanBtn').addEventListener('click', openScanner);
   document.getElementById('rotateBtn').addEventListener('click', () => { autoRotate = !autoRotate; });
   document.getElementById('resetViewBtn').addEventListener('click', () => { centerCamera(); autoRotate = false; isSmoothZoom = false; });
+  document.getElementById('focusBtn').addEventListener('click', () => { if (selectedId !== null) startSmoothZoom(selectedId); else showToast('Сначала выберите деталь'); });
   document.getElementById('xrayBtn').addEventListener('click', toggleXray);
   document.getElementById('explodeBtn').addEventListener('click', toggleExplode);
   document.getElementById('assembleBtn').addEventListener('click', toggleAssembly);
