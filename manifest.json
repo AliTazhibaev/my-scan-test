@@ -1,0 +1,18 @@
+{
+  "name": "Aivo Scan — 3D сканер мебели",
+  "short_name": "Aivo Scan",
+  "description": "3D визуализация и сборка мебели для цехов",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080c15",
+  "theme_color": "#00d4aa",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
