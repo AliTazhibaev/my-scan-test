@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aivo Scan — Админ панель</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0c12; color: #e8eaf0; min-height: 100vh; }
+    .login-box { max-width: 360px; margin: 80px auto; padding: 32px; background: #131620; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); }
+    .login-box h1 { font-size: 18px; margin-bottom: 4px; }
+    .login-box .sub { font-size: 11px; color: #64748b; margin-bottom: 20px; }
+    .login-box img { width: 48px; height: 48px; margin-bottom: 12px; }
+    input { width: 100%; padding: 10px 12px; background: #0f1118; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #e8eaf0; font-size: 13px; margin-bottom: 10px; outline: none; }
+    input:focus { border-color: #00d4aa; }
+    button { width: 100%; padding: 10px; background: #00d4aa; color: #000; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 8px; }
+    button:hover { background: #00b894; }
+    button.danger { background: #ef4444; color: #fff; }
+    button.danger:hover { background: #dc2626; }
+    button.secondary { background: #1e293b; color: #94a3b8; border: 1px solid rgba(255,255,255,0.06); }
+    button.secondary:hover { background: #334155; }
+    .error { color: #ef4444; font-size: 11px; margin-bottom: 8px; display: none; }
+
+    .panel { max-width: 800px; margin: 20px auto; padding: 0 16px; }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .panel-header h1 { font-size: 16px; }
+    .panel-header img { width: 32px; height: 32px; }
+
+    .actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 20px; }
+    .action-card { background: #131620; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; }
+    .action-card:hover { border-color: #00d4aa; background: #1a1d28; }
+    .action-card .icon { font-size: 24px; margin-bottom: 8px; }
+    .action-card .title { font-size: 12px; font-weight: 700; }
+    .action-card .desc { font-size: 10px; color: #64748b; margin-top: 2px; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #131620; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); padding: 24px; width: 360px; max-width: 90vw; }
+    .modal h2 { font-size: 15px; margin-bottom: 16px; }
+    .modal label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+    .modal input { margin-bottom: 12px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .modal-actions button { flex: 1; }
+
+    .user-list { margin-top: 8px; }
+    .user-card { background: #131620; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+    .user-card .user-email { font-size: 13px; font-weight: 600; }
+    .user-card .user-meta { font-size: 11px; color: #64748b; margin-top: 4px; }
+    .user-card .user-meta span { margin-right: 12px; }
+    .user-card .user-devices { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.04); }
+    .user-card .device { font-size: 10px; color: #94a3b8; padding: 2px 0; }
+    .user-card .user-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .user-card .user-actions button { width: auto; padding: 5px 12px; font-size: 10px; margin-bottom: 0; }
+
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .badge-green { background: rgba(0,212,170,0.15); color: #00d4aa; }
+    .badge-red { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .badge-yellow { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .badge-gray { background: rgba(148,163,184,0.15); color: #94a3b8; }
+
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #e8eaf0; padding: 10px 20px; border-radius: 8px; font-size: 12px; z-index: 200; opacity: 0; transition: opacity 0.3s; border: 1px solid rgba(255,255,255,0.06); }
+    .toast.show { opacity: 1; }
+    .loading { text-align: center; padding: 40px; color: #64748b; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<div id="loginView" class="login-box">
+  <img src="logo.svg" alt="logo">
+  <h1>Aivo Scan</h1>
+  <div class="sub">Админ панель</div>
+  <div id="loginError" class="error"></div>
+  <input type="email" id="loginEmail" placeholder="Email администратора">
+  <input type="password" id="loginPass" placeholder="Пароль">
+  <button onclick="doLogin()">Войти</button>
+</div>
+
+<div id="adminView" class="panel" style="display:none">
+  <div class="panel-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <img src="logo.svg" alt="logo">
+      <div>
+        <h1>Админ панель</h1>
+        <div style="font-size:10px;color:#64748b" id="adminEmail"></div>
+      </div>
+    </div>
+    <button class="secondary" style="width:auto" onclick="doLogout()">Выйти</button>
+  </div>
+
+  <div class="actions">
+    <div class="action-card" onclick="openCreate()">
+      <div class="icon">➕</div>
+      <div class="title">Создать аккаунт</div>
+      <div class="desc">Новый пользователь с лимитом</div>
+    </div>
+    <div class="action-card" onclick="openReset()">
+      <div class="icon">🔄</div>
+      <div class="title">Сбросить устройства</div>
+      <div class="desc">Очистить привязки телефона</div>
+    </div>
+    <div class="action-card" onclick="openDeadline()">
+      <div class="icon">📅</div>
+      <div class="title">Установить дедлайн</div>
+      <div class="desc">Срок действия аккаунта</div>
+    </div>
+    <div class="action-card" onclick="loadUsers()">
+      <div class="icon">📋</div>
+      <div class="title">Обновить список</div>
+      <div class="desc">Загрузить аккаунты заново</div>
+    </div>
+  </div>
+
+  <div id="userList" class="user-list">
+    <div class="loading">Нажмите «Обновить список» для загрузки</div>
+  </div>
+</div>
+
+<div id="createModal" class="modal-overlay">
+  <div class="modal">
+    <h2>➕ Создать аккаунт</h2>
+    <label>Email</label>
+    <input type="email" id="createEmail" placeholder="workshop@example.com">
+    <label>Пароль</label>
+    <input type="text" id="createPass" placeholder="Минимум 6 символов">
+    <label>Лимит устройств</label>
+    <input type="number" id="createLimit" value="5" min="1" max="100">
+    <label>Дедлайн</label>
+    <input type="text" id="createDeadline" placeholder="30д / 3м / 1г / нет">
+    <div id="createError" class="error"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal('createModal')">Отмена</button>
+      <button onclick="doCreate()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<div id="resetModal" class="modal-overlay">
+  <div class="modal">
+    <h2>🔄 Сбросить устройства</h2>
+    <label>Email аккаунта</label>
+    <input type="email" id="resetEmail" placeholder="workshop@example.com">
+    <div id="resetError" class="error"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal('resetModal')">Отмена</button>
+      <button onclick="doReset()">Сбросить</button>
+    </div>
+  </div>
+</div>
+
+<div id="deadlineModal" class="modal-overlay">
+  <div class="modal">
+    <h2>📅 Установить дедлайн</h2>
+    <label>Email аккаунта</label>
+    <input type="email" id="deadlineEmail" placeholder="workshop@example.com">
+    <label>Дедлайн</label>
+    <input type="text" id="deadlineValue" placeholder="30д / 3м / 2026-12-31 / нет">
+    <div id="deadlineError" class="error"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal('deadlineModal')">Отмена</button>
+      <button onclick="doDeadline()">Установить</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.12.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyC1zdM8WU5C29Skn7WUhzsX3VzKUlT7dxo",
+  authDomain: "aivo-scan.firebaseapp.com",
+  projectId: "aivo-scan",
+  storageBucket: "aivo-scan.firebasestorage.app",
+  messagingSenderId: "104812750903",
+  appId: "1:104812750903:web:42f097a49719748af5f7b2"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const ADMIN_UIDS = [];
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function parseDeadline(input) {
+  if (!input || input.trim() === '' || input.trim() === 'нет' || input.trim() === '0') return null;
+  const s = input.trim().toLowerCase();
+  const now = new Date();
+  if (s.endsWith('д') || s.endsWith('d')) { now.setDate(now.getDate() + parseInt(s)); return now; }
+  if (s.endsWith('м') || s.endsWith('m')) { now.setMonth(now.getMonth() + parseInt(s)); return now; }
+  if (s.endsWith('г') || s.endsWith('y')) { now.setFullYear(now.getFullYear() + parseInt(s)); return now; }
+  const d = new Date(input.trim());
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatDeadline(ts) {
+  if (!ts) return 'Бессрочно';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const days = Math.ceil((d - new Date()) / 86400000);
+  if (days < 0) return { text: `Истёк ${d.toLocaleDateString('ru-RU')}`, cls: 'badge-red' };
+  if (days === 0) return { text: 'Истекает сегодня', cls: 'badge-yellow' };
+  return { text: `${d.toLocaleDateString('ru-RU')} (${days} дн.)`, cls: 'badge-green' };
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (!email || !pass) { showError('loginError', 'Заполните все поля'); return; }
+  try {
+    const cred = await auth.signInWithEmailAndPassword(email, pass);
+    if (ADMIN_UIDS.length > 0 && !ADMIN_UIDS.includes(cred.user.uid)) {
+      showError('loginError', 'Нет прав администратора');
+      await auth.signOut();
+      return;
+    }
+    document.getElementById('loginView').style.display = 'none';
+    document.getElementById('adminView').style.display = 'block';
+    document.getElementById('adminEmail').textContent = email;
+    loadUsers();
+  } catch (e) {
+    showError('loginError', 'Неверный email или пароль');
+  }
+}
+
+function doLogout() {
+  auth.signOut();
+  document.getElementById('loginView').style.display = 'block';
+  document.getElementById('adminView').style.display = 'none';
+}
+
+function openCreate() { document.getElementById('createModal').classList.add('show'); }
+function openReset() { document.getElementById('resetModal').classList.add('show'); }
+function openDeadline() { document.getElementById('deadlineModal').classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+async function doCreate() {
+  const email = document.getElementById('createEmail').value.trim();
+  const pass = document.getElementById('createPass').value;
+  const limit = parseInt(document.getElementById('createLimit').value) || 5;
+  const dl = document.getElementById('createDeadline').value;
+  if (!email || !pass) { showError('createError', 'Email и пароль обязательны'); return; }
+  if (pass.length < 6) { showError('createError', 'Пароль минимум 6 символов'); return; }
+  const deadline = parseDeadline(dl);
+  try {
+    const res = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + firebaseConfig.apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass, returnSecureToken: false })
+    });
+    const data = await res.json();
+    if (data.error) { showError('createError', data.error.message); return; }
+    const uid = data.localId;
+    const userData = { deviceLimit: limit };
+    if (deadline) userData.expiresAt = firebase.firestore.Timestamp.fromDate(deadline);
+    await db.collection('users').doc(uid).set(userData);
+    closeModal('createModal');
+    showToast('✅ Аккаунт создан: ' + email);
+    document.getElementById('createEmail').value = '';
+    document.getElementById('createPass').value = '';
+    document.getElementById('createDeadline').value = '';
+    loadUsers();
+  } catch (e) {
+    showError('createError', e.message);
+  }
+}
+
+async function doReset() {
+  const email = document.getElementById('resetEmail').value.trim();
+  if (!email) { showError('resetError', 'Введите email'); return; }
+  try {
+    const snap = await db.collection('users').get();
+    let uid = null;
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (d.email === email || doc.id) {
+        const devicesSnap = await db.collection('users').doc(doc.id).collection('devices').get();
+        if (devicesSnap.size > 0 || d.deviceLimit) {
+          uid = doc.id;
+          break;
+        }
+      }
+    }
+    if (!uid) { showError('resetError', 'Аккаунт не найден в Firestore'); return; }
+    const devicesSnap = await db.collection('users').doc(uid).collection('devices').get();
+    const batch = db.batch();
+    for (const d of devicesSnap.docs) batch.delete(d.ref);
+    await batch.commit();
+    closeModal('resetModal');
+    showToast('✅ Удалено ' + devicesSnap.size + ' устройств');
+    document.getElementById('resetEmail').value = '';
+    loadUsers();
+  } catch (e) {
+    showError('resetError', e.message);
+  }
+}
+
+async function doDeadline() {
+  const email = document.getElementById('deadlineEmail').value.trim();
+  const dl = document.getElementById('deadlineValue').value;
+  if (!email) { showError('deadlineError', 'Введите email'); return; }
+  const deadline = parseDeadline(dl);
+  try {
+    const snap = await db.collection('users').get();
+    let uid = null;
+    for (const doc of snap.docs) {
+      const devicesSnap = await db.collection('users').doc(doc.id).collection('devices').get();
+      if (devicesSnap.size > 0 || doc.data().deviceLimit) { uid = doc.id; break; }
+    }
+    if (!uid) { showError('deadlineError', 'Аккаунт не найден'); return; }
+    const update = deadline ? { expiresAt: firebase.firestore.Timestamp.fromDate(deadline) } : { expiresAt: firebase.firestore.FieldValue.delete() };
+    await db.collection('users').doc(uid).set(update, { merge: true });
+    closeModal('deadlineModal');
+    showToast('✅ Дедлайн обновлён');
+    document.getElementById('deadlineEmail').value = '';
+    document.getElementById('deadlineValue').value = '';
+    loadUsers();
+  } catch (e) {
+    showError('deadlineError', e.message);
+  }
+}
+
+async function loadUsers() {
+  const container = document.getElementById('userList');
+  container.innerHTML = '<div class="loading">Загрузка...</div>';
+  try {
+    const snap = await db.collection('users').get();
+    if (snap.empty) { container.innerHTML = '<div class="loading">Аккаунтов пока нет</div>'; return; }
+    let html = '';
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const uid = doc.id;
+      const limit = data.deviceLimit || 5;
+      const devicesSnap = await db.collection('users').doc(uid).collection('devices').get();
+      const devCount = devicesSnap.size;
+      const dl = formatDeadline(data.expiresAt);
+      html += '<div class="user-card">';
+      html += '<div class="user-email">' + (data.email || uid.substring(0, 12) + '...') + '</div>';
+      html += '<div class="user-meta">';
+      html += '<span>Устройств: <b>' + devCount + '/' + limit + '</b></span>';
+      html += '<span>Дедлайн: <span class="badge ' + dl.cls + '">' + dl.text + '</span></span>';
+      html += '</div>';
+      if (devCount > 0) {
+        html += '<div class="user-devices">';
+        for (const d of devicesSnap.docs) {
+          const dd = d.data();
+          const seen = dd.lastSeen ? new Date(dd.lastSeen.toDate()).toLocaleString('ru-RU') : '?';
+          html += '<div class="device">📱 ' + (dd.name || 'unknown') + ' — ' + seen + '</div>';
+        }
+        html += '</div>';
+      }
+      html += '<div class="user-actions">';
+      html += '<button class="secondary" onclick="quickReset(\'' + uid + '\',\'' + (data.email || '') + '\')">🔄 Сбросить</button>';
+      html += '<button class="secondary" onclick="quickDeadline(\'' + uid + '\')">📅 Дедлайн</button>';
+      html += '<button class="danger" onclick="quickDelete(\'' + uid + '\',\'' + (data.email || '') + '\')">🗑 Удалить</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<div class="loading">Ошибка: ' + e.message + '</div>';
+  }
+}
+
+async function quickReset(uid, email) {
+  if (!confirm('Сбросить устройства для ' + email + '?')) return;
+  const devicesSnap = await db.collection('users').doc(uid).collection('devices').get();
+  const batch = db.batch();
+  for (const d of devicesSnap.docs) batch.delete(d.ref);
+  await batch.commit();
+  showToast('✅ Удалено ' + devicesSnap.size + ' устройств');
+  loadUsers();
+}
+
+async function quickDeadline(uid) {
+  const dl = prompt('Дедлайн (30д / 3м / 1г / нет):');
+  if (!dl) return;
+  const deadline = parseDeadline(dl);
+  const update = deadline ? { expiresAt: firebase.firestore.Timestamp.fromDate(deadline) } : { expiresAt: firebase.firestore.FieldValue.delete() };
+  await db.collection('users').doc(uid).set(update, { merge: true });
+  showToast('✅ Дедлайн обновлён');
+  loadUsers();
+}
+
+async function quickDelete(uid, email) {
+  if (!confirm('Удалить аккаунт ' + email + '? Это нельзя отменить!')) return;
+  const devicesSnap = await db.collection('users').doc(uid).collection('devices').get();
+  const batch = db.batch();
+  for (const d of devicesSnap.docs) batch.delete(d.ref);
+  batch.delete(db.collection('users').doc(uid));
+  await batch.commit();
+  showToast('✅ Данные удалены из Firestore');
+  loadUsers();
+}
+
+document.getElementById('loginPass').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginEmail').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
