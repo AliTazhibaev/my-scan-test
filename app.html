@@ -871,10 +871,22 @@ firebase.auth().onAuthStateChanged(async function(user) {
   } catch(e) {}
 });
 
-// FIX: collect ALL unique part hits, try to select the first one not yet selected
+// FIX: when multiple meshes overlap, prefer thinner/smaller parts (like facades)
+// Also fix getModulePrefix to recognize DETS_* patterns
 (function(){
+  // Fix module prefix regex to include DETS_* patterns
+  var origGetModulePrefix = window.getModulePrefix;
+  if(origGetModulePrefix){
+    window.getModulePrefix = function(code){
+      if(!code) return "OTHER";
+      var m = code.match(/^(DETS_\d+|MEDC_\d+|KUH_\d+_\d+|MUD_\d+|D-\d+)/);
+      if(m) return m[1];
+      return "OTHER";
+    };
+  }
+
   var prevSelectedId = null;
-  var origHandleRaycast = window.handleRaycast;
+  var prevClickPos = null;
   window.handleRaycast = function(x, y, rect) {
     var mouse = new THREE.Vector2();
     mouse.x = (x - rect.left) / rect.width * 2 - 1;
@@ -889,21 +901,38 @@ firebase.auth().onAuthStateChanged(async function(user) {
     }
     var hits = rc.intersectObjects(meshes);
     if(hits.length===0)return;
+
     var seen={};
     var unique=[];
     for(var i=0;i<hits.length;i++){
       var pid=hits[i].object.userData.partId;
-      if(pid!==undefined&&!seen[pid]){seen[pid]=true;unique.push(pid);}
+      if(pid!==undefined&&!seen[pid]){seen[pid]=true;unique.push({id:pid,dist:hits[i].distance,obj:hits[i].object});}
     }
-    var targetId=unique[0];
-    if(unique.length>1){
-      for(var j=0;j<unique.length;j++){
-        if(unique[j]!==prevSelectedId){targetId=unique[j];break;}
-      }
+    if(unique.length===0)return;
+
+    var bestId=unique[0].id;
+    var bestVol=Infinity;
+    var closestDist=unique[0].dist;
+    for(var k=0;k<unique.length;k++){
+      var d=unique[k].dist;
+      if(d-closestDist>0.01)break;
+      var geo=unique[k].obj.geometry;
+      var params=geo.parameters||{};
+      var vol=(params.width||1)*(params.height||1)*(params.depth||1);
+      if(vol<bestVol){bestVol=vol;bestId=unique[k].id;}
     }
-    if(!hiddenSet.has(targetId)){
-      prevSelectedId=targetId;
-      selectPart(targetId);
+
+    var clickKey=Math.round(x*10)+','+Math.round(y*10);
+    if(clickKey===prevClickPos&&unique.length>1){
+      var idx=0;
+      for(var m=0;m<unique.length;m++){if(unique[m].id===bestId){idx=m;break;}}
+      bestId=unique[(idx+1)%unique.length].id;
+    }
+    prevClickPos=clickKey;
+
+    if(!hiddenSet.has(bestId)){
+      prevSelectedId=bestId;
+      selectPart(bestId);
     }
   };
 })();
