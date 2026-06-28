@@ -899,7 +899,6 @@ firebase.auth().onAuthStateChanged(async function(user) {
       });
     }
     var hits = rc.intersectObjects(meshes);
-    console.log('[RAYCAST] hits:', hits.length, 'meshes:', meshes.length);
     if(hits.length===0)return;
 
     var seen={};
@@ -908,10 +907,6 @@ firebase.auth().onAuthStateChanged(async function(user) {
       var pid=hits[i].object.userData.partId;
       if(pid!==undefined&&!seen[pid]){seen[pid]=true;unique.push({id:pid,dist:hits[i].distance,obj:hits[i].object});}
     }
-    console.log('[RAYCAST] unique parts:', unique.map(function(u){
-      var p=parts.find(function(pp){return pp.id===u.id});
-      return 'id='+u.id+' code='+(p?p.code:'?')+' dist='+u.dist.toFixed(4);
-    }));
     if(unique.length===0)return;
 
     var bestId=unique[0].id;
@@ -934,7 +929,6 @@ firebase.auth().onAuthStateChanged(async function(user) {
     }
     prevClickPos=clickKey;
 
-    console.log('[RAYCAST] selected id:', bestId);
     if(!hiddenSet.has(bestId)){
       prevSelectedId=bestId;
       selectPart(bestId);
