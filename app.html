@@ -870,6 +870,59 @@ firebase.auth().onAuthStateChanged(async function(user) {
     }
   } catch(e) {}
 });
+
+// FIX: handle overlapping parts (facades at same position)
+(function() {
+  const _origHandleRaycast = handleRaycast;
+  let _lastClickPos = null;
+  let _lastIntersections = [];
+  let _lastIndex = 0;
+
+  window.handleRaycast = function(x, y, rect) {
+    const mouse = new THREE.Vector2();
+    mouse.x = (x - rect.left) / rect.width * 2 - 1;
+    mouse.y = -((y - rect.top) / rect.height) * 2 + 1;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    const allMeshes = Array.from(meshMap.values()).filter(m => m.visible === true);
+    if (typeof detailMeshes !== 'undefined') {
+      detailMeshes.forEach(arr => {
+        arr.forEach(m => { if (m.visible && m.userData && m.userData.partId) allMeshes.push(m); });
+      });
+    }
+    const intersects = raycaster.intersectObjects(allMeshes);
+    if (intersects.length === 0) return;
+
+    // Check if clicking same spot
+    const clickKey = Math.round(x) + ',' + Math.round(y);
+    if (_lastClickPos === clickKey && _lastIntersections.length > 1) {
+      _lastIndex = (_lastIndex + 1) % _lastIntersections.length;
+    } else {
+      _lastClickPos = clickKey;
+      _lastIntersections = intersects;
+      _lastIndex = 0;
+    }
+
+    // Find unique partIds in order
+    const seen = new Set();
+    const uniqueHits = [];
+    for (const hit of _lastIntersections) {
+      const pid = hit.object.userData.partId;
+      if (pid && !seen.has(pid)) {
+        seen.add(pid);
+        uniqueHits.push(pid);
+      }
+    }
+
+    if (uniqueHits.length > 0) {
+      const idx = Math.min(_lastIndex, uniqueHits.length - 1);
+      const partId = uniqueHits[idx];
+      if (!hiddenSet.has(partId)) {
+        selectPart(partId);
+      }
+    }
+  };
+})();
 </script>
 </body>
 </html>
