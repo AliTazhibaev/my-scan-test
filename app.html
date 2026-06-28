@@ -343,6 +343,37 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
       transition: all 0.15s;
     }
     .action-btn:active { background: var(--accent); color: #fff; }
+
+    /* QUICK ACTIONS FLOATING BAR */
+    .quick-actions {
+      position: fixed;
+      bottom: 64px; left: 12px; right: 12px;
+      display: none;
+      gap: 8px;
+      z-index: 19;
+      background: rgba(15, 21, 32, 0.95);
+      border: 1px solid rgba(0, 212, 170, 0.12);
+      border-radius: 16px;
+      padding: 8px;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .quick-actions.show { display: flex; }
+    .quick-action-btn {
+      flex: 1;
+      background: var(--accent-glow);
+      border: 1px solid var(--border);
+      padding: 10px 0;
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--accent);
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .quick-action-btn:active { background: var(--accent); color: #fff; }
+
     .module-badge {
       font-size: 10px; padding: 2px 8px;
       border-radius: 6px; display: inline-block;
@@ -760,14 +791,20 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
   </div>
 </div>
 
+<!-- QUICK ACTIONS -->
+<div id="quickActions" class="quick-actions">
+  <button class="quick-action-btn" id="qHideBtn">🙈 Скрыть</button>
+  <button class="quick-action-btn" id="qShowAllBtn">👁 Все</button>
+  <button class="quick-action-btn" id="qZoomBtn">🔍</button>
+  <button class="quick-action-btn" id="qResetBtn">⌂</button>
+</div>
+
 <!-- BOTTOM TOOLBAR -->
 <div class="bottom-toolbar">
   <button class="toolbar-btn" id="scanBtn" title="Сканировать QR">📷</button>
-  <button class="toolbar-btn" id="xrayBtn" title="X-Ray">👁</button>
   <button class="toolbar-btn" id="explodeBtn" title="Взрыв">💥</button>
-  <button class="toolbar-btn" id="rotateBtn" title="Авто-вращение">⟳</button>
-  <button class="toolbar-btn" id="resetViewBtn" title="Центр">⌂</button>
   <button class="toolbar-btn" id="focusBtn" title="Фокус на выбранной">🎯</button>
+  <button class="toolbar-btn" id="resetViewBtn" title="Центр">⌂</button>
 </div>
 
 <!-- DRAWER -->
@@ -791,6 +828,10 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
     <div class="drawer-actions">
       <button class="drawer-action-btn" id="assembleBtn" title="Пошаговая сборка">🔧 Пошаговая сборка</button>
       <button class="drawer-action-btn" id="resetProgressBtn" title="Сбросить прогресс">🔄 Сбросить прогресс</button>
+    </div>
+    <div class="drawer-actions">
+      <button class="drawer-action-btn" id="xrayBtn" title="X-Ray">👁 Рентген</button>
+      <button class="drawer-action-btn" id="rotateBtn" title="Авто-вращение">⟳ Авто-вращение</button>
     </div>
     <div id="partsList"></div>
   </div>
@@ -1190,7 +1231,14 @@ function startSmoothZoom(_0x522c0d) {
   if (!_0x4805c9 || !_0x4805c9._pos) {
     return;
   }
-  zoomTarget.set(_0x4805c9._pos.x, _0x4805c9._pos.y, _0x4805c9._pos.z);
+  const size = Math.max(_0x4805c9._size.x, _0x4805c9._size.y, _0x4805c9._size.z);
+  const dist = Math.max(size * 2.5, 0.8);
+  const dir = camera.position.clone().sub(targetPosition).normalize();
+  zoomTarget.set(
+    _0x4805c9._pos.x + dir.x * dist,
+    _0x4805c9._pos.y + dir.y * dist,
+    _0x4805c9._pos.z + dir.z * dist
+  );
   isSmoothZoom = true;
   autoRotate = false;
 }
@@ -1202,7 +1250,7 @@ function animateSmoothZoom() {
   camera.position.lerp(zoomTarget, _0x88b9bb);
   targetPosition.lerp(zoomTarget, _0x88b9bb);
   camera.lookAt(targetPosition);
-  if (camera.position.distanceTo(zoomTarget) < 0.08) {
+  if (camera.position.distanceTo(zoomTarget) < 0.15) {
     isSmoothZoom = false;
     camDist = camera.position.distanceTo(targetPosition);
   }
@@ -1561,6 +1609,7 @@ function selectPart(_0x73f236) {
   updateSheet(parts.find(_0x319268 => _0x319268.id === _0x73f236));
   renderPartsList();
   openSheet();
+  document.getElementById("quickActions").classList.add("show");
 }
 function renderProcessingInfo(_0x2b70dd) {
   const _0x4e9ebd = _0x2b70dd.grooves || [];
@@ -1616,19 +1665,8 @@ function updateSheet(_0x434ca8) {
     const _0x5ba284 = _0x232770.indexOf(_0x434ca8) + 1;
     _0x36092c = "<div class=\"assembly-hint\">📦 " + _0x144877 + " — деталь " + _0x5ba284 + " из " + _0x232770.length + " в модуле</div>";
   }
-  _0x3bebcb.innerHTML = "\n      <div class=\"detail-card\">\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Наименование:</span>\n          <span class=\"detail-value\" style=\"font-size:13px;font-weight:600\">" + escapeHtml(_0x434ca8.name || "—") + "</span>\n        </div>\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Обозначение:</span>\n          <span class=\"detail-code\">" + escapeHtml(_0x434ca8.code || "—") + "</span>\n        </div>\n        " + (_0x434ca8.position ? "<div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"detail-label\">Позиция:</span>\n          <span class=\"detail-code\">" + escapeHtml(_0x434ca8.position) + "</span>\n        </div>" : "") + "\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"material-tag\">" + escapeHtml(_0x434ca8.material || "Материал") + "</span>\n          <span class=\"module-badge\" style=\"color:" + _0xd64636 + ";background:" + _0xd64636 + "18;border-color:" + _0xd64636 + "30\">" + _0x144877 + "</span>\n        </div>\n        <div class=\"dims-row\" style=\"margin-top:3px\">\n          <div class=\"dim\"><span class=\"dim-label\">Д</span><span class=\"dim-value\">" + (_0x434ca8.L || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Ш</span><span class=\"dim-value\">" + (_0x434ca8.W || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Т</span><span class=\"dim-value\">" + (_0x434ca8.T || "—") + "</span></div>\n        </div>\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"status-badge " + (_0x13d061 ? "scanned" : "waiting") + "\">" + (_0x13d061 ? "✅ ОТСКАНИРОВАНО" : "⏳ ОЖИДАЕТ") + "</span>\n        </div>\n        " + _0x36092c + "\n        " + renderProcessingInfo(_0x434ca8) + "\n        <div class=\"action-buttons\">\n          <button class=\"action-btn\" id=\"hideBtn\">🙈 Скрыть</button>\n          <button class=\"action-btn\" id=\"showAllBtn\">👁 Все</button>\n          <button class=\"action-btn\" id=\"zoomBtn\">🔍 Фокус</button>\n        </div>\n      </div>\n    ";
-  document.getElementById("hideBtn")?.addEventListener("click", _0x3d54da => {
-    _0x3d54da.stopPropagation();
-    toggleVisibility(_0x434ca8.id);
-  });
-  document.getElementById("showAllBtn")?.addEventListener("click", _0x4070d5 => {
-    _0x4070d5.stopPropagation();
-    showAllParts();
-  });
-  document.getElementById("zoomBtn")?.addEventListener("click", _0x54628d => {
-    _0x54628d.stopPropagation();
-    startSmoothZoom(_0x434ca8.id);
-  });
+  _0x3bebcb.innerHTML = "\n      <div class=\"detail-card\">\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Наименование:</span>\n          <span class=\"detail-value\" style=\"font-size:13px;font-weight:600\">" + escapeHtml(_0x434ca8.name || "—") + "</span>\n        </div>\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Обозначение:</span>\n          <span class=\"detail-code\">" + escapeHtml(_0x434ca8.code || "—") + "</span>\n        </div>\n        " + (_0x434ca8.position ? "<div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"detail-label\">Позиция:</span>\n          <span class=\"detail-code\">" + escapeHtml(_0x434ca8.position) + "</span>\n        </div>" : "") + "\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"material-tag\">" + escapeHtml(_0x434ca8.material || "Материал") + "</span>\n          <span class=\"module-badge\" style=\"color:" + _0xd64636 + ";background:" + _0xd64636 + "18;border-color:" + _0xd64636 + "30\">" + _0x144877 + "</span>\n        </div>\n        <div class=\"dims-row\" style=\"margin-top:3px\">\n          <div class=\"dim\"><span class=\"dim-label\">Д</span><span class=\"dim-value\">" + (_0x434ca8.L || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Ш</span><span class=\"dim-value\">" + (_0x434ca8.W || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Т</span><span class=\"dim-value\">" + (_0x434ca8.T || "—") + "</span></div>\n        </div>\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"status-badge " + (_0x13d061 ? "scanned" : "waiting") + "\">" + (_0x13d061 ? "✅ ОТСКАНИРОВАНО" : "⏳ ОЖИДАЕТ") + "</span>\n        </div>\n        " + _0x36092c + "\n        " + renderProcessingInfo(_0x434ca8) + "\n      </div>\n    ";
+
 }
 function toggleVisibility(_0x1fb5ed) {
   const _0x15de41 = meshMap.get(_0x1fb5ed);
@@ -2135,6 +2173,7 @@ function openSheet() {
 }
 function closeSheet() {
   document.getElementById("bottomSheet").classList.remove("open");
+  document.getElementById("quickActions").classList.remove("show");
 }
 function escapeHtml(_0x53ae23) {
   return (_0x53ae23 || "").replace(/[&<>]/g, _0x19f2db => ({
@@ -2195,6 +2234,19 @@ document.getElementById("fileInput").addEventListener("change", _0x262370 => {
 document.getElementById("menuBtn").addEventListener("click", openDrawer);
 document.getElementById("closeDrawerBtn").addEventListener("click", closeDrawer);
 document.getElementById("closeSheetBtn").addEventListener("click", closeSheet);
+
+// Quick action buttons
+document.getElementById("qHideBtn").addEventListener("click", () => {
+  if (selectedId !== null) { toggleVisibility(selectedId); }
+});
+document.getElementById("qShowAllBtn").addEventListener("click", showAllParts);
+document.getElementById("qZoomBtn").addEventListener("click", () => {
+  if (selectedId !== null) { startSmoothZoom(selectedId); }
+});
+document.getElementById("qResetBtn").addEventListener("click", () => {
+  centerCamera(); autoRotate = false; isSmoothZoom = false;
+});
+
 document.getElementById("scanBtn").addEventListener("click", openScanner);
 document.getElementById("rotateBtn").addEventListener("click", () => {
   autoRotate = !autoRotate;
