@@ -2,3 +2,22 @@ node_modules/
 package-lock.json
 service-account.json
 admin.js
+
+# Deobfuscation temp files
+_decode*.js
+_resolved_map.json
+decode*.mjs
+deobfuscate.mjs
+extract_js.mjs
+rebuild_html.mjs
+test_decoders.cjs
+deep_decode.mjs
+decoded.js
+combined.js
+app_decoded.html
+app_clean.js
+app_original.html
+IMPLEMENTATION_PLAN.md
+deobfuscated/
+deobfuscated2/
+deobfuscated_final/
