@@ -191,7 +191,7 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
     .top-btn:active { transform: scale(0.9); background: var(--accent); color: #071a14; }
     .project-title {
       font-size: 13px; font-weight: 600;
-      color: var(--text-primary);
+      color: #e8edf4;
       max-width: 140px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
@@ -286,11 +286,11 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
       align-items: baseline; gap: 8px;
     }
     .detail-label {
-      font-size: 11px; color: var(--text-secondary);
+      font-size: 11px; color: #8899aa;
       letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
     }
     .detail-value {
-      font-size: 14px; color: var(--text-primary); font-weight: 500;
+      font-size: 14px; color: #e8edf4; font-weight: 500;
     }
     .detail-code {
       font-size: 13px; color: var(--accent);
@@ -423,9 +423,9 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
       background: var(--bg-primary);
       border: 1px solid var(--border);
       border-radius: 8px;
-      color: var(--text-primary); font-size: 14px;
+      color: #e8edf4; font-size: 14px;
     }
-    .search-input::placeholder { color: var(--text-secondary); }
+    .search-input::placeholder { color: #667788; }
     .drawer-content {
       flex: 1; overflow-y: auto; padding: 10px;
     }
@@ -488,7 +488,7 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
     }
     .module-name {
       font-size: 12px; font-weight: 700;
-      color: var(--text-primary); flex: 1;
+      color: #e8edf4; flex: 1;
       letter-spacing: 0.3px;
     }
     .module-count {
@@ -527,7 +527,7 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
     .part-info { flex: 1; min-width: 0; }
     .part-name {
       font-size: 12px; font-weight: 500;
-      color: var(--text-primary);
+      color: #e8edf4;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .part-code {
@@ -558,8 +558,8 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
       align-items: center; padding: 3px 0;
       font-size: 12px;
     }
-    .summary-label { color: var(--text-secondary); }
-    .summary-val { color: var(--text-primary); font-weight: 600; }
+    .summary-label { color: #8899aa; }
+    .summary-val { color: #e8edf4; font-weight: 600; }
 
     /* MODAL */
     .modal {
@@ -597,7 +597,7 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
       background: var(--bg-tertiary);
       border: 1px solid var(--border);
       border-radius: 10px;
-      color: var(--text-primary);
+      color: #e8edf4;
       font-size: 14px;
       font-family: 'Monaco', 'Menlo', monospace;
     }
@@ -677,7 +677,7 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
       min-width: 60px;
     }
     .assembly-info {
-      flex: 1; font-size: 10px; color: var(--text-primary);
+      flex: 1; font-size: 10px; color: #e8edf4;
     }
     .assembly-nav {
       display: flex; gap: 6px;
@@ -844,7 +844,7 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
 <div id="statsModal" class="modal hidden">
   <div class="modal-box" style="max-width:360px">
     <div class="modal-title">📊 СТАТИСТИКА ПРОЕКТА</div>
-    <div id="statsContent" style="font-size:12px;color:var(--text-primary)"></div>
+    <div id="statsContent" style="font-size:12px;color:#e8edf4"></div>
     <button class="modal-btn secondary" onclick="document.getElementById('statsModal').classList.add('hidden')" style="margin-top:12px">Закрыть</button>
   </div>
 </div>
@@ -2020,7 +2020,7 @@ function showStats() {
   });
   let _0x2b9ad7 = "\n      <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px\">\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + parts.length + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">деталей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + moduleMap.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">модулей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--success)\">" + scannedSet.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">собрано</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--warning)\">≈" + _0x3d823d.toFixed(1) + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">кг масса</div>\n        </div>\n      </div>\n      <div style=\"font-size:10px;font-weight:700;color:var(--accent);margin-bottom:6px\">МАТЕРИАЛЫ:</div>\n    ";
   Object.entries(_0x160969).sort((_0x2f8696, _0xcea003) => _0xcea003[1] - _0x2f8696[1]).forEach(([_0x45a20c, _0x1865fd]) => {
-    _0x2b9ad7 += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:var(--text-primary)\">" + escapeHtml(_0x45a20c) + "</span>\n        <span style=\"color:var(--accent);font-weight:600\">" + _0x1865fd + " шт</span>\n      </div>";
+    _0x2b9ad7 += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:#e8edf4\">" + escapeHtml(_0x45a20c) + "</span>\n        <span style=\"color:var(--accent);font-weight:600\">" + _0x1865fd + " шт</span>\n      </div>";
   });
   document.getElementById("statsContent").innerHTML = _0x2b9ad7;
   document.getElementById("statsModal").classList.remove("hidden");
