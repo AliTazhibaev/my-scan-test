@@ -180,8 +180,6 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-const ADMIN_UIDS = [];
-
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -221,7 +219,9 @@ async function doLogin() {
   if (!email || !pass) { showError('loginError', 'Заполните все поля'); return; }
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pass);
-    if (ADMIN_UIDS.length > 0 && !ADMIN_UIDS.includes(cred.user.uid)) {
+    const userDoc = await db.collection('users').doc(cred.user.uid).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    if (!userData.isAdmin && !userData.admin) {
       showError('loginError', 'Нет прав администратора');
       await auth.signOut();
       return;
