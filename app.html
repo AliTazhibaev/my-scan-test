@@ -296,20 +296,16 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
       font-size: 13px; color: var(--accent);
       font-family: 'Monaco', 'Menlo', monospace;
     }
-    .dims-row { display: flex; gap: 6px; margin: 2px 0; }
+    .dims-row { display: flex; gap: 8px; margin: 4px 0; }
     .dim {
-      background: var(--accent-glow);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 3px 8px;
-      font-size: 11px; flex: 1; text-align: center;
+      font-size: 12px; color: var(--text-primary); font-weight: 500;
     }
     .dim-label {
-      color: var(--text-secondary); display: block;
-      font-size: 10px; letter-spacing: 0.3px;
+      color: var(--text-secondary);
+      font-size: 10px;
     }
     .dim-value {
-      color: var(--accent); font-weight: 700; font-size: 13px;
+      color: var(--text-primary); font-weight: 600; font-size: 12px;
     }
     .material-tag {
       font-size: 10px; color: #ff9f6e;
@@ -802,6 +798,7 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
 <!-- BOTTOM TOOLBAR -->
 <div class="bottom-toolbar">
   <button class="toolbar-btn" id="scanBtn" title="Сканировать QR">📷</button>
+  <button class="toolbar-btn" id="xrayBtn" title="X-Ray">👁</button>
   <button class="toolbar-btn" id="explodeBtn" title="Взрыв">💥</button>
   <button class="toolbar-btn" id="focusBtn" title="Фокус на выбранной">🎯</button>
   <button class="toolbar-btn" id="resetViewBtn" title="Центр">⌂</button>
@@ -827,11 +824,10 @@ function a0_0x1bd9(_0x2ba894,_0x3148ee){_0x2ba894=_0x2ba894-0xcf;const _0x39b636
     </div>
     <div class="drawer-actions">
       <button class="drawer-action-btn" id="assembleBtn" title="Пошаговая сборка">🔧 Пошаговая сборка</button>
-      <button class="drawer-action-btn" id="resetProgressBtn" title="Сбросить прогресс">🔄 Сбросить прогресс</button>
+      <button class="drawer-action-btn" id="rotateBtn" title="Авто-вращение">⟳ Авто-вращение</button>
     </div>
     <div class="drawer-actions">
-      <button class="drawer-action-btn" id="xrayBtn" title="X-Ray">👁 Рентген</button>
-      <button class="drawer-action-btn" id="rotateBtn" title="Авто-вращение">⟳ Авто-вращение</button>
+      <button class="drawer-action-btn" id="resetProgressBtn" title="Сбросить прогресс">🔄 Сбросить прогресс</button>
     </div>
     <div id="partsList"></div>
   </div>
@@ -2244,7 +2240,9 @@ document.getElementById("qZoomBtn").addEventListener("click", () => {
   if (selectedId !== null) { startSmoothZoom(selectedId); }
 });
 document.getElementById("qResetBtn").addEventListener("click", () => {
-  centerCamera(); autoRotate = false; isSmoothZoom = false;
+  isSmoothZoom = false;
+  autoRotate = false;
+  centerCamera();
 });
 
 document.getElementById("scanBtn").addEventListener("click", openScanner);
@@ -2252,9 +2250,9 @@ document.getElementById("rotateBtn").addEventListener("click", () => {
   autoRotate = !autoRotate;
 });
 document.getElementById("resetViewBtn").addEventListener("click", () => {
-  centerCamera();
-  autoRotate = false;
   isSmoothZoom = false;
+  autoRotate = false;
+  centerCamera();
 });
 document.getElementById("focusBtn").addEventListener("click", () => {
   if (selectedId !== null) {
