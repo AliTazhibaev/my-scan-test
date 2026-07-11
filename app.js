@@ -171,43 +171,32 @@ function initThree() {
   const _0x2c35d8 = new THREE.DirectionalLight(8956671, 0.45);
   _0x2c35d8.position.set(-5, 4, -8);
   scene.add(_0x2c35d8);
-  // Room — floor (clearly visible, different from bg)
-  var floorGeo = new THREE.PlaneGeometry(50, 50);
+  // Room — floor: 20m wide, 10m deep, one-sided (visible from above only)
+  var floorGeo = new THREE.PlaneGeometry(20, 10);
   var floorMat = new THREE.MeshStandardMaterial({
     color: isDarkTheme ? 0x3a3a3e : 0xc0c0c4,
     roughness: 0.7,
-    metalness: 0.05
+    metalness: 0.05,
+    side: THREE.FrontSide
   });
   floor = new THREE.Mesh(floorGeo, floorMat);
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -0.01;
+  floor.position.set(0, 0, 0);
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // Room — back wall (clearly lighter than bg)
-  var wallGeo = new THREE.PlaneGeometry(50, 25);
+  // Room — back wall: 20m wide, 5m tall, one-sided
+  var wallGeo = new THREE.PlaneGeometry(20, 5);
   var wallMat = new THREE.MeshStandardMaterial({
     color: isDarkTheme ? 0x444448 : 0xd0d0d4,
     roughness: 0.9,
-    metalness: 0
+    metalness: 0,
+    side: THREE.FrontSide
   });
   wall = new THREE.Mesh(wallGeo, wallMat);
-  wall.position.set(0, 12.5, -25);
+  wall.position.set(0, 2.5, -5);
   wall.receiveShadow = true;
   scene.add(wall);
-
-  // Room — left wall
-  var lWallGeo = new THREE.PlaneGeometry(50, 25);
-  var lWallMat = new THREE.MeshStandardMaterial({
-    color: isDarkTheme ? 0x3e3e42 : 0xc8c8cc,
-    roughness: 0.9,
-    metalness: 0
-  });
-  var lWall = new THREE.Mesh(lWallGeo, lWallMat);
-  lWall.position.set(-25, 12.5, 0);
-  lWall.rotation.y = Math.PI / 2;
-  lWall.receiveShadow = true;
-  scene.add(lWall);
   setupControls();
   animate();
 }
@@ -446,7 +435,7 @@ function autoLayout(_0x21e6bb) {
     _0x47c18e._pos = {
       x: (_0x47c18e.pos.x + _0x47c18e.gab.w / 2) * _0x144740,
       y: (_0x47c18e.pos.y - _0x55fa88 + _0x47c18e.gab.h / 2) * _0x144740,
-      z: (_0x47c18e.pos.z + _0x47c18e.gab.d / 2) * _0x144740
+      z: (_0x47c18e.pos.z + _0x47c18e.gab.d / 2) * _0x144740 - 4
     };
     _0x47c18e._size = {
       x: Math.max(_0x47c18e.gab.w, 1) * _0x144740,

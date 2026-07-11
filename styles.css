@@ -769,15 +769,21 @@
       transform: scale(0.98);
     }
 
-    /* ===== GLASSMORPHISM ===== */
-    .glass {
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* ===== GLASSMORPHISM — EVERYTHING ===== */
+
+    /* Login page */
+    #loginPage {
+      background: #0a0a0a !important;
     }
-
-
+    #loginPage::before {
+      content: '';
+      position: absolute; top: 20%; left: 30%;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(0,212,170,0.15) 0%, transparent 70%);
+      filter: blur(80px);
+      pointer-events: none;
+    }
     .login-container {
       background: rgba(255, 255, 255, 0.06) !important;
       backdrop-filter: blur(30px) !important;
@@ -785,8 +791,16 @@
       border: 1px solid rgba(255, 255, 255, 0.1) !important;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important;
     }
+    .login-form .form-group input {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    .login-device-info {
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
 
-    /* Update top panel */
+    /* Top panel */
     .top-panel {
       background: rgba(10, 10, 10, 0.7) !important;
       backdrop-filter: blur(30px) !important;
@@ -794,7 +808,7 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
 
-    /* Update bottom toolbar */
+    /* Bottom toolbar */
     .bottom-toolbar {
       background: rgba(10, 10, 10, 0.8) !important;
       backdrop-filter: blur(30px) !important;
@@ -802,7 +816,23 @@
       border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
 
-    /* Update bottom sheet */
+    /* Toolbar buttons */
+    .toolbar-btn {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    .toolbar-btn.active {
+      background: rgba(0, 212, 170, 0.12) !important;
+      border-color: rgba(0, 212, 170, 0.2) !important;
+    }
+
+    /* Top buttons */
+    .top-btn {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Bottom sheet */
     .bottom-sheet {
       background: rgba(20, 20, 22, 0.9) !important;
       backdrop-filter: blur(40px) !important;
@@ -811,7 +841,7 @@
       border-radius: 24px 24px 0 0 !important;
     }
 
-    /* Update drawer */
+    /* Drawer */
     .drawer {
       background: rgba(15, 15, 17, 0.95) !important;
       backdrop-filter: blur(40px) !important;
@@ -819,52 +849,76 @@
       border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
 
-    /* Update modals */
+    /* Drawer buttons */
+    .upload-btn {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px dashed rgba(255, 255, 255, 0.15) !important;
+    }
+    .drawer-action-btn {
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    .id-mode-btn {
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    .id-mode-btn.active {
+      background: var(--accent) !important;
+      border-color: var(--accent) !important;
+    }
+    .search-input {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Module headers */
+    .module-header {
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
+
+    /* Part items */
+    .part-item {
+      background: rgba(255, 255, 255, 0.02) !important;
+    }
+    .part-item.active {
+      background: rgba(0, 212, 170, 0.08) !important;
+      border-color: rgba(0, 212, 170, 0.2) !important;
+    }
+
+    /* Modals */
     .modal-box {
       background: rgba(25, 25, 28, 0.95) !important;
       backdrop-filter: blur(30px) !important;
       -webkit-backdrop-filter: blur(30px) !important;
       border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
-
-    /* Update toolbar buttons */
-    .toolbar-btn {
+    .input-field {
       background: rgba(255, 255, 255, 0.06) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
-      backdrop-filter: blur(10px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
-    .toolbar-btn.active {
-      background: rgba(0, 212, 170, 0.12) !important;
-      border-color: rgba(0, 212, 170, 0.2) !important;
-    }
-
-    /* Update top buttons */
-    .top-btn {
+    .modal-btn {
       background: rgba(255, 255, 255, 0.06) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    .modal-btn.secondary {
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
     }
 
-    /* Update assembly overlay */
+    /* Assembly overlay */
     .assembly-overlay {
       background: rgba(10, 10, 10, 0.85) !important;
       backdrop-filter: blur(20px) !important;
       -webkit-backdrop-filter: blur(20px) !important;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
-
-    /* Update assembly nav buttons */
     .assembly-nav button {
       background: rgba(255, 255, 255, 0.06) !important;
       border: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
 
-    /* Update module headers */
-    .module-header {
-      background: rgba(255, 255, 255, 0.04) !important;
-      border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    }
-
-    /* Update toast */
+    /* Toast */
     .toast {
       background: rgba(20, 20, 22, 0.9) !important;
       backdrop-filter: blur(20px) !important;
@@ -872,21 +926,37 @@
       border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
 
-    /* Update loading overlay */
+    /* Loading overlay */
     #loadingOverlay {
       background: rgba(10, 10, 10, 0.7) !important;
       backdrop-filter: blur(10px) !important;
     }
 
-    /* Update quick actions */
+    /* Quick actions */
     .quick-actions {
       background: rgba(20, 20, 22, 0.9) !important;
       backdrop-filter: blur(20px) !important;
       -webkit-backdrop-filter: blur(20px) !important;
       border: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
+    .quick-action-btn {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
 
-    /* Light theme overrides */
+    /* Action buttons */
+    .action-btn {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Material summary */
+    .material-summary {
+      background: rgba(255, 255, 255, 0.03) !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
+
+    /* ===== LIGHT THEME GLASS ===== */
     body.light-theme .top-panel {
       background: rgba(255, 255, 255, 0.7) !important;
       border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
@@ -909,11 +979,26 @@
     }
     body.light-theme .toolbar-btn,
     body.light-theme .top-btn,
-    body.light-theme .assembly-nav button {
+    body.light-theme .assembly-nav button,
+    body.light-theme .drawer-action-btn,
+    body.light-theme .upload-btn,
+    body.light-theme .modal-btn,
+    body.light-theme .action-btn,
+    body.light-theme .quick-action-btn,
+    body.light-theme .id-mode-btn {
       background: rgba(0, 0, 0, 0.04) !important;
       border: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
     body.light-theme .toast {
       background: rgba(255, 255, 255, 0.9) !important;
       border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-theme .search-input,
+    body.light-theme .input-field {
+      background: rgba(0, 0, 0, 0.04) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-theme .module-header {
+      background: rgba(0, 0, 0, 0.03) !important;
+      border: 1px solid rgba(0, 0, 0, 0.06) !important;
     }
