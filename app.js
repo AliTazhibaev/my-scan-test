@@ -118,8 +118,8 @@ function applyTheme() {
     document.getElementById("themeToggle").textContent = "🌙";
     if (scene) {
       scene.background.setHex(1711134);
-      if (floor) floor.material.color.setHex(0x222226);
-      if (wall) wall.material.color.setHex(0x1e1e22);
+      if (floor) floor.material.color.setHex(0x2a2a2e);
+      if (wall) wall.material.color.setHex(0x222226);
     }
     if (scene) {
       scene.fog.color.setHex(1711134);
@@ -129,8 +129,8 @@ function applyTheme() {
     document.getElementById("themeToggle").textContent = "☀️";
     if (scene) {
       scene.background.setHex(15790322);
-      if (floor) floor.material.color.setHex(0xe8e8ea);
-      if (wall) wall.material.color.setHex(0xf0f0f2);
+      if (floor) floor.material.color.setHex(0xd8d8dc);
+      if (wall) wall.material.color.setHex(0xeaeaed);
     }
     if (scene) {
       scene.fog.color.setHex(15790322);
@@ -152,7 +152,7 @@ function initThree() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(isDarkTheme ? 1711134 : 15790322);
-  scene.fog = new THREE.FogExp2(isDarkTheme ? 1711134 : 15790322, 0.015);
+  scene.fog = new THREE.FogExp2(isDarkTheme ? 1711134 : 15790322, 0.025);
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
   camera.position.set(3, 2.5, 3);
   const _0x3c7944 = new THREE.AmbientLight(6316160, 1.2);
@@ -171,30 +171,43 @@ function initThree() {
   const _0x2c35d8 = new THREE.DirectionalLight(8956671, 0.45);
   _0x2c35d8.position.set(-5, 4, -8);
   scene.add(_0x2c35d8);
-  // Floor plane
-  var floorGeo = new THREE.PlaneGeometry(80, 80);
+  // Room — floor
+  var floorGeo = new THREE.PlaneGeometry(60, 60);
   var floorMat = new THREE.MeshStandardMaterial({
-    color: isDarkTheme ? 0x222226 : 0xe8e8ea,
-    roughness: 0.9,
+    color: isDarkTheme ? 0x2a2a2e : 0xd8d8dc,
+    roughness: 0.85,
     metalness: 0
   });
   floor = new THREE.Mesh(floorGeo, floorMat);
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -0.02;
+  floor.position.y = -0.01;
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // Back wall
-  var wallGeo = new THREE.PlaneGeometry(80, 40);
+  // Room — back wall
+  var wallGeo = new THREE.PlaneGeometry(60, 30);
   var wallMat = new THREE.MeshStandardMaterial({
-    color: isDarkTheme ? 0x1e1e22 : 0xf0f0f2,
+    color: isDarkTheme ? 0x222226 : 0xeaeaed,
     roughness: 0.95,
     metalness: 0
   });
   wall = new THREE.Mesh(wallGeo, wallMat);
-  wall.position.set(0, 20, -40);
+  wall.position.set(0, 15, -30);
   wall.receiveShadow = true;
   scene.add(wall);
+
+  // Room — left wall
+  var lWallGeo = new THREE.PlaneGeometry(60, 30);
+  var lWallMat = new THREE.MeshStandardMaterial({
+    color: isDarkTheme ? 0x252528 : 0xe5e5e7,
+    roughness: 0.95,
+    metalness: 0
+  });
+  var lWall = new THREE.Mesh(lWallGeo, lWallMat);
+  lWall.position.set(-30, 15, 0);
+  lWall.rotation.y = Math.PI / 2;
+  lWall.receiveShadow = true;
+  scene.add(lWall);
   setupControls();
   animate();
 }

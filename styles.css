@@ -756,3 +756,155 @@
     .module-header:active {
       transform: scale(0.98);
     }
+
+    /* ===== GLASSMORPHISM ===== */
+    .glass {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Update login page */
+    #loginPage {
+      background: #0a0a0a !important;
+    }
+    .login-container {
+      background: rgba(255, 255, 255, 0.06) !important;
+      backdrop-filter: blur(30px) !important;
+      -webkit-backdrop-filter: blur(30px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* Update top panel */
+    .top-panel {
+      background: rgba(10, 10, 10, 0.7) !important;
+      backdrop-filter: blur(30px) !important;
+      -webkit-backdrop-filter: blur(30px) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Update bottom toolbar */
+    .bottom-toolbar {
+      background: rgba(10, 10, 10, 0.8) !important;
+      backdrop-filter: blur(30px) !important;
+      -webkit-backdrop-filter: blur(30px) !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Update bottom sheet */
+    .bottom-sheet {
+      background: rgba(20, 20, 22, 0.9) !important;
+      backdrop-filter: blur(40px) !important;
+      -webkit-backdrop-filter: blur(40px) !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 24px 24px 0 0 !important;
+    }
+
+    /* Update drawer */
+    .drawer {
+      background: rgba(15, 15, 17, 0.95) !important;
+      backdrop-filter: blur(40px) !important;
+      -webkit-backdrop-filter: blur(40px) !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Update modals */
+    .modal-box {
+      background: rgba(25, 25, 28, 0.95) !important;
+      backdrop-filter: blur(30px) !important;
+      -webkit-backdrop-filter: blur(30px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Update toolbar buttons */
+    .toolbar-btn {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      backdrop-filter: blur(10px) !important;
+    }
+    .toolbar-btn.active {
+      background: rgba(0, 212, 170, 0.12) !important;
+      border-color: rgba(0, 212, 170, 0.2) !important;
+    }
+
+    /* Update top buttons */
+    .top-btn {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Update assembly overlay */
+    .assembly-overlay {
+      background: rgba(10, 10, 10, 0.85) !important;
+      backdrop-filter: blur(20px) !important;
+      -webkit-backdrop-filter: blur(20px) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Update assembly nav buttons */
+    .assembly-nav button {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Update module headers */
+    .module-header {
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
+
+    /* Update toast */
+    .toast {
+      background: rgba(20, 20, 22, 0.9) !important;
+      backdrop-filter: blur(20px) !important;
+      -webkit-backdrop-filter: blur(20px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Update loading overlay */
+    #loadingOverlay {
+      background: rgba(10, 10, 10, 0.7) !important;
+      backdrop-filter: blur(10px) !important;
+    }
+
+    /* Update quick actions */
+    .quick-actions {
+      background: rgba(20, 20, 22, 0.9) !important;
+      backdrop-filter: blur(20px) !important;
+      -webkit-backdrop-filter: blur(20px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* Light theme overrides */
+    body.light-theme .top-panel {
+      background: rgba(255, 255, 255, 0.7) !important;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+    body.light-theme .bottom-toolbar {
+      background: rgba(255, 255, 255, 0.8) !important;
+      border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+    body.light-theme .bottom-sheet {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-theme .drawer {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+    body.light-theme .modal-box {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-theme .toolbar-btn,
+    body.light-theme .top-btn,
+    body.light-theme .assembly-nav button {
+      background: rgba(0, 0, 0, 0.04) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-theme .toast {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
