@@ -53,10 +53,10 @@
       opacity: 0.35;
       animation: blobFloat 20s ease-in-out infinite;
     }
-    .blob-1 { width: 500px; height: 500px; background: var(--blob1); top: -10%; left: -5%; animation-delay: 0s; }
-    .blob-2 { width: 400px; height: 400px; background: var(--blob2); top: 30%; right: -8%; animation-delay: -7s; }
-    .blob-3 { width: 350px; height: 350px; background: #00D4AA; bottom: 10%; left: 20%; animation-delay: -14s; opacity: 0.2; }
-    .blob-4 { width: 250px; height: 250px; background: #004D40; top: 60%; left: 60%; animation-delay: -3s; opacity: 0.25; }
+    .blob-1 { width: 600px; height: 600px; background: var(--blob1); top: -5%; left: -5%; animation-delay: 0s; opacity: 0.45; }
+    .blob-2 { width: 500px; height: 500px; background: var(--blob2); top: 25%; right: -5%; animation-delay: -7s; opacity: 0.4; }
+    .blob-3 { width: 450px; height: 450px; background: #00BFA5; bottom: 5%; left: 15%; animation-delay: -14s; opacity: 0.3; }
+    .blob-4 { width: 350px; height: 350px; background: #00695C; top: 55%; left: 55%; animation-delay: -3s; opacity: 0.3; }
     @keyframes blobFloat {
       0%, 100% { transform: translate(0, 0) scale(1); }
       33% { transform: translate(30px, -40px) scale(1.05); }
@@ -91,10 +91,10 @@
 
     /* ===== GLASS CARD ===== */
     .glass {
-      background: var(--glass);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      border: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: var(--radius);
     }
     .glass-strong {
@@ -213,10 +213,10 @@
     /* ===== FEATURES ===== */
     .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
     .feature-card {
-      background: var(--glass);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      border: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 20px;
       padding: 32px 26px;
       transition: all 0.4s var(--ease);

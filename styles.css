@@ -117,6 +117,54 @@
       --canvas-bg: #f0f0f2;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+
+    /* ===== COLORFUL BACKGROUND BLOBS ===== */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -10%; left: -10%;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(0, 212, 170, 0.2) 0%, transparent 70%);
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: 0;
+      animation: blobMove1 25s ease-in-out infinite;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -10%; right: -10%;
+      width: 450px; height: 450px;
+      background: radial-gradient(circle, rgba(0, 180, 140, 0.15) 0%, transparent 70%);
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: 0;
+      animation: blobMove2 30s ease-in-out infinite;
+    }
+    @keyframes blobMove1 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(80px, 60px); }
+    }
+    @keyframes blobMove2 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-60px, -80px); }
+    }
+
+    /* Extra blob via mainApp wrapper */
+    #mainApp::before {
+      content: '';
+      position: fixed;
+      top: 40%; left: 50%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(0, 100, 80, 0.12) 0%, transparent 70%);
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+      transform: translate(-50%, -50%);
+    }
+
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', Roboto, sans-serif;
       background: var(--bg-primary);
@@ -785,19 +833,19 @@
       pointer-events: none;
     }
     .login-container {
-      background: rgba(255, 255, 255, 0.06) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
       backdrop-filter: blur(30px) !important;
       -webkit-backdrop-filter: blur(30px) !important;
       border: 1px solid rgba(255, 255, 255, 0.1) !important;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important;
     }
     .login-form .form-group input {
-      background: rgba(255, 255, 255, 0.06) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
       border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
     .login-device-info {
-      background: rgba(255, 255, 255, 0.04) !important;
-      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
 
     /* Top panel */
@@ -818,8 +866,8 @@
 
     /* Toolbar buttons */
     .toolbar-btn {
-      background: rgba(255, 255, 255, 0.06) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
     .toolbar-btn.active {
       background: rgba(0, 212, 170, 0.12) !important;
@@ -828,8 +876,8 @@
 
     /* Top buttons */
     .top-btn {
-      background: rgba(255, 255, 255, 0.06) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
     /* Bottom sheet */
@@ -851,35 +899,35 @@
 
     /* Drawer buttons */
     .upload-btn {
-      background: rgba(255, 255, 255, 0.06) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
       border: 1px dashed rgba(255, 255, 255, 0.15) !important;
     }
     .drawer-action-btn {
-      background: rgba(255, 255, 255, 0.04) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
     .id-mode-btn {
-      background: rgba(255, 255, 255, 0.04) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
     .id-mode-btn.active {
       background: var(--accent) !important;
       border-color: var(--accent) !important;
     }
     .search-input {
-      background: rgba(255, 255, 255, 0.06) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
     /* Module headers */
     .module-header {
-      background: rgba(255, 255, 255, 0.04) !important;
-      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
 
     /* Part items */
     .part-item {
-      background: rgba(255, 255, 255, 0.02) !important;
+      background: rgba(255, 255, 255, 0.05) !important;
     }
     .part-item.active {
       background: rgba(0, 212, 170, 0.08) !important;
@@ -894,16 +942,16 @@
       border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
     .input-field {
-      background: rgba(255, 255, 255, 0.06) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
       border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
     .modal-btn {
-      background: rgba(255, 255, 255, 0.06) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
       border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
     .modal-btn.secondary {
-      background: rgba(255, 255, 255, 0.04) !important;
-      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
 
     /* Assembly overlay */
@@ -914,8 +962,8 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
     .assembly-nav button {
-      background: rgba(255, 255, 255, 0.06) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
     /* Toast */
@@ -937,17 +985,17 @@
       background: rgba(20, 20, 22, 0.9) !important;
       backdrop-filter: blur(20px) !important;
       -webkit-backdrop-filter: blur(20px) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
     .quick-action-btn {
-      background: rgba(255, 255, 255, 0.06) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
     /* Action buttons */
     .action-btn {
-      background: rgba(255, 255, 255, 0.06) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
     /* Material summary */
