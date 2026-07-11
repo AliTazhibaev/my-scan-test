@@ -3,7 +3,7 @@
       display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: var(--bg-primary);
+      background: var(--bg-secondary);
       z-index: 1000;
       justify-content: center;
       align-items: center;
@@ -15,6 +15,7 @@
       border: 1px solid var(--border);
       border-radius: 20px;
       padding: 48px 36px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
       width: 100%;
       max-width: 400px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -72,36 +73,36 @@
 
         /* THEME VARIABLES — MiMo-inspired */
     :root {
-      --bg-primary: #111111;
-      --bg-secondary: #1a1a1a;
-      --bg-tertiary: #222222;
-      --bg-card: #1e1e1e;
-      --text-primary: #f0f0f0;
-      --text-secondary: #888888;
-      --border: rgba(255, 255, 255, 0.08);
+      --bg-primary: #1a1a1e;
+      --bg-secondary: #222226;
+      --bg-tertiary: #2a2a2e;
+      --bg-card: #242428;
+      --text-primary: #e8e8ec;
+      --text-secondary: #8a8a90;
+      --border: rgba(0, 0, 0, 0.25);
       --accent: #00D4AA;
-      --accent-glow: rgba(0, 212, 170, 0.10);
+      --accent-glow: rgba(0, 212, 170, 0.08);
       --accent-hover: #00E8B0;
       --accent2: #ff5252;
       --success: #00D4AA;
       --warning: #FFB300;
-      --canvas-bg: #111111;
+      --canvas-bg: #1a1a1e;
     }
     body.light-theme {
-      --bg-primary: #ffffff;
-      --bg-secondary: #fafafa;
-      --bg-tertiary: #f5f5f5;
+      --bg-primary: #f8f8fa;
+      --bg-secondary: #f0f0f2;
+      --bg-tertiary: #e8e8ea;
       --bg-card: #ffffff;
-      --text-primary: #1a1a1a;
-      --text-secondary: #666666;
-      --border: rgba(0, 0, 0, 0.06);
+      --text-primary: #2c2c2e;
+      --text-secondary: #7c7c80;
+      --border: rgba(0, 0, 0, 0.08);
       --accent: #00D4AA;
-      --accent-glow: rgba(0, 212, 170, 0.08);
+      --accent-glow: rgba(0, 212, 170, 0.06);
       --accent-hover: #00E8B0;
       --accent2: #d32f2f;
       --success: #00D4AA;
       --warning: #F57C00;
-      --canvas-bg: #f5f5f5;
+      --canvas-bg: #f0f0f2;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
@@ -209,7 +210,7 @@
       border-top: 1px solid var(--border);
       max-height: 45vh;
       backdrop-filter: blur(32px);
-      box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
     }
     .bottom-sheet.open { transform: translateY(0); }
     .sheet-handle {
@@ -313,7 +314,7 @@
       border-radius: 16px;
       padding: 8px;
       backdrop-filter: blur(24px);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
     }
     .quick-actions.show { display: flex; }
     .quick-action-btn {
@@ -358,7 +359,7 @@
       display: flex; flex-direction: column;
       border-right: 1px solid rgba(0, 212, 170, 0.06);
       backdrop-filter: blur(32px);
-      box-shadow: 4px 0 40px rgba(0, 0, 0, 0.4);
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
     }
     .drawer.open { transform: translateX(0); }
     .drawer-header {
@@ -525,7 +526,7 @@
     /* MODAL */
     .modal {
       position: fixed; inset: 0;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(0, 0, 0, 0.6);
       display: flex; align-items: center; justify-content: center;
       z-index: 50;
       backdrop-filter: blur(12px);
@@ -594,7 +595,7 @@
       opacity: 0; transition: opacity 0.3s ease;
       font-weight: 600;
       white-space: nowrap;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(16px);
     }
     .toast.show { opacity: 1; }
@@ -602,7 +603,7 @@
     /* LOADING OVERLAY */
     #loadingOverlay {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.5);
       display: none; align-items: center; justify-content: center;
       z-index: 200; backdrop-filter: blur(8px);
     }
@@ -698,9 +699,9 @@
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .feature-card:hover {
-      border-color: rgba(0, 212, 170, 0.2);
-      transform: translateY(-6px);
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+      border-color: rgba(0, 212, 170, 0.15);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
     }
     .step {
       animation: fadeInUp 0.5s ease both;

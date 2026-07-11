@@ -117,19 +117,19 @@ function applyTheme() {
     document.body.classList.remove("light-theme");
     document.getElementById("themeToggle").textContent = "🌙";
     if (scene) {
-      scene.background.setHex(1118481);
+      scene.background.setHex(1711134);
     }
     if (scene) {
-      scene.fog.color.setHex(1118481);
+      scene.fog.color.setHex(1711134);
     }
   } else {
     document.body.classList.add("light-theme");
     document.getElementById("themeToggle").textContent = "☀️";
     if (scene) {
-      scene.background.setHex(16119285);
+      scene.background.setHex(15790322);
     }
     if (scene) {
-      scene.fog.color.setHex(16119285);
+      scene.fog.color.setHex(15790322);
     }
   }
 }
@@ -145,8 +145,8 @@ function initThree() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(isDarkTheme ? 1118481 : 16119285);
-  scene.fog = new THREE.FogExp2(isDarkTheme ? 1118481 : 16119285, 0.003);
+  scene.background = new THREE.Color(isDarkTheme ? 1711134 : 15790322);
+  scene.fog = new THREE.FogExp2(isDarkTheme ? 1711134 : 15790322, 0.003);
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
   camera.position.set(3, 2.5, 3);
   const _0x3c7944 = new THREE.AmbientLight(6316160, 1.2);
@@ -513,7 +513,7 @@ function buildPartDetails(_0x2b3c69, _0x4fc6b4) {
     const _0x419a0e = (_0x488813.depth || _0x2b3c69.T || 16) * sc;
     const _0x4fb012 = new THREE.CylinderGeometry(_0x2690f4, _0x2690f4, _0x419a0e, 12);
     const _0x47236e = new THREE.MeshStandardMaterial({
-      color: 1118481,
+      color: 1711134,
       roughness: 0.8,
       metalness: 0.2
     });

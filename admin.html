@@ -6,19 +6,19 @@
   <title>Aivo Scan — Админ панель</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #111111; color: #f0f0f0; min-height: 100vh; }
-    .login-box { max-width: 360px; margin: 80px auto; padding: 32px; background: #1e1e1e; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a1e; color: #e8e8ec; min-height: 100vh; }
+    .login-box { max-width: 360px; margin: 80px auto; padding: 32px; background: #242428; border-radius: 16px; border: 1px solid rgba(0, 0, 0, 0.25); }
     .login-box h1 { font-size: 18px; margin-bottom: 4px; }
-    .login-box .sub { font-size: 11px; color: #888; margin-bottom: 20px; }
+    .login-box .sub { font-size: 11px; color: #8a8a90; margin-bottom: 20px; }
     .login-box img { width: 48px; height: 48px; margin-bottom: 12px; }
-    input { width: 100%; padding: 10px 12px; background: #222; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #f0f0f0; font-size: 13px; margin-bottom: 10px; outline: none; }
+    input { width: 100%; padding: 10px 12px; background: #2a2a2e; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #e8e8ec; font-size: 13px; margin-bottom: 10px; outline: none; }
     input:focus { border-color: #00D4AA; }
     button { width: 100%; padding: 10px; background: #00D4AA; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 8px; }
     button:hover { background: #00E8B0; }
     button.danger { background: #ef4444; color: #fff; }
     button.danger:hover { background: #dc2626; }
-    button.secondary { background: #2a2a2a; color: #999; border: 1px solid rgba(255,255,255,0.06); }
-    button.secondary:hover { background: #333; }
+    button.secondary { background: #2a2a2e; color: #8a8a90; border: 1px solid rgba(0, 0, 0, 0.25); }
+    button.secondary:hover { background: #353538; }
     .error { color: #ef4444; font-size: 11px; margin-bottom: 8px; display: none; }
 
     .panel { max-width: 800px; margin: 20px auto; padding: 0 16px; }
@@ -27,28 +27,28 @@
     .panel-header img { width: 32px; height: 32px; }
 
     .actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 20px; }
-    .action-card { background: #1e1e1e; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; }
+    .action-card { background: #242428; border: 1px solid rgba(0, 0, 0, 0.25); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; }
     .action-card:hover { border-color: #00D4AA; background: #252525; }
     .action-card .icon { font-size: 24px; margin-bottom: 8px; }
     .action-card .title { font-size: 12px; font-weight: 700; }
-    .action-card .desc { font-size: 10px; color: #888; margin-top: 2px; }
+    .action-card .desc { font-size: 10px; color: #8a8a90; margin-top: 2px; }
 
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
     .modal-overlay.show { display: flex; }
-    .modal { background: #1e1e1e; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); padding: 24px; width: 360px; max-width: 90vw; }
+    .modal { background: #242428; border-radius: 16px; border: 1px solid rgba(0, 0, 0, 0.25); padding: 24px; width: 360px; max-width: 90vw; }
     .modal h2 { font-size: 15px; margin-bottom: 16px; }
-    .modal label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+    .modal label { font-size: 10px; color: #8a8a90; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
     .modal input { margin-bottom: 12px; }
     .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
     .modal-actions button { flex: 1; }
 
     .user-list { margin-top: 8px; }
-    .user-card { background: #1e1e1e; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+    .user-card { background: #242428; border: 1px solid rgba(0, 0, 0, 0.25); border-radius: 10px; padding: 14px; margin-bottom: 8px; }
     .user-card .user-email { font-size: 13px; font-weight: 600; }
-    .user-card .user-meta { font-size: 11px; color: #888; margin-top: 4px; }
+    .user-card .user-meta { font-size: 11px; color: #8a8a90; margin-top: 4px; }
     .user-card .user-meta span { margin-right: 12px; }
     .user-card .user-devices { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.04); }
-    .user-card .device { font-size: 10px; color: #999; padding: 2px 0; }
+    .user-card .device { font-size: 10px; color: #8a8a90; padding: 2px 0; }
     .user-card .user-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
     .user-card .user-actions button { width: auto; padding: 5px 12px; font-size: 10px; margin-bottom: 0; }
 
@@ -56,11 +56,11 @@
     .badge-green { background: rgba(0,200,83,0.12); color: #00D4AA; }
     .badge-red { background: rgba(239,68,68,0.12); color: #ef4444; }
     .badge-yellow { background: rgba(255,179,0,0.12); color: #FFB300; }
-    .badge-gray { background: rgba(153,153,153,0.12); color: #999; }
+    .badge-gray { background: rgba(153,153,153,0.12); color: #8a8a90; }
 
-    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2a2a2a; color: #f0f0f0; padding: 10px 20px; border-radius: 8px; font-size: 12px; z-index: 200; opacity: 0; transition: opacity 0.3s; border: 1px solid rgba(255,255,255,0.06); }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2a2a2e; color: #e8e8ec; padding: 10px 20px; border-radius: 8px; font-size: 12px; z-index: 200; opacity: 0; transition: opacity 0.3s; border: 1px solid rgba(0, 0, 0, 0.25); }
     .toast.show { opacity: 1; }
-    .loading { text-align: center; padding: 40px; color: #888; font-size: 12px; }
+    .loading { text-align: center; padding: 40px; color: #8a8a90; font-size: 12px; }
   </style>
 </head>
 <body>
