@@ -13,13 +13,13 @@
   <link rel="manifest" href="manifest.json">
   <style>
     :root {
-      --bg: #080c15;
-      --bg2: #0f1520;
-      --bg3: #161f2c;
-      --text: #e8edf4;
-      --text2: #6b7d94;
-      --accent: #00d4aa;
-      --accent2: #00b894;
+      --bg: #111111;
+      --bg2: #1a1a1a;
+      --bg3: #222222;
+      --text: #f0f0f0;
+      --text2: #888888;
+      --accent: #00D4AA;
+      --accent2: #00E8B0;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -39,20 +39,20 @@
       text-align: center;
       padding: 60px 24px;
       position: relative;
-      background: radial-gradient(ellipse at 50% 0%, rgba(0,212,170,0.08) 0%, transparent 60%);
+      background: radial-gradient(ellipse at 50% 0%, rgba(0,200,83,0.06) 0%, transparent 60%);
     }
     .hero::before {
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(0,212,170,0.3), transparent);
+      background: linear-gradient(90deg, transparent, rgba(0,200,83,0.2), transparent);
     }
     .logo {
       width: 100px; height: 100px;
       border-radius: 24px;
       margin-bottom: 32px;
-      box-shadow: 0 12px 40px rgba(0,212,170,0.25);
+      box-shadow: 0 8px 32px rgba(0, 212, 170, 0.15);
     }
     .hero h1 {
       font-size: clamp(36px, 8vw, 64px);
@@ -94,13 +94,13 @@
       border: none;
     }
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
-      color: #071a14;
-      box-shadow: 0 6px 24px rgba(0,212,170,0.3);
+      background: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(0, 212, 170, 0.2);
     }
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 36px rgba(0,212,170,0.4);
+      box-shadow: 0 8px 24px rgba(0, 212, 170, 0.3);
     }
     .btn-secondary {
       background: rgba(255,255,255,0.05);
@@ -133,19 +133,19 @@
     }
     .feature-card {
       background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(0,212,170,0.06);
+      border: 1px solid rgba(255, 255, 255, 0.04);
       border-radius: 20px;
       padding: 32px;
       transition: all 0.3s;
     }
     .feature-card:hover {
-      border-color: rgba(0,212,170,0.15);
+      border-color: rgba(0, 212, 170, 0.15);
       transform: translateY(-4px);
       box-shadow: 0 12px 40px rgba(0,0,0,0.3);
     }
     .feature-icon {
       width: 56px; height: 56px;
-      background: rgba(0,212,170,0.1);
+      background: rgba(0, 212, 170, 0.08);
       border-radius: 14px;
       display: flex;
       align-items: center;
@@ -190,7 +190,7 @@
     }
     .step-num {
       width: 48px; height: 48px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      background: var(--accent);
       border-radius: 14px;
       display: flex;
       align-items: center;
@@ -219,8 +219,8 @@
     .cta-box {
       max-width: 600px;
       margin: 0 auto;
-      background: rgba(0,212,170,0.05);
-      border: 1px solid rgba(0,212,170,0.1);
+      background: rgba(0, 212, 170, 0.04);
+      border: 1px solid rgba(0, 212, 170, 0.08);
       border-radius: 24px;
       padding: 48px 32px;
     }
@@ -239,7 +239,7 @@
     footer {
       padding: 40px 24px;
       text-align: center;
-      border-top: 1px solid rgba(255,255,255,0.05);
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
       color: var(--text2);
       font-size: 13px;
     }
@@ -269,7 +269,7 @@
       background: white;
       padding: 16px;
       border-radius: 20px;
-      box-shadow: 0 12px 40px rgba(0,212,170,0.15);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     }
     .qr-box img {
       width: 200px;
@@ -280,6 +280,91 @@
     @media (max-width: 600px) {
       .step { flex-direction: column; gap: 12px; }
     }
+
+    /* CONTACTS */
+    .contacts-section {
+      padding: 80px 24px;
+      text-align: center;
+    }
+    .contacts-section h2 {
+      font-size: clamp(28px, 5vw, 40px);
+      font-weight: 700;
+      margin-bottom: 40px;
+    }
+    .contacts-section h2 span { color: var(--accent); }
+    .contacts-grid {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .contact-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 20px;
+      padding: 32px 40px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      flex: 1;
+      min-width: 200px;
+    }
+    .contact-card:hover {
+      border-color: rgba(0, 212, 170, 0.2);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    }
+    .contact-icon { font-size: 32px; margin-bottom: 12px; }
+    .contact-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .contact-value { font-size: 16px; font-weight: 600; color: var(--accent); }
+
+    /* ANIMATIONS */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .hero { animation: fadeIn 0.8s ease; }
+    .hero h1 { animation: fadeInUp 0.6s ease 0.2s both; }
+    .hero p { animation: fadeInUp 0.6s ease 0.35s both; }
+    .cta-group { animation: fadeInUp 0.6s ease 0.5s both; }
+    .feature-card {
+      animation: fadeInUp 0.5s ease both;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .feature-card:nth-child(1) { animation-delay: 0.1s; }
+    .feature-card:nth-child(2) { animation-delay: 0.15s; }
+    .feature-card:nth-child(3) { animation-delay: 0.2s; }
+    .feature-card:nth-child(4) { animation-delay: 0.25s; }
+    .feature-card:nth-child(5) { animation-delay: 0.3s; }
+    .feature-card:nth-child(6) { animation-delay: 0.35s; }
+    .feature-card:hover {
+      border-color: rgba(0, 212, 170, 0.2);
+      transform: translateY(-6px);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+    }
+    .step { animation: fadeInUp 0.5s ease both; }
+    .step:nth-child(1) { animation-delay: 0.1s; }
+    .step:nth-child(2) { animation-delay: 0.2s; }
+    .step:nth-child(3) { animation-delay: 0.3s; }
+    .contact-card {
+      animation: fadeInUp 0.5s ease both;
+    }
+    .contact-card:nth-child(1) { animation-delay: 0.1s; }
+    .contact-card:nth-child(2) { animation-delay: 0.2s; }
+    .btn-primary {
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 212, 170, 0.3);
+    }
+
   </style>
 </head>
 <body>
@@ -378,10 +463,33 @@
     </div>
   </section>
 
+
+  <!-- CONTACTS -->
+  <section class="contacts-section">
+    <h2>Свяжитесь с <span>нами</span></h2>
+    <div class="contacts-grid">
+      <a href="https://www.instagram.com/aivo.design?igsh=MTJjcGo2bTY0djlzaA==" target="_blank" rel="noopener" class="contact-card">
+        <div class="contact-icon">📸</div>
+        <div class="contact-label">Instagram</div>
+        <div class="contact-value">@aivo.design</div>
+      </a>
+      <a href="tel:+996990551884" class="contact-card">
+        <div class="contact-icon">📞</div>
+        <div class="contact-label">Телефон</div>
+        <div class="contact-value">+996 990 551 884</div>
+      </a>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer>
-    <p>&copy; 2026 <a href="#">Aivo Scan</a>. 3D сканер мебели.</p>
+    <p>&copy; 2026 <a href="https://www.instagram.com/aivo.design?igsh=MTJjcGo2bTY0djlzaA==" target="_blank">Aivo Design</a>. 3D сканер мебели. | <a href="tel:+996990551884">+996 990 551 884</a></p>
   </footer>
 
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function() {});
+    }
+  </script>
 </body>
 </html>

@@ -4,7 +4,7 @@
   "description": "3D визуализация и сборка мебели для цехов",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080c15",
+  "background_color": "#111111",
   "theme_color": "#00d4aa",
   "orientation": "portrait",
   "icons": [
