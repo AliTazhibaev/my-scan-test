@@ -118,6 +118,8 @@ function applyTheme() {
     document.getElementById("themeToggle").textContent = "🌙";
     if (scene) {
       scene.background.setHex(1711134);
+      if (floor) floor.material.color.setHex(0x222226);
+      if (wall) wall.material.color.setHex(0x1e1e22);
     }
     if (scene) {
       scene.fog.color.setHex(1711134);
@@ -127,6 +129,8 @@ function applyTheme() {
     document.getElementById("themeToggle").textContent = "☀️";
     if (scene) {
       scene.background.setHex(15790322);
+      if (floor) floor.material.color.setHex(0xe8e8ea);
+      if (wall) wall.material.color.setHex(0xf0f0f2);
     }
     if (scene) {
       scene.fog.color.setHex(15790322);
@@ -134,6 +138,8 @@ function applyTheme() {
   }
 }
 const canvas = document.getElementById("canvas3d");
+var floor = null;
+var wall = null;
 function initThree() {
   renderer = new THREE.WebGLRenderer({
     canvas: canvas,
@@ -146,7 +152,7 @@ function initThree() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(isDarkTheme ? 1711134 : 15790322);
-  scene.fog = new THREE.FogExp2(isDarkTheme ? 1711134 : 15790322, 0.003);
+  scene.fog = new THREE.FogExp2(isDarkTheme ? 1711134 : 15790322, 0.015);
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
   camera.position.set(3, 2.5, 3);
   const _0x3c7944 = new THREE.AmbientLight(6316160, 1.2);
@@ -165,9 +171,30 @@ function initThree() {
   const _0x2c35d8 = new THREE.DirectionalLight(8956671, 0.45);
   _0x2c35d8.position.set(-5, 4, -8);
   scene.add(_0x2c35d8);
-  const _0x31e438 = new THREE.GridHelper(40, 80, 2763818, 14540253);
-  _0x31e438.position.y = -0.02;
-  scene.add(_0x31e438);
+  // Floor plane
+  var floorGeo = new THREE.PlaneGeometry(80, 80);
+  var floorMat = new THREE.MeshStandardMaterial({
+    color: isDarkTheme ? 0x222226 : 0xe8e8ea,
+    roughness: 0.9,
+    metalness: 0
+  });
+  floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -0.02;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Back wall
+  var wallGeo = new THREE.PlaneGeometry(80, 40);
+  var wallMat = new THREE.MeshStandardMaterial({
+    color: isDarkTheme ? 0x1e1e22 : 0xf0f0f2,
+    roughness: 0.95,
+    metalness: 0
+  });
+  wall = new THREE.Mesh(wallGeo, wallMat);
+  wall.position.set(0, 20, -40);
+  wall.receiveShadow = true;
+  scene.add(wall);
   setupControls();
   animate();
 }
