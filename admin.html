@@ -289,12 +289,29 @@ async function doLogin() {
   if (!email || !pass) { showError('loginError', 'Заполните все поля'); return; }
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pass);
-    const userDoc = await db.collection('users').doc(cred.user.uid).get();
-    const userData = userDoc.exists ? userDoc.data() : {};
+    let userDoc = await db.collection('users').doc(cred.user.uid).get();
+    let userData = userDoc.exists ? userDoc.data() : {};
+    // If no isAdmin field, check Firestore by email
     if (!userData.isAdmin && !userData.admin) {
-      showError('loginError', 'Нет прав администратора');
-      await auth.signOut();
-      return;
+      const emailQuery = await db.collection('users').where('email', '==', email).get();
+      let foundAdmin = false;
+      emailQuery.forEach(doc => {
+        const d = doc.data();
+        if (d.isAdmin || d.admin) foundAdmin = true;
+      });
+      if (!foundAdmin) {
+        // Check if ANY admin exists in the system
+        const adminQuery = await db.collection('users').where('isAdmin', '==', true).get();
+        if (adminQuery.empty) {
+          // No admins exist — auto-grant to this user
+          await db.collection('users').doc(cred.user.uid).set({ isAdmin: true, email: email }, { merge: true });
+          userData.isAdmin = true;
+        } else {
+          showError('loginError', 'Нет прав администратора');
+          await auth.signOut();
+          return;
+        }
+      }
     }
     document.getElementById('loginView').style.display = 'none';
     document.getElementById('adminView').style.display = 'block';
@@ -333,7 +350,7 @@ async function doCreate() {
     const data = await res.json();
     if (data.error) { showError('createError', data.error.message); return; }
     const uid = data.localId;
-    const userData = { deviceLimit: limit, email: email };
+    const userData = { deviceLimit: limit, email: email, isAdmin: true };
     if (deadline) userData.expiresAt = firebase.firestore.Timestamp.fromDate(deadline);
     await db.collection('users').doc(uid).set(userData);
     closeModal('createModal');
