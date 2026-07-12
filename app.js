@@ -1,4 +1,4 @@
-// === Main App Logic ===
+﻿// === Main App Logic ===
 let parts = [];
 let selectedId = null;
 let scannedSet = new Set();
@@ -177,7 +177,9 @@ function initThree() {
     color: isDarkTheme ? 0x3a3a3e : 0xc0c0c4,
     roughness: 0.7,
     metalness: 0.05,
-    side: THREE.FrontSide
+    side: THREE.FrontSide,
+    transparent: true,
+    opacity: 0.35
   });
   floor = new THREE.Mesh(floorGeo, floorMat);
   floor.rotation.x = -Math.PI / 2;
@@ -185,13 +187,22 @@ function initThree() {
   floor.receiveShadow = true;
   scene.add(floor);
 
+  // Grid on the floor - subtle, not too harsh
+  var gridHelper = new THREE.GridHelper(20, 40, 0x00d4aa, 0x00d4aa);
+  gridHelper.material.transparent = true;
+  gridHelper.material.opacity = 0.06;
+  gridHelper.position.y = 0.001;
+  scene.add(gridHelper);
+
   // Room — back wall: 20m wide, 5m tall, one-sided
   var wallGeo = new THREE.PlaneGeometry(20, 5);
   var wallMat = new THREE.MeshStandardMaterial({
     color: isDarkTheme ? 0x444448 : 0xd0d0d4,
     roughness: 0.9,
     metalness: 0,
-    side: THREE.FrontSide
+    side: THREE.FrontSide,
+    transparent: true,
+    opacity: 0.25
   });
   wall = new THREE.Mesh(wallGeo, wallMat);
   wall.position.set(0, 2.5, -5);

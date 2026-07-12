@@ -1,4 +1,4 @@
-    /* LOGIN PAGE */
+﻿    /* LOGIN PAGE */
     #loginPage {
       display: none;
       position: fixed;
@@ -12,30 +12,29 @@
     #loginPage.active { display: flex; }
     #loginPage::before {
       content: '';
-      position: absolute; top: 15%; left: 25%;
-      width: 500px; height: 500px;
-      background: radial-gradient(circle, rgba(0, 212, 170, 0.25) 0%, transparent 70%);
-      filter: blur(80px);
+      position: absolute; inset: 0;
+      background: url('bg-dark.png') center/cover no-repeat;
+      opacity: 0.15;
       pointer-events: none;
     }
     #loginPage::after {
       content: '';
       position: absolute; bottom: 20%; right: 20%;
       width: 400px; height: 400px;
-      background: radial-gradient(circle, rgba(0, 180, 140, 0.18) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(0, 212, 170, 0.15) 0%, transparent 70%);
       filter: blur(80px);
       pointer-events: none;
     }
     .login-container {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(40px);
-      -webkit-backdrop-filter: blur(40px);
-      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(40px) saturate(1.4);
+      -webkit-backdrop-filter: blur(40px) saturate(1.4);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 24px;
       padding: 48px 36px;
       width: 100%;
       max-width: 400px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.08);
       position: relative;
       z-index: 1;
     }
@@ -130,28 +129,30 @@
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 
-    /* ===== COLORFUL BACKGROUND BLOBS ===== */
+    /* ===== BACKGROUND IMAGE + BLOBS ===== */
     body::before {
       content: '';
       position: fixed;
-      top: -10%; left: -10%;
-      width: 500px; height: 500px;
-      background: radial-gradient(circle, rgba(0, 212, 170, 0.2) 0%, transparent 70%);
-      filter: blur(100px);
+      inset: 0;
+      background: url('bg-dark.png') center/cover no-repeat;
+      opacity: 0.18;
       pointer-events: none;
       z-index: 0;
-      animation: blobMove1 25s ease-in-out infinite;
     }
     body::after {
       content: '';
       position: fixed;
       bottom: -10%; right: -10%;
-      width: 450px; height: 450px;
-      background: radial-gradient(circle, rgba(0, 180, 140, 0.15) 0%, transparent 70%);
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(0, 212, 170, 0.15) 0%, transparent 70%);
       filter: blur(100px);
       pointer-events: none;
       z-index: 0;
       animation: blobMove2 30s ease-in-out infinite;
+    }
+    body.light-theme::before {
+      background: url('bg-light.png') center/cover no-repeat;
+      opacity: 0.22;
     }
     @keyframes blobMove1 {
       0%, 100% { transform: translate(0, 0); }
@@ -168,11 +169,12 @@
       position: fixed;
       top: 40%; left: 50%;
       width: 600px; height: 600px;
-      background: radial-gradient(circle, rgba(0, 100, 80, 0.12) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(0, 100, 80, 0.1) 0%, transparent 70%);
       filter: blur(120px);
       pointer-events: none;
       z-index: 0;
       transform: translate(-50%, -50%);
+      animation: blobMove2 30s ease-in-out infinite;
     }
 
 
@@ -835,18 +837,18 @@
 
     /* Top panel */
     .top-panel {
-      background: rgba(10, 10, 10, 0.7) !important;
-      backdrop-filter: blur(30px) !important;
-      -webkit-backdrop-filter: blur(30px) !important;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(10, 10, 10, 0.5) !important;
+      backdrop-filter: blur(30px) saturate(1.3) !important;
+      -webkit-backdrop-filter: blur(30px) saturate(1.3) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
 
     /* Bottom toolbar */
     .bottom-toolbar {
-      background: rgba(10, 10, 10, 0.8) !important;
-      backdrop-filter: blur(30px) !important;
-      -webkit-backdrop-filter: blur(30px) !important;
-      border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(10, 10, 10, 0.55) !important;
+      backdrop-filter: blur(30px) saturate(1.3) !important;
+      -webkit-backdrop-filter: blur(30px) saturate(1.3) !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
 
     /* Toolbar buttons */
@@ -867,19 +869,19 @@
 
     /* Bottom sheet */
     .bottom-sheet {
-      background: rgba(20, 20, 22, 0.9) !important;
-      backdrop-filter: blur(40px) !important;
-      -webkit-backdrop-filter: blur(40px) !important;
-      border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+      background: rgba(20, 20, 22, 0.6) !important;
+      backdrop-filter: blur(40px) saturate(1.4) !important;
+      -webkit-backdrop-filter: blur(40px) saturate(1.4) !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
       border-radius: 24px 24px 0 0 !important;
     }
 
     /* Drawer */
     .drawer {
-      background: rgba(15, 15, 17, 0.95) !important;
-      backdrop-filter: blur(40px) !important;
-      -webkit-backdrop-filter: blur(40px) !important;
-      border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(15, 15, 17, 0.65) !important;
+      backdrop-filter: blur(40px) saturate(1.4) !important;
+      -webkit-backdrop-filter: blur(40px) saturate(1.4) !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
 
     /* Drawer buttons */
@@ -921,10 +923,10 @@
 
     /* Modals */
     .modal-box {
-      background: rgba(25, 25, 28, 0.95) !important;
-      backdrop-filter: blur(30px) !important;
-      -webkit-backdrop-filter: blur(30px) !important;
-      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      background: rgba(25, 25, 28, 0.7) !important;
+      backdrop-filter: blur(30px) saturate(1.4) !important;
+      -webkit-backdrop-filter: blur(30px) saturate(1.4) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
     .input-field {
       background: rgba(255, 255, 255, 0.08) !important;
@@ -941,10 +943,10 @@
 
     /* Assembly overlay */
     .assembly-overlay {
-      background: rgba(10, 10, 10, 0.85) !important;
-      backdrop-filter: blur(20px) !important;
-      -webkit-backdrop-filter: blur(20px) !important;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+      background: rgba(10, 10, 10, 0.55) !important;
+      backdrop-filter: blur(24px) saturate(1.3) !important;
+      -webkit-backdrop-filter: blur(24px) saturate(1.3) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
     .assembly-nav button {
       background: rgba(255, 255, 255, 0.08) !important;
@@ -953,10 +955,10 @@
 
     /* Toast */
     .toast {
-      background: rgba(20, 20, 22, 0.9) !important;
-      backdrop-filter: blur(20px) !important;
-      -webkit-backdrop-filter: blur(20px) !important;
-      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      background: rgba(20, 20, 22, 0.65) !important;
+      backdrop-filter: blur(24px) saturate(1.3) !important;
+      -webkit-backdrop-filter: blur(24px) saturate(1.3) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
     /* Loading overlay */
@@ -991,24 +993,24 @@
 
     /* ===== LIGHT THEME GLASS ===== */
     body.light-theme .top-panel {
-      background: rgba(255, 255, 255, 0.7) !important;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+      background: rgba(255, 255, 255, 0.5) !important;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
     body.light-theme .bottom-toolbar {
-      background: rgba(255, 255, 255, 0.8) !important;
-      border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
-    }
-    body.light-theme .bottom-sheet {
-      background: rgba(255, 255, 255, 0.9) !important;
+      background: rgba(255, 255, 255, 0.55) !important;
       border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
+    body.light-theme .bottom-sheet {
+      background: rgba(255, 255, 255, 0.6) !important;
+      border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+    }
     body.light-theme .drawer {
-      background: rgba(255, 255, 255, 0.95) !important;
-      border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+      background: rgba(255, 255, 255, 0.65) !important;
+      border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
     body.light-theme .modal-box {
-      background: rgba(255, 255, 255, 0.95) !important;
-      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      background: rgba(255, 255, 255, 0.7) !important;
+      border: 1px solid rgba(0, 0, 0, 0.1) !important;
     }
     body.light-theme .toolbar-btn,
     body.light-theme .top-btn,
@@ -1023,8 +1025,8 @@
       border: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
     body.light-theme .toast {
-      background: rgba(255, 255, 255, 0.9) !important;
-      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      background: rgba(255, 255, 255, 0.65) !important;
+      border: 1px solid rgba(0, 0, 0, 0.1) !important;
     }
     body.light-theme .search-input,
     body.light-theme .input-field {
