@@ -115,7 +115,7 @@ function toggleTheme() {
 function applyTheme() {
   if (isDarkTheme) {
     document.body.classList.remove("light-theme");
-    document.getElementById("themeToggle").textContent = "🌙";
+    document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
       scene.background.setHex(0x141416);
       if (floor) floor.material.color.setHex(0x3a3a3e);
@@ -126,7 +126,7 @@ function applyTheme() {
     }
   } else {
     document.body.classList.add("light-theme");
-    document.getElementById("themeToggle").textContent = "☀️";
+    document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
     if (scene) {
       scene.background.setHex(0xf0f0f2);
       if (floor) floor.material.color.setHex(0xc0c0c4);
@@ -738,16 +738,16 @@ function selectPart(_0x73f236) {
     _0x242f1b.material.emissiveIntensity = 0;
   });
   edgeLineMap.forEach(_0x15c27c => {
-    _0x15c27c.material.color.setHex(1710618);
+    _0x15c27c.material.color.setHex(0x1a1a1a);
   });
   const _0x218202 = meshMap.get(_0x73f236);
   const _0x4607cd = edgeLineMap.get(_0x73f236);
   if (_0x218202) {
-    _0x218202.material.emissive.setHex(54442);
+    _0x218202.material.emissive.setHex(0x00D4AA);
     _0x218202.material.emissiveIntensity = 0.5;
   }
   if (_0x4607cd) {
-    _0x4607cd.material.color.setHex(54442);
+    _0x4607cd.material.color.setHex(0x333333);
   }
   if (xrayActive) {
     applyXray();
@@ -991,20 +991,20 @@ function updateAssemblyStep() {
     _0x958b20.material.opacity = 0.15;
   });
   edgeLineMap.forEach(_0x390fd5 => {
-    _0x390fd5.material.color.setHex(1710618);
+    _0x390fd5.material.color.setHex(0x1a1a1a);
     _0x390fd5.material.transparent = true;
     _0x390fd5.material.opacity = 0.15;
   });
   const _0x413641 = meshMap.get(_0x334ddd.id);
   const _0x371f13 = edgeLineMap.get(_0x334ddd.id);
   if (_0x413641) {
-    _0x413641.material.emissive.setHex(54442);
+    _0x413641.material.emissive.setHex(0x00D4AA);
     _0x413641.material.emissiveIntensity = 0.6;
     _0x413641.material.transparent = false;
     _0x413641.material.opacity = 1;
   }
   if (_0x371f13) {
-    _0x371f13.material.color.setHex(54442);
+    _0x371f13.material.color.setHex(0x333333);
     _0x371f13.material.transparent = false;
     _0x371f13.material.opacity = 1;
   }
@@ -1020,14 +1020,14 @@ function stopAssemblyPlay() {
     clearInterval(assemblyTimer);
   }
   assemblyTimer = null;
-  document.getElementById("asmPlay").textContent = "▶";
+  document.getElementById("asmPlay").innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
 }
 function toggleAssemblyPlay() {
   if (assemblyPlaying) {
     stopAssemblyPlay();
   } else {
     assemblyPlaying = true;
-    document.getElementById("asmPlay").textContent = "⏸";
+    document.getElementById("asmPlay").innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
     assemblyTimer = setInterval(() => {
       assemblyIndex = (assemblyIndex + 1) % assemblyOrder.length;
       updateAssemblyStep();
