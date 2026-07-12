@@ -56,20 +56,32 @@
       50% { transform: translate(-30px, -50px) scale(1.1); }
     }
     .login-box {
-      max-width: 360px; margin: 80px auto; padding: 32px;
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(30px) saturate(1.4);
-      -webkit-backdrop-filter: blur(30px) saturate(1.4);
-      border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1);
+      max-width: 380px; margin: 80px auto; padding: 40px 32px 32px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(40px) saturate(1.6);
+      -webkit-backdrop-filter: blur(40px) saturate(1.6);
+      border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.1);
       position: relative;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+      animation: loginFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
-    .login-box h1 { font-size: 18px; margin-bottom: 4px; }
-    .login-box .sub { font-size: 11px; color: #8a8a90; margin-bottom: 20px; }
-    .login-box img { width: 48px; height: 48px; margin-bottom: 12px; }
-    input { width: 100%; padding: 10px 12px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #e8e8ec; font-size: 13px; margin-bottom: 10px; outline: none; }
-    input:focus { border-color: #00D4AA; }
-    button { width: 100%; padding: 10px; background: rgba(0, 212, 170, 0.85); color: #000; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 8px; transition: all 0.2s; backdrop-filter: blur(10px); }
-    button:hover { background: #00E8B0; }
+    @keyframes loginFadeIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .login-box h1 { font-size: 20px; margin-bottom: 4px; font-weight: 700; letter-spacing: -0.3px; }
+    .login-box .sub { font-size: 12px; color: #8a8a90; margin-bottom: 28px; letter-spacing: 0.5px; }
+    .login-box img {
+      width: 64px; height: 64px; margin-bottom: 16px;
+      border-radius: 18px;
+      box-shadow: 0 8px 24px rgba(0, 212, 170, 0.2);
+    }
+    input { width: 100%; padding: 12px 14px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #f0f0f4; font-size: 14px; margin-bottom: 12px; outline: none; transition: all 0.25s; }
+    input:focus { border-color: #00D4AA; box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.12); }
+    input::placeholder { color: #6a6a72; }
+    button { width: 100%; padding: 13px 20px; background: linear-gradient(135deg, #00D4AA, #00B89C); color: #000; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; margin-bottom: 8px; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 20px rgba(0, 212, 170, 0.25); }
+    button:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0, 212, 170, 0.35); }
+    button:active { transform: translateY(0); }
     button.danger { background: #ef4444; color: #fff; }
     button.danger:hover { background: #dc2626; }
     button.secondary { background: rgba(255, 255, 255, 0.05); color: #8a8a90; border: 1px solid rgba(255, 255, 255, 0.08); }
@@ -128,8 +140,8 @@
   <h1>Aivo Scan</h1>
   <div class="sub">Админ панель</div>
   <div id="loginError" class="error"></div>
-  <input type="email" id="loginEmail" placeholder="Email администратора">
-  <input type="password" id="loginPass" placeholder="Пароль">
+  <input type="email" id="loginEmail" placeholder="admin@aivoscan.work">
+  <input type="password" id="loginPass" placeholder="••••••••">
   <button onclick="doLogin()">Войти</button>
 </div>
 
