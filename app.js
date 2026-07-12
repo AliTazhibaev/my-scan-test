@@ -658,7 +658,6 @@ function buildScene() {
   edgeLineMap.clear();
   detailMeshes.clear();
   originalPositions.clear();
-  const _sharedEdgeMat = new THREE.LineBasicMaterial({ color: 1710618 });
   parts.forEach(_0x243d4d => {
     const _0x23519e = new THREE.BoxGeometry(_0x243d4d._size.x, _0x243d4d._size.y, _0x243d4d._size.z);
     const _0x4b7de9 = new THREE.MeshStandardMaterial({
@@ -677,7 +676,8 @@ function buildScene() {
     _0x6305cf.receiveShadow = true;
     scene.add(_0x6305cf);
     const _0x44c383 = new THREE.EdgesGeometry(_0x23519e, 15);
-    const _0x50f719 = new THREE.LineSegments(_0x44c383, _sharedEdgeMat);
+    const _edgeMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a });
+    const _0x50f719 = new THREE.LineSegments(_0x44c383, _edgeMat);
     _0x50f719.position.copy(_0x6305cf.position);
     scene.add(_0x50f719);
     originalPositions.set(_0x243d4d.id, new THREE.Vector3(_0x243d4d._pos.x, _0x243d4d._pos.y, _0x243d4d._pos.z));
@@ -747,7 +747,7 @@ function selectPart(_0x73f236) {
     _0x218202.material.emissiveIntensity = 0.5;
   }
   if (_0x4607cd) {
-    _0x4607cd.material.color.setHex(0x333333);
+    _0x4607cd.material.color.setHex(0x2a2a2a);
   }
   if (xrayActive) {
     applyXray();
@@ -1004,7 +1004,7 @@ function updateAssemblyStep() {
     _0x413641.material.opacity = 1;
   }
   if (_0x371f13) {
-    _0x371f13.material.color.setHex(0x333333);
+    _0x371f13.material.color.setHex(0x2a2a2a);
     _0x371f13.material.transparent = false;
     _0x371f13.material.opacity = 1;
   }
@@ -1169,7 +1169,7 @@ function showStats() {
   });
   let _0x2b9ad7 = "\n      <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px\">\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + parts.length + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">деталей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + moduleMap.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">модулей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--success)\">" + scannedSet.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">собрано</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--warning)\">≈" + _0x3d823d.toFixed(1) + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">кг масса</div>\n        </div>\n      </div>\n      <div style=\"font-size:10px;font-weight:700;color:var(--accent);margin-bottom:6px\">МАТЕРИАЛЫ:</div>\n    ";
   Object.entries(_0x160969).sort((_0x2f8696, _0xcea003) => _0xcea003[1] - _0x2f8696[1]).forEach(([_0x45a20c, _0x1865fd]) => {
-    _0x2b9ad7 += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:#e8edf4\">" + escapeHtml(_0x45a20c) + "</span>\n        <span style=\"color:var(--accent);font-weight:600\">" + _0x1865fd + " шт</span>\n      </div>";
+    _0x2b9ad7 += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:var(--text-primary)\">" + escapeHtml(_0x45a20c) + "</span>\n        <span style=\"color:var(--accent);font-weight:600\">" + _0x1865fd + " шт</span>\n      </div>";
   });
   document.getElementById("statsContent").innerHTML = _0x2b9ad7;
   document.getElementById("statsModal").classList.remove("hidden");
@@ -1602,7 +1602,7 @@ try {
   initThree();
 } catch(e) {
   console.error('3D initialization failed:', e);
-  document.getElementById('loadingOverlay').innerHTML = '<div style="text-align:center;color:#ff6b6b;padding:20px"><div style="font-size:32px;margin-bottom:12px">⚠️</div><div style="font-size:14px">Ошибка инициализации 3D</div><div style="font-size:12px;color:#6b7d94;margin-top:8px">' + e.message + '</div></div>';
+  document.getElementById('loadingOverlay').innerHTML = '<div style="text-align:center;color:#ff6b6b;padding:20px"><div style="font-size:32px;margin-bottom:12px">⚠️</div><div style="font-size:14px">Ошибка инициализации 3D</div><div style="font-size:12px;color:var(--text-tertiary);margin-top:8px">' + e.message + '</div></div>';
   document.getElementById('loadingOverlay').classList.add('show');
 }
 updateStats();

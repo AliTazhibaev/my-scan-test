@@ -21,24 +21,24 @@
     .bg-shape {
       position: absolute;
       border-radius: 50%;
-      filter: blur(100px);
+      filter: blur(160px);
       will-change: transform;
     }
     .bg-shape-1 {
-      width: 600px; height: 600px;
-      background: radial-gradient(circle, rgba(0, 212, 170, 0.3) 0%, rgba(0, 150, 120, 0.12) 50%, transparent 70%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(0, 212, 170, 0.4) 0%, rgba(0, 150, 120, 0.12) 50%, transparent 70%);
       top: -10%; right: 10%;
       animation: shapeFloat1 25s ease-in-out infinite;
     }
     .bg-shape-2 {
-      width: 450px; height: 450px;
-      background: radial-gradient(circle, rgba(0, 180, 220, 0.2) 0%, transparent 60%);
+      width: 650px; height: 650px;
+      background: radial-gradient(circle, rgba(0, 160, 220, 0.3) 0%, transparent 60%);
       bottom: 10%; left: 5%;
       animation: shapeFloat2 30s ease-in-out infinite;
     }
     .bg-shape-3 {
-      width: 350px; height: 350px;
-      background: radial-gradient(circle, rgba(100, 80, 220, 0.15) 0%, transparent 60%);
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(100, 80, 220, 0.25) 0%, transparent 60%);
       top: 50%; left: 50%;
       animation: shapeFloat3 22s ease-in-out infinite;
     }
@@ -143,7 +143,7 @@
       <img src="logo.svg" alt="logo">
       <div>
         <h1>Админ панель</h1>
-        <div style="font-size:10px;color:#64748b" id="adminEmail"></div>
+        <div style="font-size:10px;color:var(--text-tertiary)" id="adminEmail"></div>
       </div>
     </div>
     <button class="secondary" style="width:auto" onclick="doLogout()">Выйти</button>
