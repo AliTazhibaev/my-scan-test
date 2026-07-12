@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -44,71 +44,23 @@
     .bg-layer {
       position: fixed; inset: 0;
       z-index: 0; pointer-events: none;
-      overflow: hidden;
-      background: #0a0a0a;
+      background:
+        radial-gradient(ellipse 80% 60% at 10% 15%, rgba(0, 212, 170, 0.5) 0%, transparent 50%),
+        radial-gradient(ellipse 70% 80% at 90% 25%, rgba(0, 140, 220, 0.35) 0%, transparent 50%),
+        radial-gradient(ellipse 90% 50% at 20% 85%, rgba(0, 212, 170, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 70% at 75% 65%, rgba(100, 60, 220, 0.25) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0, 180, 140, 0.15) 0%, transparent 50%),
+        #0a0a0a;
     }
-    .bg-layer::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: url('bg-dark.png') center/cover no-repeat;
-      opacity: 0.12;
-    }
-    .bg-shape {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(200px);
-      will-change: transform;
-    }
-    .bg-shape-1 {
-      width: 1400px; height: 1400px;
-      background: radial-gradient(circle, rgba(0, 212, 170, 0.45) 0%, rgba(0, 180, 150, 0.25) 30%, rgba(0, 150, 120, 0.12) 60%, transparent 100%);
-      top: -15%; left: -10%;
-      animation: shapeFloat1 25s ease-in-out infinite;
-    }
-    .bg-shape-2 {
-      width: 1100px; height: 1100px;
-      background: radial-gradient(circle, rgba(0, 160, 220, 0.35) 0%, rgba(0, 140, 200, 0.18) 35%, rgba(0, 120, 180, 0.08) 65%, transparent 100%);
-      top: 20%; right: -8%;
-      animation: shapeFloat2 30s ease-in-out infinite;
-    }
-    .bg-shape-3 {
-      width: 1200px; height: 1200px;
-      background: radial-gradient(circle, rgba(0, 212, 170, 0.3) 0%, rgba(0, 190, 160, 0.15) 35%, rgba(0, 180, 140, 0.06) 65%, transparent 100%);
-      bottom: -10%; left: 20%;
-      animation: shapeFloat3 28s ease-in-out infinite;
-    }
-    .bg-shape-4 {
-      width: 900px; height: 900px;
-      background: radial-gradient(circle, rgba(100, 80, 220, 0.28) 0%, rgba(90, 70, 200, 0.14) 35%, rgba(80, 60, 180, 0.05) 65%, transparent 100%);
-      top: 50%; left: 60%;
-      animation: shapeFloat4 22s ease-in-out infinite;
-    }
-    .bg-shape-5 {
-      width: 800px; height: 800px;
-      background: radial-gradient(circle, rgba(0, 212, 170, 0.25) 0%, rgba(0, 190, 160, 0.12) 40%, transparent 100%);
-      top: 70%; right: 15%;
-      animation: shapeFloat1 35s ease-in-out infinite reverse;
-    }
-    @keyframes shapeFloat1 {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      25% { transform: translate(40px, -30px) scale(1.08); }
-      50% { transform: translate(-20px, 50px) scale(0.95); }
-      75% { transform: translate(30px, 20px) scale(1.03); }
-    }
-    @keyframes shapeFloat2 {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      33% { transform: translate(-50px, 40px) scale(1.05); }
-      66% { transform: translate(30px, -30px) scale(0.97); }
-    }
-    @keyframes shapeFloat3 {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      40% { transform: translate(60px, -40px) scale(1.06); }
-      80% { transform: translate(-30px, 20px) scale(0.96); }
-    }
-    @keyframes shapeFloat4 {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      50% { transform: translate(-40px, -50px) scale(1.1); }
-    }
+
+
+
+
+
+
+
+
+
 
     /* ===== NAV ===== */
     .nav {
