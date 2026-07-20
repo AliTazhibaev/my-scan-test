@@ -918,12 +918,12 @@
       border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
-    /* Bottom sheet */
+    /* Bottom sheet — transparent so 3D stays visible */
     .bottom-sheet {
-      background: rgba(20, 20, 22, 0.6) !important;
-      backdrop-filter: blur(40px) saturate(1.4) !important;
-      -webkit-backdrop-filter: blur(40px) saturate(1.4) !important;
-      border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+      background: rgba(10, 10, 12, 0.35) !important;
+      backdrop-filter: blur(16px) saturate(1.2) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
       border-radius: 24px 24px 0 0 !important;
     }
 
@@ -1052,8 +1052,8 @@
       border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
     body.light-theme .bottom-sheet {
-      background: rgba(255, 255, 255, 0.6) !important;
-      border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+      background: rgba(255, 255, 255, 0.35) !important;
+      border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
     body.light-theme .drawer {
       background: rgba(255, 255, 255, 0.65) !important;
@@ -1087,4 +1087,30 @@
     body.light-theme .module-header {
       background: rgba(0, 0, 0, 0.03) !important;
       border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+
+    /* Text readability on transparent sheet */
+    .sheet-content .detail-label,
+    .sheet-content .detail-value,
+    .sheet-content .detail-code,
+    .sheet-content .dim,
+    .sheet-content .dim-label,
+    .sheet-content .dim-value,
+    .sheet-content .module-badge,
+    .sheet-content .material-tag,
+    .sheet-content .status-badge,
+    .sheet-content .assembly-hint {
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+    body.light-theme .sheet-content .detail-label,
+    body.light-theme .sheet-content .detail-value,
+    body.light-theme .sheet-content .detail-code,
+    body.light-theme .sheet-content .dim,
+    body.light-theme .sheet-content .dim-label,
+    body.light-theme .sheet-content .dim-value,
+    body.light-theme .sheet-content .module-badge,
+    body.light-theme .sheet-content .material-tag,
+    body.light-theme .sheet-content .status-badge,
+    body.light-theme .sheet-content .assembly-hint {
+      text-shadow: 0 1px 3px rgba(255,255,255,0.6);
     }

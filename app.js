@@ -36,6 +36,9 @@ let touchStartPos = null;
 let isPinching = false;
 let pinchStartDist = 0;
 let pinchStartCamDist = 0;
+let isPanning = false;
+let panStartMid = null;
+let panStartTarget = null;
 let mouseStartPos = null;
 let mouseMovedDistance = 0;
 const MODULE_COLORS = ["#00d4aa", "#ff6b6b", "#4ade80", "#fbbf24", "#a78bfa", "#f472b6", "#38bdf8", "#fb923c", "#34d399", "#e879f9", "#06b6d4", "#8b5cf6", "#ef4444", "#10b981", "#f59e0b", "#ec4899", "#14b8a6", "#84cc16", "#6366f1", "#f97316", "#22d3ee", "#a855f7", "#e11d48", "#059669", "#d97706", "#d946ef", "#0891b2", "#65a30d", "#4f46e5", "#ea580c"];
@@ -245,10 +248,16 @@ function onTouchStart(_0x254a9d) {
   } else if (_0x2c40f5.length === 2) {
     isPinching = true;
     isDragging = false;
+    isPanning = false;
     const _0x2c681d = _0x2c40f5[0].clientX - _0x2c40f5[1].clientX;
     const _0x485dab = _0x2c40f5[0].clientY - _0x2c40f5[1].clientY;
     pinchStartDist = Math.hypot(_0x2c681d, _0x485dab);
     pinchStartCamDist = camDist;
+    panStartMid = {
+      x: (_0x2c40f5[0].clientX + _0x2c40f5[1].clientX) / 2,
+      y: (_0x2c40f5[0].clientY + _0x2c40f5[1].clientY) / 2
+    };
+    panStartTarget = targetPosition.clone();
   }
 }
 function onTouchMove(_0x699653) {
@@ -266,7 +275,27 @@ function onTouchMove(_0x699653) {
     const _0x53e651 = _0x1240a0[0].clientX - _0x1240a0[1].clientX;
     const _0xe2b279 = _0x1240a0[0].clientY - _0x1240a0[1].clientY;
     const _0x55210e = Math.hypot(_0x53e651, _0xe2b279);
-    camDist = Math.max(0.5, Math.min(80, pinchStartCamDist + (pinchStartDist - _0x55210e) * 0.015));
+    const distRatio = _0x55210e / pinchStartDist;
+    const midX = (_0x1240a0[0].clientX + _0x1240a0[1].clientX) / 2;
+    const midY = (_0x1240a0[0].clientY + _0x1240a0[1].clientY) / 2;
+    const midDx = midX - panStartMid.x;
+    const midDy = midY - panStartMid.y;
+    const midMove = Math.hypot(midDx, midDy);
+    const distChange = Math.abs(distRatio - 1);
+    if (!isPanning && midMove > 8 && distChange < 0.08) {
+      isPanning = true;
+    }
+    if (isPanning && panStartTarget) {
+      const panSpeed = camDist * 0.0012;
+      const right = new THREE.Vector3();
+      const up = new THREE.Vector3(0, 1, 0);
+      right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), up).normalize();
+      targetPosition.copy(panStartTarget);
+      targetPosition.addScaledVector(right, -midDx * panSpeed);
+      targetPosition.addScaledVector(up, midDy * panSpeed);
+    } else {
+      camDist = Math.max(0.5, Math.min(80, pinchStartCamDist * distRatio));
+    }
     updateCamera();
   }
 }
@@ -280,6 +309,9 @@ function onTouchEnd(_0x4a1163) {
   }
   isDragging = false;
   isPinching = false;
+  isPanning = false;
+  panStartMid = null;
+  panStartTarget = null;
   touchStartPos = null;
 }
 function onMouseDown(_0x4d6338) {
