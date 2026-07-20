@@ -920,8 +920,8 @@
 
     /* Bottom sheet — transparent so 3D stays visible */
     .bottom-sheet {
-      background: rgba(10, 10, 12, 0.35) !important;
-      backdrop-filter: blur(16px) saturate(1.2) !important;
+      background: rgba(10, 10, 12, 0.15) !important;
+      backdrop-filter: blur(8px) saturate(1.2) !important;
       -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
       border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
       border-radius: 24px 24px 0 0 !important;
@@ -1052,7 +1052,7 @@
       border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
     body.light-theme .bottom-sheet {
-      background: rgba(255, 255, 255, 0.35) !important;
+      background: rgba(255, 255, 255, 0.2) !important;
       border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
     body.light-theme .drawer {

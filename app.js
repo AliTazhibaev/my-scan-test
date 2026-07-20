@@ -294,7 +294,7 @@ function onTouchMove(_0x699653) {
       targetPosition.addScaledVector(right, -midDx * panSpeed);
       targetPosition.addScaledVector(up, midDy * panSpeed);
     } else {
-      camDist = Math.max(0.5, Math.min(80, pinchStartCamDist * distRatio));
+      camDist = Math.max(0.5, Math.min(80, pinchStartCamDist / distRatio));
     }
     updateCamera();
   }
