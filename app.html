@@ -292,9 +292,25 @@ const db = firebase.firestore();
 </script>
 <script src="app.js?v=4"></script>
 <script>
-// Register Service Worker
+// Register Service Worker + auto-update
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(function() {});
+  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+    setInterval(function() { reg.update(); }, 60000);
+    reg.addEventListener('updatefound', function() {
+      var newSW = reg.installing;
+      if (newSW) {
+        newSW.addEventListener('statechange', function() {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            newSW.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      }
+    });
+  }).catch(function() {});
+  var refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (!refreshing) { refreshing = true; window.location.reload(); }
+  });
 }
 </script>
 
