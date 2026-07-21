@@ -50,7 +50,7 @@ function getModulePrefix(_0x1a87e9) {
   if (!_0x1a87e9) {
     return "OTHER";
   }
-  const _0x6a7f3b = _0x1a87e9.match(/^[A-Z]+\d*_\d+/);
+  const _0x6a7f3b = _0x1a87e9.match(/^([A-Z]+\d*_\d+)/);
   if (_0x6a7f3b) {
     return _0x6a7f3b[1];
   }
@@ -64,7 +64,7 @@ function getModuleKey(_0xf7de14) {
   if (_0x4932b7.startsWith("D-")) {
     return "HARDWARE";
   }
-  const _0x37853d = _0x4932b7.match(/^[A-Z]+\d*_\d+/);
+  const _0x37853d = _0x4932b7.match(/^([A-Z]+\d*_\d+)/);
   if (_0x37853d) {
     return _0x37853d[1];
   }
