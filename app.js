@@ -1,4 +1,4 @@
-﻿// === Main App Logic ===
+// === Main App Logic ===
 let parts = [];
 let selectedId = null;
 let scannedSet = new Set();
@@ -41,6 +41,8 @@ let panStartMid = null;
 let panStartTarget = null;
 let mouseStartPos = null;
 let mouseMovedDistance = 0;
+let isPanningMouse = false;
+let panStartMouse = null;
 const MODULE_COLORS = ["#00d4aa", "#ff6b6b", "#4ade80", "#fbbf24", "#a78bfa", "#f472b6", "#38bdf8", "#fb923c", "#34d399", "#e879f9", "#06b6d4", "#8b5cf6", "#ef4444", "#10b981", "#f59e0b", "#ec4899", "#14b8a6", "#84cc16", "#6366f1", "#f97316", "#22d3ee", "#a855f7", "#e11d48", "#059669", "#d97706", "#d946ef", "#0891b2", "#65a30d", "#4f46e5", "#ea580c"];
 const colorCache = new Map();
 let colorIdx = 0;
@@ -48,7 +50,7 @@ function getModulePrefix(_0x1a87e9) {
   if (!_0x1a87e9) {
     return "OTHER";
   }
-  const _0x6a7f3b = _0x1a87e9.match(/^(DETS_\d+|MEDC_\d+|KUH_\d+_\d+|MUD_\d+|D-\d+)/);
+  const _0x6a7f3b = _0x1a87e9.match(/^(DETS_\d+|MEDC_\d+|KUH_\d+_\d+|MUD_\d+|POLKI_\d+|D-\d+)/);
   if (_0x6a7f3b) {
     return _0x6a7f3b[1];
   }
@@ -62,7 +64,7 @@ function getModuleKey(_0xf7de14) {
   if (_0x4932b7.startsWith("D-")) {
     return "HARDWARE";
   }
-  const _0x37853d = _0x4932b7.match(/^(MEDC_\d+|KUH_\d+|MUD_\d+)/);
+  const _0x37853d = _0x4932b7.match(/^(MEDC_\d+|KUH_\d+|MUD_\d+|POLKI_\d+)/);
   if (_0x37853d) {
     return _0x37853d[1];
   }
@@ -84,7 +86,9 @@ function getModuleColor(_0x1d9c4c) {
   colorCache.set(_0x3ad003, _0x11fa1f);
   return _0x11fa1f;
 }
-function getModuleName(_0x53a1eb) {
+function getModuleName(_0x53a1eb, groupName) {
+  // If groupName is provided directly (from JSON group field), use it
+  if (groupName) return groupName;
   const _0x340d0c = getModuleKey(_0x53a1eb);
   if (_0x340d0c === "HARDWARE") {
     return "Фурнитура";
@@ -103,6 +107,10 @@ function getModuleName(_0x53a1eb) {
   if (_0x340d0c.startsWith("MUD_")) {
     const _0x4e4c3b = _0x340d0c.replace("MUD_", "");
     return "Тумба " + _0x4e4c3b;
+  }
+  if (_0x340d0c.startsWith("POLKI_")) {
+    const _0x6b4a90 = _0x340d0c.replace("POLKI_", "");
+    return "Полка " + _0x6b4a90;
   }
   return _0x340d0c;
 }
@@ -230,6 +238,7 @@ function setupControls() {
   canvas.addEventListener("wheel", onWheel, {
     passive: false
   });
+  canvas.addEventListener("contextmenu", function(e) { e.preventDefault(); });
 }
 function onTouchStart(_0x254a9d) {
   _0x254a9d.preventDefault();
@@ -327,9 +336,29 @@ function onMouseDown(_0x4d6338) {
       y: _0x4d6338.clientY
     };
     autoRotate = false;
+  } else if (_0x4d6338.button === 2) {
+    isPanningMouse = true;
+    panStartMouse = {
+      x: _0x4d6338.clientX,
+      y: _0x4d6338.clientY
+    };
+    panStartTarget = targetPosition.clone();
   }
 }
 function onMouseMove(_0x2cd6db) {
+  if (isPanningMouse && panStartMouse && panStartTarget) {
+    const midDx = _0x2cd6db.clientX - panStartMouse.x;
+    const midDy = _0x2cd6db.clientY - panStartMouse.y;
+    const panSpeed = camDist * 0.0012;
+    const right = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), up).normalize();
+    targetPosition.copy(panStartTarget);
+    targetPosition.addScaledVector(right, -midDx * panSpeed);
+    targetPosition.addScaledVector(up, midDy * panSpeed);
+    updateCamera();
+    return;
+  }
   if (!isDragging) {
     return;
   }
@@ -350,6 +379,8 @@ function onMouseUp() {
     handleRaycast(mouseStartPos.x, mouseStartPos.y, _0x4bb2d3);
   }
   isDragging = false;
+  isPanningMouse = false;
+  panStartMouse = null;
   mouseStartPos = null;
   mouseMovedDistance = 0;
 }
@@ -405,6 +436,23 @@ function animateSmoothZoom() {
   }
 }
 let prevClickKey = null;
+function deselectPart() {
+  if (selectedId === null) return;
+  selectedId = null;
+  meshMap.forEach(_0x242f1b => {
+    _0x242f1b.material.emissive.setHex(0);
+    _0x242f1b.material.emissiveIntensity = 0;
+  });
+  edgeLineMap.forEach(_0x15c27c => {
+    _0x15c27c.material.color.setHex(0x1a1a1a);
+  });
+  if (xrayActive) {
+    applyXray();
+  }
+  updateSheet(null);
+  closeSheet();
+  renderPartsList();
+}
 function handleRaycast(clickX, clickY, rect) {
   const mouse = new THREE.Vector2();
   mouse.x = (clickX - rect.left) / rect.width * 2 - 1;
@@ -418,7 +466,10 @@ function handleRaycast(clickX, clickY, rect) {
     });
   }
   const hits = rc.intersectObjects(meshes);
-  if (hits.length === 0) return;
+  if (hits.length === 0) {
+    deselectPart();
+    return;
+  }
   const seen = {};
   const unique = [];
   for (let i = 0; i < hits.length; i++) {
@@ -729,8 +780,14 @@ function buildScene() {
 function buildModuleMap() {
   moduleMap.clear();
   parts.forEach(_0x4def2b => {
-    const _0x28d01c = idMode === "position" ? _0x4def2b.position || _0x4def2b.code || "" : _0x4def2b.code || "";
-    const _0x367b87 = getModuleKey(_0x28d01c);
+    // Use explicit group field if available, otherwise parse from code
+    let _0x367b87;
+    if (_0x4def2b.group) {
+      _0x367b87 = _0x4def2b.group;
+    } else {
+      const _0x28d01c = idMode === "position" ? _0x4def2b.position || _0x4def2b.code || "" : _0x4def2b.code || "";
+      _0x367b87 = getModuleKey(_0x28d01c);
+    }
     if (!moduleMap.has(_0x367b87)) {
       moduleMap.set(_0x367b87, []);
     }
@@ -892,12 +949,17 @@ function showAllParts() {
 }
 function applyXray() {
   meshMap.forEach((_0x2a1ea7, _0x41f7ed) => {
-    if (xrayActive && selectedId !== null && _0x41f7ed !== selectedId && _0x2a1ea7.visible) {
-      _0x2a1ea7.material.transparent = true;
-      _0x2a1ea7.material.opacity = 0.12;
-    } else {
+    if (!xrayActive || !_0x2a1ea7.visible) {
       _0x2a1ea7.material.transparent = false;
       _0x2a1ea7.material.opacity = 1;
+      return;
+    }
+    if (selectedId !== null && _0x41f7ed === selectedId) {
+      _0x2a1ea7.material.transparent = false;
+      _0x2a1ea7.material.opacity = 1;
+    } else {
+      _0x2a1ea7.material.transparent = true;
+      _0x2a1ea7.material.opacity = 0.12;
     }
   });
 }
@@ -1152,7 +1214,8 @@ function renderPartsList() {
     if (!_0x4043d2) {
       return;
     }
-    const _0x2f921c = getModuleName(_0x4a1608 === "HARDWARE" ? "D-000" : _0x4a1608 + "_00");
+    // Get groupName from first part in module
+    const _0x2f921c = (_0x4043d2[0] && _0x4043d2[0].groupName) ? _0x4043d2[0].groupName : getModuleName(_0x4a1608 === "HARDWARE" ? "D-000" : _0x4a1608 + "_00");
     const _0x597a3c = _0x4a1608 === "HARDWARE" ? "#94a3b8" : getModuleColor(_0x4a1608 + "_00");
     const _0x5ae72d = _0x4043d2.filter(_0x24a7ea => scannedSet.has(_0x24a7ea.id)).length;
     const _0x46356c = document.createElement("div");
