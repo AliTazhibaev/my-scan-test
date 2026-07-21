@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aivo-scan-v3'; // bump this on every deploy to force cache refresh
+const CACHE_NAME = 'aivo-scan-v4'; // bump this on every deploy to force cache refresh
 const ASSETS = [
   '/',
   '/index.html',
