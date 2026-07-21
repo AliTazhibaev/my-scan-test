@@ -50,7 +50,7 @@ function getModulePrefix(_0x1a87e9) {
   if (!_0x1a87e9) {
     return "OTHER";
   }
-  const _0x6a7f3b = _0x1a87e9.match(/^(DETS_\d+|MEDC_\d+|KUH_\d+_\d+|MUD_\d+|POLKI_\d+|D-\d+)/);
+  const _0x6a7f3b = _0x1a87e9.match(/^[A-Z]+\d*_\d+/);
   if (_0x6a7f3b) {
     return _0x6a7f3b[1];
   }
@@ -64,7 +64,7 @@ function getModuleKey(_0xf7de14) {
   if (_0x4932b7.startsWith("D-")) {
     return "HARDWARE";
   }
-  const _0x37853d = _0x4932b7.match(/^(MEDC_\d+|KUH_\d+|MUD_\d+|POLKI_\d+)/);
+  const _0x37853d = _0x4932b7.match(/^[A-Z]+\d*_\d+/);
   if (_0x37853d) {
     return _0x37853d[1];
   }
@@ -87,7 +87,6 @@ function getModuleColor(_0x1d9c4c) {
   return _0x11fa1f;
 }
 function getModuleName(_0x53a1eb, groupName) {
-  // If groupName is provided directly (from JSON group field), use it
   if (groupName) return groupName;
   const _0x340d0c = getModuleKey(_0x53a1eb);
   if (_0x340d0c === "HARDWARE") {
@@ -95,22 +94,6 @@ function getModuleName(_0x53a1eb, groupName) {
   }
   if (_0x340d0c === "OTHER") {
     return "Прочее";
-  }
-  if (_0x340d0c.startsWith("MEDC_")) {
-    const _0x597725 = _0x340d0c.replace("MEDC_", "");
-    return "Медицинский " + _0x597725;
-  }
-  if (_0x340d0c.startsWith("KUH_")) {
-    const _0x201dcd = _0x340d0c.replace("KUH_", "");
-    return "Шкаф " + _0x201dcd;
-  }
-  if (_0x340d0c.startsWith("MUD_")) {
-    const _0x4e4c3b = _0x340d0c.replace("MUD_", "");
-    return "Тумба " + _0x4e4c3b;
-  }
-  if (_0x340d0c.startsWith("POLKI_")) {
-    const _0x6b4a90 = _0x340d0c.replace("POLKI_", "");
-    return "Полка " + _0x6b4a90;
   }
   return _0x340d0c;
 }
