@@ -705,12 +705,13 @@
       <div style="text-align:center;margin-bottom:20px">
         <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:12px">Переведите на карту MBank:</div>
         <div style="background:#fff;border-radius:16px;padding:16px;display:inline-block;margin-bottom:12px">
-          <div id="payQR" style="width:180px;height:180px;display:flex;align-items:center;justify-content:center">
-            <!-- QR will be generated here -->
-          </div>
+          <a href="https://app.mbank.kg/qr/#00020101021132440012c2c.mbank.kg01020210129967062060061302125204999953034175906ALI%20T.63040157" target="_blank">
+            <img src="mbank-qr.jpg" alt="QR код MBank для оплаты" style="width:180px;height:180px;border-radius:8px">
+          </a>
         </div>
+        <div style="font-size:12px;color:#8a8a96;margin-bottom:4px">Нажмите на QR или отсканируйте камерой</div>
         <div style="font-size:20px;font-weight:700;color:#00d4aa;letter-spacing:1px;margin-bottom:4px">0 706 206 006</div>
-        <div style="font-size:12px;color:#8a8a96">MBank — получатель</div>
+        <div style="font-size:12px;color:#8a8a96">MBank — получатель (ALI T.)</div>
       </div>
       
       <div style="background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);border-radius:12px;padding:12px;margin-bottom:20px">
@@ -841,7 +842,6 @@ function openPaymentModal(plan, amount) {
   showPayStep1();
   var modal = document.getElementById('paymentModal');
   modal.style.display = 'flex';
-  generatePayQR(amount);
 }
 
 function closePaymentModal() {
@@ -864,14 +864,6 @@ function showPayStep3() {
   document.getElementById('payStep1').style.display = 'none';
   document.getElementById('payStep2').style.display = 'none';
   document.getElementById('payStep3').style.display = 'block';
-}
-
-function generatePayQR(amount) {
-  var qrContainer = document.getElementById('payQR');
-  var phone = '996706206006';
-  var text = 'tel:+' + phone;
-  var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(text) + '&bgcolor=ffffff&color=000000';
-  qrContainer.innerHTML = '<img src="' + qrUrl + '" alt="QR для оплаты" style="width:180px;height:180px">';
 }
 
 function submitPayment() {
