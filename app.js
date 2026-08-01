@@ -1,4 +1,23 @@
 // === Main App Logic ===
+const CONFIG = {
+  FOG_DENSITY: 0.012,
+  MAX_PIXEL_RATIO: 2,
+  CAMERA_FOV: 45,
+  TOUCH_ROTATION_SPEED: 0.008,
+  MOUSE_ROTATION_SPEED: 0.005,
+  ZOOM_MIN: 0.5,
+  ZOOM_MAX: 80,
+  EXPLODE_DURATION: 600,
+  ASSEMBLY_INTERVAL: 1500,
+  QR_SCAN_INTERVAL: 200,
+  TOAST_DURATION: 2000,
+  MATERIAL_DENSITY: 6.5e-7,
+  AUTO_ROTATE_SPEED: 0.0025,
+  TAP_THRESHOLD: 5,
+  PAN_THRESHOLD: 8,
+  SCALE_FACTOR: 0.001,
+};
+
 let parts = [];
 let selectedId = null;
 let scannedSet = new Set();
@@ -46,56 +65,56 @@ let panStartMouse = null;
 const MODULE_COLORS = ["#00d4aa", "#ff6b6b", "#4ade80", "#fbbf24", "#a78bfa", "#f472b6", "#38bdf8", "#fb923c", "#34d399", "#e879f9", "#06b6d4", "#8b5cf6", "#ef4444", "#10b981", "#f59e0b", "#ec4899", "#14b8a6", "#84cc16", "#6366f1", "#f97316", "#22d3ee", "#a855f7", "#e11d48", "#059669", "#d97706", "#d946ef", "#0891b2", "#65a30d", "#4f46e5", "#ea580c"];
 const colorCache = new Map();
 let colorIdx = 0;
-function getModulePrefix(_0x1a87e9) {
-  if (!_0x1a87e9) {
+function getModulePrefix(partCode) {
+  if (!partCode) {
     return "OTHER";
   }
-  const _0x6a7f3b = _0x1a87e9.match(/^([A-Z]+\d*_\d+)/);
-  if (_0x6a7f3b) {
-    return _0x6a7f3b[1];
+  const matchResult = partCode.match(/^([A-Z]+\d*_\d+)/);
+  if (matchResult) {
+    return matchResult[1];
   }
   return "OTHER";
 }
-function getModuleKey(_0xf7de14) {
-  const _0x4932b7 = getModulePrefix(_0xf7de14);
-  if (_0x4932b7 === "OTHER") {
+function getModuleKey(code) {
+  const prefix = getModulePrefix(code);
+  if (prefix === "OTHER") {
     return "OTHER";
   }
-  if (_0x4932b7.startsWith("D-")) {
+  if (prefix.startsWith("D-")) {
     return "HARDWARE";
   }
-  const _0x37853d = _0x4932b7.match(/^([A-Z]+\d*_\d+)/);
-  if (_0x37853d) {
-    return _0x37853d[1];
+  const keyMatch = prefix.match(/^([A-Z]+\d*_\d+)/);
+  if (keyMatch) {
+    return keyMatch[1];
   }
-  return _0x4932b7;
+  return prefix;
 }
-function getModuleColor(_0x1d9c4c) {
-  const _0x3ad003 = getModuleKey(_0x1d9c4c);
-  if (_0x3ad003 === "HARDWARE") {
+function getModuleColor(materialName) {
+  const moduleKey = getModuleKey(materialName);
+  if (moduleKey === "HARDWARE") {
     return "#94a3b8";
   }
-  if (_0x3ad003 === "OTHER") {
+  if (moduleKey === "OTHER") {
     return "#6b7280";
   }
-  if (colorCache.has(_0x3ad003)) {
-    return colorCache.get(_0x3ad003);
+  if (colorCache.has(moduleKey)) {
+    return colorCache.get(moduleKey);
   }
-  const _0x11fa1f = MODULE_COLORS[colorIdx % MODULE_COLORS.length];
+  const assignedColor = MODULE_COLORS[colorIdx % MODULE_COLORS.length];
   colorIdx++;
-  colorCache.set(_0x3ad003, _0x11fa1f);
-  return _0x11fa1f;
+  colorCache.set(moduleKey, assignedColor);
+  return assignedColor;
 }
-function getModuleName(_0x53a1eb, groupName) {
+function getModuleName(partCodeForName, groupName) {
   if (groupName) return groupName;
-  const _0x340d0c = getModuleKey(_0x53a1eb);
-  if (_0x340d0c === "HARDWARE") {
+  const moduleKeyName = getModuleKey(partCodeForName);
+  if (moduleKeyName === "HARDWARE") {
     return "Фурнитура";
   }
-  if (_0x340d0c === "OTHER") {
+  if (moduleKeyName === "OTHER") {
     return "Прочее";
   }
-  return _0x340d0c;
+  return moduleKeyName;
 }
 function initTheme() {
   isDarkTheme = localStorage.getItem("aivoTheme") !== "light";
@@ -149,22 +168,22 @@ function initThree() {
   scene.fog = new THREE.FogExp2(isDarkTheme ? 0x141416 : 0xf0f0f2, 0.012);
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
   camera.position.set(3, 2.5, 3);
-  const _0x3c7944 = new THREE.AmbientLight(0x666666, 1.8);
-  scene.add(_0x3c7944);
-  const _0x4052af = new THREE.DirectionalLight(16777215, 1);
-  _0x4052af.position.set(10, 20, 10);
-  _0x4052af.castShadow = true;
-  _0x4052af.shadow.mapSize.set(1024, 1024);
-  _0x4052af.shadow.camera.left = -50;
-  _0x4052af.shadow.camera.right = 50;
-  _0x4052af.shadow.camera.top = 50;
-  _0x4052af.shadow.camera.bottom = -50;
-  _0x4052af.shadow.bias = -0.001;
-  _0x4052af.shadow.radius = 4;
-  scene.add(_0x4052af);
-  const _0x2c35d8 = new THREE.DirectionalLight(8956671, 0.45);
-  _0x2c35d8.position.set(-5, 4, -8);
-  scene.add(_0x2c35d8);
+  const ambientLight = new THREE.AmbientLight(0x666666, 1.8);
+  scene.add(ambientLight);
+  const mainLight = new THREE.DirectionalLight(16777215, 1);
+  mainLight.position.set(10, 20, 10);
+  mainLight.castShadow = true;
+  mainLight.shadow.mapSize.set(1024, 1024);
+  mainLight.shadow.camera.left = -50;
+  mainLight.shadow.camera.right = 50;
+  mainLight.shadow.camera.top = 50;
+  mainLight.shadow.camera.bottom = -50;
+  mainLight.shadow.bias = -0.001;
+  mainLight.shadow.radius = 4;
+  scene.add(mainLight);
+  const fillLight = new THREE.DirectionalLight(8956671, 0.45);
+  fillLight.position.set(-5, 4, -8);
+  scene.add(fillLight);
   // Room — floor: 20m wide, 10m deep, one-sided (visible from above only)
   var floorGeo = new THREE.PlaneGeometry(20, 10);
   var floorMat = new THREE.MeshStandardMaterial({
@@ -223,53 +242,53 @@ function setupControls() {
   });
   canvas.addEventListener("contextmenu", function(e) { e.preventDefault(); });
 }
-function onTouchStart(_0x254a9d) {
-  _0x254a9d.preventDefault();
-  const _0x2c40f5 = _0x254a9d.touches;
-  if (_0x2c40f5.length === 1) {
+function onTouchStart(touchEvent) {
+  touchEvent.preventDefault();
+  const touches = touchEvent.touches;
+  if (touches.length === 1) {
     touchStartPos = {
-      x: _0x2c40f5[0].clientX,
-      y: _0x2c40f5[0].clientY
+      x: touches[0].clientX,
+      y: touches[0].clientY
     };
     isDragging = true;
     prevMouse = {
-      x: _0x2c40f5[0].clientX,
-      y: _0x2c40f5[0].clientY
+      x: touches[0].clientX,
+      y: touches[0].clientY
     };
     autoRotate = false;
-  } else if (_0x2c40f5.length === 2) {
+  } else if (touches.length === 2) {
     isPinching = true;
     isDragging = false;
     isPanning = false;
-    const _0x2c681d = _0x2c40f5[0].clientX - _0x2c40f5[1].clientX;
-    const _0x485dab = _0x2c40f5[0].clientY - _0x2c40f5[1].clientY;
-    pinchStartDist = Math.hypot(_0x2c681d, _0x485dab);
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    pinchStartDist = Math.hypot(dx, dy);
     pinchStartCamDist = camDist;
     panStartMid = {
-      x: (_0x2c40f5[0].clientX + _0x2c40f5[1].clientX) / 2,
-      y: (_0x2c40f5[0].clientY + _0x2c40f5[1].clientY) / 2
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2
     };
     panStartTarget = targetPosition.clone();
   }
 }
-function onTouchMove(_0x699653) {
-  _0x699653.preventDefault();
-  const _0x1240a0 = _0x699653.touches;
-  if (_0x1240a0.length === 1 && isDragging) {
-    theta -= (_0x1240a0[0].clientX - prevMouse.x) * 0.008;
-    phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - (_0x1240a0[0].clientY - prevMouse.y) * 0.008));
+function onTouchMove(moveEvent) {
+  moveEvent.preventDefault();
+  const moveTouches = moveEvent.touches;
+  if (moveTouches.length === 1 && isDragging) {
+    theta -= (moveTouches[0].clientX - prevMouse.x) * 0.008;
+    phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - (moveTouches[0].clientY - prevMouse.y) * 0.008));
     prevMouse = {
-      x: _0x1240a0[0].clientX,
-      y: _0x1240a0[0].clientY
+      x: moveTouches[0].clientX,
+      y: moveTouches[0].clientY
     };
     updateCamera();
-  } else if (_0x1240a0.length === 2 && isPinching) {
-    const _0x53e651 = _0x1240a0[0].clientX - _0x1240a0[1].clientX;
-    const _0xe2b279 = _0x1240a0[0].clientY - _0x1240a0[1].clientY;
-    const _0x55210e = Math.hypot(_0x53e651, _0xe2b279);
-    const distRatio = _0x55210e / pinchStartDist;
-    const midX = (_0x1240a0[0].clientX + _0x1240a0[1].clientX) / 2;
-    const midY = (_0x1240a0[0].clientY + _0x1240a0[1].clientY) / 2;
+  } else if (moveTouches.length === 2 && isPinching) {
+    const pinchDx = moveTouches[0].clientX - moveTouches[1].clientX;
+    const pinchDy = moveTouches[0].clientY - moveTouches[1].clientY;
+    const currentDist = Math.hypot(pinchDx, pinchDy);
+    const distRatio = currentDist / pinchStartDist;
+    const midX = (moveTouches[0].clientX + moveTouches[1].clientX) / 2;
+    const midY = (moveTouches[0].clientY + moveTouches[1].clientY) / 2;
     const midDx = midX - panStartMid.x;
     const midDy = midY - panStartMid.y;
     const midMove = Math.hypot(midDx, midDy);
@@ -291,12 +310,12 @@ function onTouchMove(_0x699653) {
     updateCamera();
   }
 }
-function onTouchEnd(_0x4a1163) {
+function onTouchEnd(endEvent) {
   if (touchStartPos && !isPinching) {
-    const _0x3f1e04 = canvas.getBoundingClientRect();
-    const _0xd5ccae = _0x4a1163.changedTouches[0];
-    if (Math.abs(_0xd5ccae.clientX - touchStartPos.x) < 5 && Math.abs(_0xd5ccae.clientY - touchStartPos.y) < 5) {
-      handleRaycast(_0xd5ccae.clientX, _0xd5ccae.clientY, _0x3f1e04);
+    const canvasRect = canvas.getBoundingClientRect();
+    const changedTouch = endEvent.changedTouches[0];
+    if (Math.abs(changedTouch.clientX - touchStartPos.x) < 5 && Math.abs(changedTouch.clientY - touchStartPos.y) < 5) {
+      handleRaycast(changedTouch.clientX, changedTouch.clientY, canvasRect);
     }
   }
   isDragging = false;
@@ -306,32 +325,32 @@ function onTouchEnd(_0x4a1163) {
   panStartTarget = null;
   touchStartPos = null;
 }
-function onMouseDown(_0x4d6338) {
-  if (_0x4d6338.button === 0) {
+function onMouseDown(mouseEvent) {
+  if (mouseEvent.button === 0) {
     mouseStartPos = {
-      x: _0x4d6338.clientX,
-      y: _0x4d6338.clientY
+      x: mouseEvent.clientX,
+      y: mouseEvent.clientY
     };
     mouseMovedDistance = 0;
     isDragging = true;
     prevMouse = {
-      x: _0x4d6338.clientX,
-      y: _0x4d6338.clientY
+      x: mouseEvent.clientX,
+      y: mouseEvent.clientY
     };
     autoRotate = false;
-  } else if (_0x4d6338.button === 2) {
+  } else if (mouseEvent.button === 2) {
     isPanningMouse = true;
     panStartMouse = {
-      x: _0x4d6338.clientX,
-      y: _0x4d6338.clientY
+      x: mouseEvent.clientX,
+      y: mouseEvent.clientY
     };
     panStartTarget = targetPosition.clone();
   }
 }
-function onMouseMove(_0x2cd6db) {
+function onMouseMove(moveEvt) {
   if (isPanningMouse && panStartMouse && panStartTarget) {
-    const midDx = _0x2cd6db.clientX - panStartMouse.x;
-    const midDy = _0x2cd6db.clientY - panStartMouse.y;
+    const midDx = moveEvt.clientX - panStartMouse.x;
+    const midDy = moveEvt.clientY - panStartMouse.y;
     const panSpeed = camDist * 0.0012;
     const right = new THREE.Vector3();
     const up = new THREE.Vector3(0, 1, 0);
@@ -345,21 +364,21 @@ function onMouseMove(_0x2cd6db) {
   if (!isDragging) {
     return;
   }
-  const _0xc9cc87 = _0x2cd6db.clientX - prevMouse.x;
-  const _0x2ee767 = _0x2cd6db.clientY - prevMouse.y;
-  mouseMovedDistance += Math.abs(_0xc9cc87) + Math.abs(_0x2ee767);
-  theta -= _0xc9cc87 * 0.005;
-  phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - _0x2ee767 * 0.005));
+  const deltaX = moveEvt.clientX - prevMouse.x;
+  const deltaY = moveEvt.clientY - prevMouse.y;
+  mouseMovedDistance += Math.abs(deltaX) + Math.abs(deltaY);
+  theta -= deltaX * 0.005;
+  phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - deltaY * 0.005));
   prevMouse = {
-    x: _0x2cd6db.clientX,
-    y: _0x2cd6db.clientY
+    x: moveEvt.clientX,
+    y: moveEvt.clientY
   };
   updateCamera();
 }
 function onMouseUp() {
   if (isDragging && mouseStartPos && mouseMovedDistance < 5) {
-    const _0x4bb2d3 = canvas.getBoundingClientRect();
-    handleRaycast(mouseStartPos.x, mouseStartPos.y, _0x4bb2d3);
+    const canvasRect = canvas.getBoundingClientRect();
+    handleRaycast(mouseStartPos.x, mouseStartPos.y, canvasRect);
   }
   isDragging = false;
   isPanningMouse = false;
@@ -367,9 +386,9 @@ function onMouseUp() {
   mouseStartPos = null;
   mouseMovedDistance = 0;
 }
-function onWheel(_0x20bc2f) {
-  _0x20bc2f.preventDefault();
-  camDist = Math.max(0.5, Math.min(80, camDist + camDist * _0x20bc2f.deltaY * 0.001));
+function onWheel(wheelEvent) {
+  wheelEvent.preventDefault();
+  camDist = Math.max(0.5, Math.min(80, camDist + camDist * wheelEvent.deltaY * 0.001));
   updateCamera();
 }
 function updateCamera() {
@@ -382,19 +401,19 @@ function updateCamera() {
   camera.lookAt(targetPosition);
 }
 let zoomPartCenter = null;
-function startSmoothZoom(_0x522c0d) {
-  const _0x4805c9 = parts.find(_0x2bf44b => _0x2bf44b.id === _0x522c0d);
-  if (!_0x4805c9 || !_0x4805c9._pos) {
+function startSmoothZoom(partId) {
+  const part = parts.find(p => p.id === partId);
+  if (!part || !part._pos) {
     return;
   }
-  zoomPartCenter = new THREE.Vector3(_0x4805c9._pos.x, _0x4805c9._pos.y, _0x4805c9._pos.z);
-  const size = Math.max(_0x4805c9._size.x, _0x4805c9._size.y, _0x4805c9._size.z);
+  zoomPartCenter = new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z);
+  const size = Math.max(part._size.x, part._size.y, part._size.z);
   const dist = Math.max(size * 2.5, 0.8);
   const dir = camera.position.clone().sub(zoomPartCenter).normalize();
   zoomTarget.set(
-    _0x4805c9._pos.x + dir.x * dist,
-    _0x4805c9._pos.y + dir.y * dist,
-    _0x4805c9._pos.z + dir.z * dist
+    part._pos.x + dir.x * dist,
+    part._pos.y + dir.y * dist,
+    part._pos.z + dir.z * dist
   );
   isSmoothZoom = true;
   autoRotate = false;
@@ -403,10 +422,10 @@ function animateSmoothZoom() {
   if (!isSmoothZoom) {
     return;
   }
-  const _0x88b9bb = 0.12;
-  camera.position.lerp(zoomTarget, _0x88b9bb);
+  const lerpFactor = 0.12;
+  camera.position.lerp(zoomTarget, lerpFactor);
   if (zoomPartCenter) {
-    targetPosition.lerp(zoomPartCenter, _0x88b9bb);
+    targetPosition.lerp(zoomPartCenter, lerpFactor);
   }
   camera.lookAt(targetPosition);
   if (camera.position.distanceTo(zoomTarget) < 0.15) {
@@ -422,12 +441,12 @@ let prevClickKey = null;
 function deselectPart() {
   if (selectedId === null) return;
   selectedId = null;
-  meshMap.forEach(_0x242f1b => {
-    _0x242f1b.material.emissive.setHex(0);
-    _0x242f1b.material.emissiveIntensity = 0;
+  meshMap.forEach(mesh => {
+    mesh.material.emissive.setHex(0);
+    mesh.material.emissiveIntensity = 0;
   });
-  edgeLineMap.forEach(_0x15c27c => {
-    _0x15c27c.material.color.setHex(0x1a1a1a);
+  edgeLineMap.forEach(edgeLine => {
+    edgeLine.material.color.setHex(0x1a1a1a);
   });
   if (xrayActive) {
     applyXray();
@@ -481,53 +500,53 @@ function handleRaycast(clickX, clickY, rect) {
     selectPart(bestId);
   }
 }
-function autoLayout(_0x21e6bb) {
-  let _0x55fa88 = Infinity;
-  _0x21e6bb.forEach(_0x394f4f => {
-    if (_0x394f4f.pos && _0x394f4f.pos.y !== undefined) {
-      _0x55fa88 = Math.min(_0x55fa88, _0x394f4f.pos.y);
+function autoLayout(partsArr) {
+  let minY = Infinity;
+  partsArr.forEach(part => {
+    if (part.pos && part.pos.y !== undefined) {
+      minY = Math.min(minY, part.pos.y);
     }
   });
-  if (_0x55fa88 === Infinity) {
-    _0x55fa88 = 0;
+  if (minY === Infinity) {
+    minY = 0;
   }
-  const _0x144740 = 0.001;
-  _0x21e6bb.forEach(_0x47c18e => {
-    if (!_0x47c18e.pos || !_0x47c18e.gab) {
-      const _0x1f9f95 = Math.ceil(Math.sqrt(_0x21e6bb.length));
-      const _0x24224b = Math.floor(_0x47c18e.id / _0x1f9f95);
-      const _0x346bc5 = _0x47c18e.id % _0x1f9f95;
-      _0x47c18e._pos = {
-        x: (_0x346bc5 - _0x1f9f95 / 2) * 0.15,
+  const scaleFactor = 0.001;
+  partsArr.forEach(p => {
+    if (!p.pos || !p.gab) {
+      const gridSize = Math.ceil(Math.sqrt(partsArr.length));
+      const row = Math.floor(p.id / gridSize);
+      const col = p.id % gridSize;
+      p._pos = {
+        x: (col - gridSize / 2) * 0.15,
         y: 0,
-        z: (_0x24224b - _0x1f9f95 / 2) * 0.15
+        z: (row - gridSize / 2) * 0.15
       };
-      _0x47c18e._size = {
+      p._size = {
         x: 0.1,
         y: 0.1,
         z: 0.1
       };
       return;
     }
-    _0x47c18e._pos = {
-      x: (_0x47c18e.pos.x + _0x47c18e.gab.w / 2) * _0x144740,
-      y: (_0x47c18e.pos.y - _0x55fa88 + _0x47c18e.gab.h / 2) * _0x144740,
-      z: (_0x47c18e.pos.z + _0x47c18e.gab.d / 2) * _0x144740 - 4
+    p._pos = {
+      x: (p.pos.x + p.gab.w / 2) * scaleFactor,
+      y: (p.pos.y - minY + p.gab.h / 2) * scaleFactor,
+      z: (p.pos.z + p.gab.d / 2) * scaleFactor - 4
     };
-    _0x47c18e._size = {
-      x: Math.max(_0x47c18e.gab.w, 1) * _0x144740,
-      y: Math.max(_0x47c18e.gab.h, 1) * _0x144740,
-      z: Math.max(_0x47c18e.gab.d, 1) * _0x144740
+    p._size = {
+      x: Math.max(p.gab.w, 1) * scaleFactor,
+      y: Math.max(p.gab.h, 1) * scaleFactor,
+      z: Math.max(p.gab.d, 1) * scaleFactor
     };
   });
 }
-function getColor(_0x4bbcdd, _0xd91d8f) {
-  if (_0xd91d8f?.color) {
-    return _0xd91d8f.color;
+function getColor(materialStr, partData) {
+  if (partData?.color) {
+    return partData.color;
   }
-  const _0xad0f3a = (_0x4bbcdd || "").toLowerCase();
-  const _0x1ea202 = (_0xd91d8f?.code || _0x4bbcdd || "").toLowerCase();
-  const _0x123e4a = {
+  const matLower = (materialStr || "").toLowerCase();
+  const codeLower = (partData?.code || materialStr || "").toLowerCase();
+  const colorMap = {
     h3050: "#d4af8f",
     h3051: "#b89062",
     h3052: "#a67c52",
@@ -538,220 +557,220 @@ function getColor(_0x4bbcdd, _0xd91d8f) {
     "la-white": "#ece7e0",
     "la-gray": "#5a5a60"
   };
-  if (_0x123e4a[_0x1ea202]) {
-    return _0x123e4a[_0x1ea202];
+  if (colorMap[codeLower]) {
+    return colorMap[codeLower];
   }
-  if (_0xad0f3a.match(/гикори|рокфорд|walnut|hickory/)) {
+  if (matLower.match(/гикори|рокфорд|walnut|hickory/)) {
     return "#8b6f47";
   }
-  if (_0xad0f3a.match(/каселла|casella|коричнев|brown/)) {
+  if (matLower.match(/каселла|casella|коричнев|brown/)) {
     return "#7a5c3a";
   }
-  if (_0xad0f3a.match(/ликольн|lincoln|орех|nut/)) {
+  if (matLower.match(/ликольн|lincoln|орех|nut/)) {
     return "#6b5340";
   }
-  if (_0xad0f3a.match(/белый|white|pearl|cream|ivory/)) {
+  if (matLower.match(/белый|white|pearl|cream|ivory/)) {
     return "#ece7e0";
   }
-  if (_0xad0f3a.match(/сонома|sonoma/)) {
+  if (matLower.match(/сонома|sonoma/)) {
     return "#d4af8f";
   }
-  if (_0xad0f3a.match(/венге|wenge/)) {
+  if (matLower.match(/венге|wenge/)) {
     return "#3b2a1c";
   }
-  if (_0xad0f3a.match(/черный|black|graphite|графит/)) {
+  if (matLower.match(/черный|black|graphite|графит/)) {
     return "#3a3a44";
   }
-  if (_0xad0f3a.match(/серый|grey|gray|кашемир|cashmere/)) {
+  if (matLower.match(/серый|grey|gray|кашемир|cashmere/)) {
     return "#8a8a96";
   }
-  if (_0xad0f3a.match(/хдф|HDF/)) {
+  if (matLower.match(/хдф|HDF/)) {
     return "#d8dce6";
   }
-  if (_0xad0f3a.match(/мдф|MDF|ламинир/)) {
+  if (matLower.match(/мдф|MDF|ламинир/)) {
     return "#a89878";
   }
-  if (_0xad0f3a.match(/алюминий|aluminum|профиль/)) {
+  if (matLower.match(/алюминий|aluminum|профиль/)) {
     return "#b8bcc8";
   }
-  if (_0xad0f3a.match(/черновой|rough/)) {
+  if (matLower.match(/черновой|rough/)) {
     return "#7a7060";
   }
   return "#8a7f76";
 }
-function buildPartDetails(_0x2b3c69, _0x4fc6b4) {
-  const _0x5755d4 = [];
-  const _0x5dfeb9 = _0x2b3c69.grooves || [];
-  const _0x490fa6 = _0x2b3c69.holes || [];
-  const _0x4631c4 = _0x2b3c69.cutouts || [];
-  const _0x11d49e = _0x2b3c69.edges || [];
-  if (!_0x5dfeb9.length && !_0x490fa6.length && !_0x4631c4.length && !_0x11d49e.length) {
-    return _0x5755d4;
+function buildPartDetails(partInfo, meshObj) {
+  const detailArr = [];
+  const grooves = partInfo.grooves || [];
+  const holes = partInfo.holes || [];
+  const cutouts = partInfo.cutouts || [];
+  const edges = partInfo.edges || [];
+  if (!grooves.length && !holes.length && !cutouts.length && !edges.length) {
+    return detailArr;
   }
-  const _0x15dd94 = _0x4fc6b4.position;
-  _0x5dfeb9.forEach(_0x542ff5 => {
-    const _0x26c768 = (_0x542ff5.w || 20) * sc;
-    const _0x367f75 = (_0x542ff5.h || 20) * sc;
-    const _0x51c5a0 = (_0x542ff5.d || _0x2b3c69.T || 16) * sc;
-    const _0x419078 = new THREE.BoxGeometry(_0x26c768, _0x367f75, _0x51c5a0);
-    const _0x46a40e = new THREE.MeshStandardMaterial({
+  const meshPos = meshObj.position;
+  grooves.forEach(groove => {
+    const grooveW = (groove.w || 20) * sc;
+    const grooveH = (groove.h || 20) * sc;
+    const grooveD = (groove.d || partInfo.T || 16) * sc;
+    const grooveGeo = new THREE.BoxGeometry(grooveW, grooveH, grooveD);
+    const grooveMat = new THREE.MeshStandardMaterial({
       color: 2236962,
       roughness: 0.9,
       metalness: 0
     });
-    const _0x400601 = new THREE.Mesh(_0x419078, _0x46a40e);
-    _0x400601.position.set(_0x15dd94.x + (_0x542ff5.x || 0) * sc, _0x15dd94.y + (_0x542ff5.y || 0) * sc, _0x15dd94.z + (_0x542ff5.z || 0) * sc);
-    _0x400601.userData = {
-      partId: _0x2b3c69.id,
+    const grooveMesh = new THREE.Mesh(grooveGeo, grooveMat);
+    grooveMesh.position.set(meshPos.x + (groove.x || 0) * sc, meshPos.y + (groove.y || 0) * sc, meshPos.z + (groove.z || 0) * sc);
+    grooveMesh.userData = {
+      partId: partInfo.id,
       detailType: "groove"
     };
-    scene.add(_0x400601);
-    const _0x110204 = new THREE.EdgesGeometry(_0x419078, 15);
-    const _0x3321a8 = new THREE.LineSegments(_0x110204, new THREE.LineBasicMaterial({
+    scene.add(grooveMesh);
+    const grooveEdgeGeo = new THREE.EdgesGeometry(grooveGeo, 15);
+    const grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({
       color: 5592405
     }));
-    _0x3321a8.position.copy(_0x400601.position);
-    scene.add(_0x3321a8);
-    _0x5755d4.push(_0x400601, _0x3321a8);
+    grooveEdgeLine.position.copy(grooveMesh.position);
+    scene.add(grooveEdgeLine);
+    detailArr.push(grooveMesh, grooveEdgeLine);
   });
-  _0x490fa6.forEach(_0x488813 => {
-    const _0x2690f4 = (_0x488813.d || _0x488813.r || 8) / 2 * sc;
-    const _0x419a0e = (_0x488813.depth || _0x2b3c69.T || 16) * sc;
-    const _0x4fb012 = new THREE.CylinderGeometry(_0x2690f4, _0x2690f4, _0x419a0e, 12);
-    const _0x47236e = new THREE.MeshStandardMaterial({
+  holes.forEach(hole => {
+    const holeRadius = (hole.d || hole.r || 8) / 2 * sc;
+    const holeDepth = (hole.depth || partInfo.T || 16) * sc;
+    const holeGeo = new THREE.CylinderGeometry(holeRadius, holeRadius, holeDepth, 12);
+    const holeMat = new THREE.MeshStandardMaterial({
       color: 1711134,
       roughness: 0.8,
       metalness: 0.2
     });
-    const _0x2810ed = new THREE.Mesh(_0x4fb012, _0x47236e);
-    _0x2810ed.position.set(_0x15dd94.x + (_0x488813.x || 0) * sc, _0x15dd94.y + (_0x488813.y || 0) * sc, _0x15dd94.z + (_0x488813.z || 0) * sc);
-    if (_0x488813.angleX) {
-      _0x2810ed.rotation.x = _0x488813.angleX * Math.PI / 180;
+    const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+    holeMesh.position.set(meshPos.x + (hole.x || 0) * sc, meshPos.y + (hole.y || 0) * sc, meshPos.z + (hole.z || 0) * sc);
+    if (hole.angleX) {
+      holeMesh.rotation.x = hole.angleX * Math.PI / 180;
     }
-    if (_0x488813.angleZ) {
-      _0x2810ed.rotation.z = _0x488813.angleZ * Math.PI / 180;
+    if (hole.angleZ) {
+      holeMesh.rotation.z = hole.angleZ * Math.PI / 180;
     }
-    _0x2810ed.userData = {
-      partId: _0x2b3c69.id,
+    holeMesh.userData = {
+      partId: partInfo.id,
       detailType: "hole"
     };
-    scene.add(_0x2810ed);
-    _0x5755d4.push(_0x2810ed);
+    scene.add(holeMesh);
+    detailArr.push(holeMesh);
   });
-  _0x4631c4.forEach(_0x44dd11 => {
-    const _0x591426 = (_0x44dd11.w || 30) * sc;
-    const _0x213f13 = (_0x44dd11.h || 30) * sc;
-    const _0x483422 = (_0x44dd11.d || _0x2b3c69.T || 16) * sc;
-    const _0x67b09c = new THREE.BoxGeometry(_0x591426, _0x213f13, _0x483422);
-    const _0x1ffb5d = new THREE.MeshStandardMaterial({
+  cutouts.forEach(cutout => {
+    const cutoutW = (cutout.w || 30) * sc;
+    const cutoutH = (cutout.h || 30) * sc;
+    const cutoutD = (cutout.d || partInfo.T || 16) * sc;
+    const cutoutGeo = new THREE.BoxGeometry(cutoutW, cutoutH, cutoutD);
+    const cutoutMat = new THREE.MeshStandardMaterial({
       color: 1710638,
       roughness: 0.95,
       metalness: 0,
       transparent: true,
       opacity: 0.7
     });
-    const _0x43beae = new THREE.Mesh(_0x67b09c, _0x1ffb5d);
-    _0x43beae.position.set(_0x15dd94.x + (_0x44dd11.x || 0) * sc, _0x15dd94.y + (_0x44dd11.y || 0) * sc, _0x15dd94.z + (_0x44dd11.z || 0) * sc);
-    _0x43beae.userData = {
-      partId: _0x2b3c69.id,
+    const cutoutMesh = new THREE.Mesh(cutoutGeo, cutoutMat);
+    cutoutMesh.position.set(meshPos.x + (cutout.x || 0) * sc, meshPos.y + (cutout.y || 0) * sc, meshPos.z + (cutout.z || 0) * sc);
+    cutoutMesh.userData = {
+      partId: partInfo.id,
       detailType: "cutout"
     };
-    scene.add(_0x43beae);
-    const _0x8889bb = new THREE.EdgesGeometry(_0x67b09c, 15);
-    const _0x22d089 = new THREE.LineSegments(_0x8889bb, new THREE.LineBasicMaterial({
+    scene.add(cutoutMesh);
+    const cutoutEdgeGeo = new THREE.EdgesGeometry(cutoutGeo, 15);
+    const cutoutEdgeLine = new THREE.LineSegments(cutoutEdgeGeo, new THREE.LineBasicMaterial({
       color: 6710886
     }));
-    _0x22d089.position.copy(_0x43beae.position);
-    scene.add(_0x22d089);
-    _0x5755d4.push(_0x43beae, _0x22d089);
+    cutoutEdgeLine.position.copy(cutoutMesh.position);
+    scene.add(cutoutEdgeLine);
+    detailArr.push(cutoutMesh, cutoutEdgeLine);
   });
-  _0x11d49e.forEach(_0x42d5a3 => {
-    const _0x4c105b = (_0x42d5a3.side || "").toLowerCase();
-    const _0x2680a0 = (_0x42d5a3.length || 0) * sc;
-    const _0x9bf9cd = 0.002;
-    let _0x453a88;
-    let _0x96928b;
-    let _0x2a853f;
-    let _0x133cdc;
-    let _0x1f48b1;
-    let _0x13a94e;
-    if (_0x4c105b.includes("w") || _0x4c105b.includes("длин")) {
-      _0x453a88 = _0x2680a0;
-      _0x96928b = _0x9bf9cd;
-      _0x2a853f = _0x9bf9cd;
-      _0x133cdc = _0x15dd94.x;
-      _0x1f48b1 = _0x15dd94.y;
-      _0x13a94e = _0x15dd94.z + (_0x42d5a3.offset || 0) * sc;
-    } else if (_0x4c105b.includes("h") || _0x4c105b.includes("выс")) {
-      _0x453a88 = _0x9bf9cd;
-      _0x96928b = _0x2680a0;
-      _0x2a853f = _0x9bf9cd;
-      _0x133cdc = _0x15dd94.x + (_0x42d5a3.offset || 0) * sc;
-      _0x1f48b1 = _0x15dd94.y;
-      _0x13a94e = _0x15dd94.z;
+  edges.forEach(edge => {
+    const edgeSide = (edge.side || "").toLowerCase();
+    const edgeLen = (edge.length || 0) * sc;
+    const edgeThick = 0.002;
+    let edgeW;
+    let edgeH;
+    let edgeD;
+    let edgeX;
+    let edgeY;
+    let edgeZ;
+    if (edgeSide.includes("w") || edgeSide.includes("длин")) {
+      edgeW = edgeLen;
+      edgeH = edgeThick;
+      edgeD = edgeThick;
+      edgeX = meshPos.x;
+      edgeY = meshPos.y;
+      edgeZ = meshPos.z + (edge.offset || 0) * sc;
+    } else if (edgeSide.includes("h") || edgeSide.includes("выс")) {
+      edgeW = edgeThick;
+      edgeH = edgeLen;
+      edgeD = edgeThick;
+      edgeX = meshPos.x + (edge.offset || 0) * sc;
+      edgeY = meshPos.y;
+      edgeZ = meshPos.z;
     } else {
-      _0x453a88 = _0x9bf9cd;
-      _0x96928b = _0x9bf9cd;
-      _0x2a853f = _0x2680a0;
-      _0x133cdc = _0x15dd94.x;
-      _0x1f48b1 = _0x15dd94.y + (_0x42d5a3.offset || 0) * sc;
-      _0x13a94e = _0x15dd94.z;
+      edgeW = edgeThick;
+      edgeH = edgeThick;
+      edgeD = edgeLen;
+      edgeX = meshPos.x;
+      edgeY = meshPos.y + (edge.offset || 0) * sc;
+      edgeZ = meshPos.z;
     }
-    const _0x52947a = new THREE.BoxGeometry(_0x453a88 || 0.01, _0x96928b || 0.01, _0x2a853f || 0.01);
-    const _0xb14f12 = new THREE.MeshStandardMaterial({
+    const edgeGeo = new THREE.BoxGeometry(edgeW || 0.01, edgeH || 0.01, edgeD || 0.01);
+    const edgeMat = new THREE.MeshStandardMaterial({
       color: 3832378,
       roughness: 0.6,
       metalness: 0.1
     });
-    const _0x5357ea = new THREE.Mesh(_0x52947a, _0xb14f12);
-    _0x5357ea.position.set(_0x133cdc, _0x1f48b1, _0x13a94e);
-    _0x5357ea.userData = {
-      partId: _0x2b3c69.id,
+    const edgeMesh = new THREE.Mesh(edgeGeo, edgeMat);
+    edgeMesh.position.set(edgeX, edgeY, edgeZ);
+    edgeMesh.userData = {
+      partId: partInfo.id,
       detailType: "edge"
     };
-    scene.add(_0x5357ea);
-    _0x5755d4.push(_0x5357ea);
+    scene.add(edgeMesh);
+    detailArr.push(edgeMesh);
   });
-  return _0x5755d4;
+  return detailArr;
 }
 const detailMeshes = new Map();
 const sc = 0.001;
 function buildScene() {
-  meshMap.forEach(_0x173be4 => scene.remove(_0x173be4));
-  edgeLineMap.forEach(_0x950062 => scene.remove(_0x950062));
-  detailMeshes.forEach(_0x14b315 => _0x14b315.forEach(_0x2f8487 => scene.remove(_0x2f8487)));
+  meshMap.forEach(function(oldMesh) { oldMesh.geometry.dispose(); oldMesh.material.dispose(); scene.remove(oldMesh); });
+  edgeLineMap.forEach(function(oldLine) { oldLine.geometry.dispose(); oldLine.material.dispose(); scene.remove(oldLine); });
+  detailMeshes.forEach(function(oldArr) { oldArr.forEach(function(oldObj) { if (oldObj.geometry) oldObj.geometry.dispose(); if (oldObj.material) oldObj.material.dispose(); scene.remove(oldObj); }); });
   meshMap.clear();
   edgeLineMap.clear();
   detailMeshes.clear();
   originalPositions.clear();
-  parts.forEach(_0x243d4d => {
-    const _0x23519e = new THREE.BoxGeometry(_0x243d4d._size.x, _0x243d4d._size.y, _0x243d4d._size.z);
-    const _0x4b7de9 = new THREE.MeshStandardMaterial({
-      color: getColor(_0x243d4d.material, _0x243d4d),
+  parts.forEach(part => {
+    const boxGeo = new THREE.BoxGeometry(part._size.x, part._size.y, part._size.z);
+    const boxMat = new THREE.MeshStandardMaterial({
+      color: getColor(part.material, part),
       roughness: 0.55,
       metalness: 0.1,
       emissive: new THREE.Color(0),
       emissiveIntensity: 0
     });
-    const _0x6305cf = new THREE.Mesh(_0x23519e, _0x4b7de9);
-    _0x6305cf.position.set(_0x243d4d._pos.x, _0x243d4d._pos.y, _0x243d4d._pos.z);
-    _0x6305cf.userData = {
-      partId: _0x243d4d.id
+    const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+    boxMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
+    boxMesh.userData = {
+      partId: part.id
     };
-    _0x6305cf.castShadow = true;
-    _0x6305cf.receiveShadow = true;
-    scene.add(_0x6305cf);
-    const _0x44c383 = new THREE.EdgesGeometry(_0x23519e, 15);
+    boxMesh.castShadow = true;
+    boxMesh.receiveShadow = true;
+    scene.add(boxMesh);
+    const edgeGeo = new THREE.EdgesGeometry(boxGeo, 15);
     const _edgeMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a });
-    const _0x50f719 = new THREE.LineSegments(_0x44c383, _edgeMat);
-    _0x50f719.position.copy(_0x6305cf.position);
-    scene.add(_0x50f719);
-    originalPositions.set(_0x243d4d.id, new THREE.Vector3(_0x243d4d._pos.x, _0x243d4d._pos.y, _0x243d4d._pos.z));
-    meshMap.set(_0x243d4d.id, _0x6305cf);
-    edgeLineMap.set(_0x243d4d.id, _0x50f719);
-    const _0x726769 = buildPartDetails(_0x243d4d, _0x6305cf);
-    if (_0x726769.length) {
-      detailMeshes.set(_0x243d4d.id, _0x726769);
+    const edgeLineObj = new THREE.LineSegments(edgeGeo, _edgeMat);
+    edgeLineObj.position.copy(boxMesh.position);
+    scene.add(edgeLineObj);
+    originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
+    meshMap.set(part.id, boxMesh);
+    edgeLineMap.set(part.id, edgeLineObj);
+    const details = buildPartDetails(part, boxMesh);
+    if (details.length) {
+      detailMeshes.set(part.id, details);
     }
   });
   centerCamera();
@@ -762,148 +781,148 @@ function buildScene() {
 }
 function buildModuleMap() {
   moduleMap.clear();
-  parts.forEach(_0x4def2b => {
+  parts.forEach(part => {
     // Use explicit group field if available, otherwise parse from code
-    let _0x367b87;
-    if (_0x4def2b.group) {
-      _0x367b87 = _0x4def2b.group;
+    let groupName;
+    if (part.group) {
+      groupName = part.group;
     } else {
-      const _0x28d01c = idMode === "position" ? _0x4def2b.position || _0x4def2b.code || "" : _0x4def2b.code || "";
-      _0x367b87 = getModuleKey(_0x28d01c);
+      const idCode = idMode === "position" ? part.position || part.code || "" : part.code || "";
+      groupName = getModuleKey(idCode);
     }
-    if (!moduleMap.has(_0x367b87)) {
-      moduleMap.set(_0x367b87, []);
+    if (!moduleMap.has(groupName)) {
+      moduleMap.set(groupName, []);
     }
-    moduleMap.get(_0x367b87).push(_0x4def2b);
+    moduleMap.get(groupName).push(part);
   });
 }
 function centerCamera() {
   if (!parts.length) {
     return;
   }
-  let _0x361143 = Infinity;
-  let _0x1652e5 = -Infinity;
-  let _0x279946 = Infinity;
-  let _0xcfe2d1 = -Infinity;
-  let _0x2836ce = Infinity;
-  let _0x21a543 = -Infinity;
-  parts.forEach(_0x5e20e0 => {
-    if (!_0x5e20e0._pos) {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY2 = Infinity;
+  let maxY = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  parts.forEach(part => {
+    if (!part._pos) {
       return;
     }
-    _0x361143 = Math.min(_0x361143, _0x5e20e0._pos.x - _0x5e20e0._size.x / 2);
-    _0x1652e5 = Math.max(_0x1652e5, _0x5e20e0._pos.x + _0x5e20e0._size.x / 2);
-    _0x279946 = Math.min(_0x279946, _0x5e20e0._pos.y - _0x5e20e0._size.y / 2);
-    _0xcfe2d1 = Math.max(_0xcfe2d1, _0x5e20e0._pos.y + _0x5e20e0._size.y / 2);
-    _0x2836ce = Math.min(_0x2836ce, _0x5e20e0._pos.z - _0x5e20e0._size.z / 2);
-    _0x21a543 = Math.max(_0x21a543, _0x5e20e0._pos.z + _0x5e20e0._size.z / 2);
+    minX = Math.min(minX, part._pos.x - part._size.x / 2);
+    maxX = Math.max(maxX, part._pos.x + part._size.x / 2);
+    minY2 = Math.min(minY2, part._pos.y - part._size.y / 2);
+    maxY = Math.max(maxY, part._pos.y + part._size.y / 2);
+    minZ = Math.min(minZ, part._pos.z - part._size.z / 2);
+    maxZ = Math.max(maxZ, part._pos.z + part._size.z / 2);
   });
-  targetPosition.set((_0x361143 + _0x1652e5) / 2, (_0x279946 + _0xcfe2d1) / 2, (_0x2836ce + _0x21a543) / 2);
-  const _0x2194f8 = Math.max(_0x1652e5 - _0x361143, _0xcfe2d1 - _0x279946, _0x21a543 - _0x2836ce);
-  camDist = Math.max(_0x2194f8 * 1.5, 2);
+  targetPosition.set((minX + maxX) / 2, (minY2 + maxY) / 2, (minZ + maxZ) / 2);
+  const maxExtent = Math.max(maxX - minX, maxY - minY2, maxZ - minZ);
+  camDist = Math.max(maxExtent * 1.5, 2);
   updateCamera();
 }
-function selectPart(_0x73f236) {
-  selectedId = _0x73f236;
-  meshMap.forEach(_0x242f1b => {
-    _0x242f1b.material.emissive.setHex(0);
-    _0x242f1b.material.emissiveIntensity = 0;
+function selectPart(partId) {
+  selectedId = partId;
+  meshMap.forEach(mesh => {
+    mesh.material.emissive.setHex(0);
+    mesh.material.emissiveIntensity = 0;
   });
-  edgeLineMap.forEach(_0x15c27c => {
-    _0x15c27c.material.color.setHex(0x1a1a1a);
+  edgeLineMap.forEach(edgeLine => {
+    edgeLine.material.color.setHex(0x1a1a1a);
   });
-  const _0x218202 = meshMap.get(_0x73f236);
-  const _0x4607cd = edgeLineMap.get(_0x73f236);
-  if (_0x218202) {
-    _0x218202.material.emissive.setHex(0x00D4AA);
-    _0x218202.material.emissiveIntensity = 0.5;
+  const selectedMesh = meshMap.get(partId);
+  const selectedEdge = edgeLineMap.get(partId);
+  if (selectedMesh) {
+    selectedMesh.material.emissive.setHex(0x00D4AA);
+    selectedMesh.material.emissiveIntensity = 0.5;
   }
-  if (_0x4607cd) {
-    _0x4607cd.material.color.setHex(0x2a2a2a);
+  if (selectedEdge) {
+    selectedEdge.material.color.setHex(0x2a2a2a);
   }
   if (xrayActive) {
     applyXray();
   }
-  updateSheet(parts.find(_0x319268 => _0x319268.id === _0x73f236));
+  updateSheet(parts.find(part => part.id === partId));
   renderPartsList();
   openSheet();
 }
-function renderProcessingInfo(_0x2b70dd) {
-  const _0x4e9ebd = _0x2b70dd.grooves || [];
-  const _0x304d7f = _0x2b70dd.holes || [];
-  const _0x4bc704 = _0x2b70dd.cutouts || [];
-  const _0x278068 = _0x2b70dd.edges || [];
-  const _0x2475e1 = _0x4e9ebd.length || _0x304d7f.length || _0x4bc704.length || _0x278068.length;
-  if (!_0x2475e1) {
+function renderProcessingInfo(partData) {
+  const grooves = partData.grooves || [];
+  const holes2 = partData.holes || [];
+  const cutouts2 = partData.cutouts || [];
+  const edges2 = partData.edges || [];
+  const hasProcessing = grooves.length || holes2.length || cutouts2.length || edges2.length;
+  if (!hasProcessing) {
     return "";
   }
-  let _0x502e00 = "<div style=\"margin-top:4px;border-top:1px solid var(--border);padding-top:4px\">";
-  if (_0x4e9ebd.length) {
-    _0x502e00 += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Пазы (" + _0x4e9ebd.length + "):</div>";
-    _0x4e9ebd.forEach((_0x19407e, _0x380aea) => {
-      _0x502e00 += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (_0x380aea + 1) + ". x:" + (_0x19407e.x || 0) + " y:" + (_0x19407e.y || 0) + " " + (_0x19407e.w || 0) + "×" + (_0x19407e.h || 0) + "×" + (_0x19407e.d || 0) + " мм</div>";
+  let html = "<div style=\"margin-top:4px;border-top:1px solid var(--border);padding-top:4px\">";
+  if (grooves.length) {
+    html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Пазы (" + grooves.length + "):</div>";
+    grooves.forEach((groove, idx) => {
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (groove.x || 0) + " y:" + (groove.y || 0) + " " + (groove.w || 0) + "×" + (groove.h || 0) + "×" + (groove.d || 0) + " мм</div>";
     });
   }
-  if (_0x304d7f.length) {
-    _0x502e00 += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Отверстия (" + _0x304d7f.length + "):</div>";
-    _0x304d7f.forEach((_0x5d287d, _0x4df51b) => {
-      _0x502e00 += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (_0x4df51b + 1) + ". x:" + (_0x5d287d.x || 0) + " y:" + (_0x5d287d.y || 0) + " ⌀" + (_0x5d287d.d || _0x5d287d.r || "?") + " мм</div>";
+  if (holes2.length) {
+    html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Отверстия (" + holes2.length + "):</div>";
+    holes2.forEach((hole, idx) => {
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (hole.x || 0) + " y:" + (hole.y || 0) + " ⌀" + (hole.d || hole.r || "?") + " мм</div>";
     });
   }
-  if (_0x4bc704.length) {
-    _0x502e00 += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Вырезы (" + _0x4bc704.length + "):</div>";
-    _0x4bc704.forEach((_0x4b7cba, _0x3f59e9) => {
-      _0x502e00 += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (_0x3f59e9 + 1) + ". x:" + (_0x4b7cba.x || 0) + " y:" + (_0x4b7cba.y || 0) + " " + (_0x4b7cba.w || 0) + "×" + (_0x4b7cba.h || 0) + " мм</div>";
+  if (cutouts2.length) {
+    html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Вырезы (" + cutouts2.length + "):</div>";
+    cutouts2.forEach((cutout, idx) => {
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (cutout.x || 0) + " y:" + (cutout.y || 0) + " " + (cutout.w || 0) + "×" + (cutout.h || 0) + " мм</div>";
     });
   }
-  if (_0x278068.length) {
-    _0x502e00 += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Кромка (" + _0x278068.length + "):</div>";
-    _0x278068.forEach((_0x209c61, _0x20db6e) => {
-      _0x502e00 += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (_0x20db6e + 1) + ". " + (_0x209c61.side || _0x209c61.type || "?") + " " + (_0x209c61.length || "") + (_0x209c61.length ? " мм" : "") + "</div>";
+  if (edges2.length) {
+    html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Кромка (" + edges2.length + "):</div>";
+    edges2.forEach((edge, idx) => {
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + (edge.side || edge.type || "?") + " " + (edge.length || "") + (edge.length ? " мм" : "") + "</div>";
     });
   }
-  _0x502e00 += "</div>";
-  return _0x502e00;
+  html += "</div>";
+  return html;
 }
-function updateSheet(_0x434ca8) {
-  const _0x3bebcb = document.getElementById("sheetContent");
-  if (!_0x434ca8) {
-    _0x3bebcb.innerHTML = "<div style=\"text-align:center;color:var(--text-secondary);padding:10px;font-size:11px;\">👆 Нажмите на деталь</div>";
+function updateSheet(part) {
+  const sheetEl = document.getElementById("sheetContent");
+  if (!part) {
+    sheetEl.innerHTML = "<div style=\"text-align:center;color:var(--text-secondary);padding:10px;font-size:11px;\">👆 Нажмите на деталь</div>";
     return;
   }
-  const _0x13d061 = scannedSet.has(_0x434ca8.id);
-  const _0x356435 = idMode === "position" ? _0x434ca8.position || _0x434ca8.code || "" : _0x434ca8.code || "";
-  const _0x578194 = getModuleKey(_0x356435);
-  const _0x144877 = _0x434ca8.groupName || getModuleName(_0x356435);
-  const _0xd64636 = getModuleColor(_0x356435);
-  let _0x36092c = "";
-  if (_0x578194 !== "HARDWARE" && _0x578194 !== "OTHER") {
-    const _0x232770 = moduleMap.get(_0x578194) || [];
-    const _0x5ba284 = _0x232770.indexOf(_0x434ca8) + 1;
-    _0x36092c = "<div class=\"assembly-hint\">📦 " + _0x144877 + " — деталь " + _0x5ba284 + " из " + _0x232770.length + " в модуле</div>";
+  const isScanned = scannedSet.has(part.id);
+  const displayCode = idMode === "position" ? part.position || part.code || "" : part.code || "";
+  const modKey = getModuleKey(displayCode);
+  const modName = part.groupName || getModuleName(displayCode);
+  const modColor = getModuleColor(displayCode);
+  let assemblyHint = "";
+  if (modKey !== "HARDWARE" && modKey !== "OTHER") {
+    const modParts = moduleMap.get(modKey) || [];
+    const partIndex = modParts.indexOf(part) + 1;
+    assemblyHint = "<div class=\"assembly-hint\">📦 " + modName + " — деталь " + partIndex + " из " + modParts.length + " в модуле</div>";
   }
-  _0x3bebcb.innerHTML = "\n      <div class=\"detail-card\">\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Наименование:</span>\n          <span class=\"detail-value\" style=\"font-size:13px;font-weight:600\">" + escapeHtml(_0x434ca8.name || "—") + "</span>\n        </div>\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Обозначение:</span>\n          <span class=\"detail-code\">" + escapeHtml(_0x434ca8.code || "—") + "</span>\n        </div>\n        " + (_0x434ca8.position ? "<div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"detail-label\">Позиция:</span>\n          <span class=\"detail-code\">" + escapeHtml(_0x434ca8.position) + "</span>\n        </div>" : "") + "\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"material-tag\">" + escapeHtml(_0x434ca8.material || "Материал") + "</span>\n          <span class=\"module-badge\" style=\"color:" + _0xd64636 + ";background:" + _0xd64636 + "18;border-color:" + _0xd64636 + "30\">" + _0x144877 + "</span>\n        </div>\n        " + (_0x434ca8.group ? "<div class=\"detail-row\" style=\"margin-top:2px\"><span class=\"detail-label\">Группа:</span><span class=\"detail-code\" style=\"font-size:11px\">" + escapeHtml(_0x434ca8.group) + " — " + escapeHtml(_0x434ca8.groupName || _0x144877) + "</span></div>" : "") + "\n        <div class=\"dims-row\" style=\"margin-top:3px\">\n          <div class=\"dim\"><span class=\"dim-label\">Д</span><span class=\"dim-value\">" + (_0x434ca8.L || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Ш</span><span class=\"dim-value\">" + (_0x434ca8.W || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Т</span><span class=\"dim-value\">" + (_0x434ca8.T || "—") + "</span></div>\n        </div>\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"status-badge " + (_0x13d061 ? "scanned" : "waiting") + "\">" + (_0x13d061 ? "✅ ОТСКАНИРОВАНО" : "⏳ ОЖИДАЕТ") + "</span>\n        </div>\n        " + _0x36092c + "\n        " + renderProcessingInfo(_0x434ca8) + "\n      </div>\n    ";
+  sheetEl.innerHTML = "\n      <div class=\"detail-card\">\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Наименование:</span>\n          <span class=\"detail-value\" style=\"font-size:13px;font-weight:600\">" + escapeHtml(part.name || "—") + "</span>\n        </div>\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Обозначение:</span>\n          <span class=\"detail-code\">" + escapeHtml(part.code || "—") + "</span>\n        </div>\n        " + (part.position ? "<div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"detail-label\">Позиция:</span>\n          <span class=\"detail-code\">" + escapeHtml(part.position) + "</span>\n        </div>" : "") + "\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"material-tag\">" + escapeHtml(part.material || "Материал") + "</span>\n          <span class=\"module-badge\" style=\"color:" + modColor + ";background:" + modColor + "18;border-color:" + modColor + "30\">" + modName + "</span>\n        </div>\n        " + (part.group ? "<div class=\"detail-row\" style=\"margin-top:2px\"><span class=\"detail-label\">Группа:</span><span class=\"detail-code\" style=\"font-size:11px\">" + escapeHtml(part.group) + " — " + escapeHtml(part.groupName || modName) + "</span></div>" : "") + "\n        <div class=\"dims-row\" style=\"margin-top:3px\">\n          <div class=\"dim\"><span class=\"dim-label\">Д</span><span class=\"dim-value\">" + (part.L || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Ш</span><span class=\"dim-value\">" + (part.W || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Т</span><span class=\"dim-value\">" + (part.T || "—") + "</span></div>\n        </div>\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"status-badge " + (isScanned ? "scanned" : "waiting") + "\">" + (isScanned ? "✅ ОТСКАНИРОВАНО" : "⏳ ОЖИДАЕТ") + "</span>\n        </div>\n        " + assemblyHint + "\n        " + renderProcessingInfo(part) + "\n      </div>\n    ";
 
 }
-function toggleVisibility(_0x1fb5ed) {
-  const _0x15de41 = meshMap.get(_0x1fb5ed);
-  const _0x13c8c9 = edgeLineMap.get(_0x1fb5ed);
-  if (!_0x15de41) {
+function toggleVisibility(partId) {
+  const visMesh = meshMap.get(partId);
+  const visEdge = edgeLineMap.get(partId);
+  if (!visMesh) {
     return;
   }
-  if (hiddenSet.has(_0x1fb5ed)) {
-    hiddenSet.delete(_0x1fb5ed);
-    _0x15de41.visible = true;
-    if (_0x13c8c9) {
-      _0x13c8c9.visible = true;
+  if (hiddenSet.has(partId)) {
+    hiddenSet.delete(partId);
+    visMesh.visible = true;
+    if (visEdge) {
+      visEdge.visible = true;
     }
   } else {
-    hiddenSet.add(_0x1fb5ed);
-    _0x15de41.visible = false;
-    if (_0x13c8c9) {
-      _0x13c8c9.visible = false;
+    hiddenSet.add(partId);
+    visMesh.visible = false;
+    if (visEdge) {
+      visEdge.visible = false;
     }
-    if (selectedId === _0x1fb5ed) {
+    if (selectedId === partId) {
       selectedId = null;
       updateSheet(null);
       closeSheet();
@@ -914,15 +933,15 @@ function toggleVisibility(_0x1fb5ed) {
     applyXray();
   }
   saveProgress();
-  showToast((hiddenSet.has(_0x1fb5ed) ? "🙈" : "👁") + " Деталь " + (hiddenSet.has(_0x1fb5ed) ? "скрыта" : "показана"));
+  showToast((hiddenSet.has(partId) ? "🙈" : "👁") + " Деталь " + (hiddenSet.has(partId) ? "скрыта" : "показана"));
 }
 function showAllParts() {
   hiddenSet.clear();
-  meshMap.forEach(_0x1eb95e => {
-    _0x1eb95e.visible = true;
+  meshMap.forEach(m => {
+    m.visible = true;
   });
-  edgeLineMap.forEach(_0x27ab11 => {
-    _0x27ab11.visible = true;
+  edgeLineMap.forEach(e => {
+    e.visible = true;
   });
   renderPartsList();
   if (xrayActive) {
@@ -931,18 +950,18 @@ function showAllParts() {
   showToast("👁 Все детали показаны");
 }
 function applyXray() {
-  meshMap.forEach((_0x2a1ea7, _0x41f7ed) => {
-    if (!xrayActive || !_0x2a1ea7.visible) {
-      _0x2a1ea7.material.transparent = false;
-      _0x2a1ea7.material.opacity = 1;
+  meshMap.forEach((xrayMesh, xrayId) => {
+    if (!xrayActive || !xrayMesh.visible) {
+      xrayMesh.material.transparent = false;
+      xrayMesh.material.opacity = 1;
       return;
     }
-    if (selectedId !== null && _0x41f7ed === selectedId) {
-      _0x2a1ea7.material.transparent = false;
-      _0x2a1ea7.material.opacity = 1;
+    if (selectedId !== null && xrayId === selectedId) {
+      xrayMesh.material.transparent = false;
+      xrayMesh.material.opacity = 1;
     } else {
-      _0x2a1ea7.material.transparent = true;
-      _0x2a1ea7.material.opacity = 0.12;
+      xrayMesh.material.transparent = true;
+      xrayMesh.material.opacity = 0.12;
     }
   });
 }
@@ -950,9 +969,9 @@ function toggleXray() {
   xrayActive = !xrayActive;
   document.getElementById("xrayBtn").classList.toggle("active", xrayActive);
   if (!xrayActive) {
-    meshMap.forEach(_0xa5f3ca => {
-      _0xa5f3ca.material.transparent = false;
-      _0xa5f3ca.material.opacity = 1;
+    meshMap.forEach(m => {
+      m.material.transparent = false;
+      m.material.opacity = 1;
     });
   } else {
     applyXray();
@@ -967,58 +986,58 @@ function toggleExplode() {
     animateExplodeTo(1);
   }
 }
-function animateExplodeTo(_0xbe5e22) {
-  const _0x161763 = explodeProgress;
-  const _0x215067 = performance.now();
-  const _0xcb15d9 = 600;
-  function _0x141926(_0x2c8fd4) {
-    const _0x39f2f7 = Math.min((_0x2c8fd4 - _0x215067) / _0xcb15d9, 1);
-    const _0x6e02ab = _0x39f2f7 < 0.5 ? _0x39f2f7 * 2 * _0x39f2f7 : 1 - Math.pow(_0x39f2f7 * -2 + 2, 2) / 2;
-    explodeProgress = _0x161763 + (_0xbe5e22 - _0x161763) * _0x6e02ab;
+function animateExplodeTo(target) {
+  const startVal = explodeProgress;
+  const startTime = performance.now();
+  const duration = 600;
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = progress < 0.5 ? progress * 2 * progress : 1 - Math.pow(progress * -2 + 2, 2) / 2;
+    explodeProgress = startVal + (target - startVal) * eased;
     applyExplode();
-    if (_0x39f2f7 < 1) {
-      requestAnimationFrame(_0x141926);
+    if (progress < 1) {
+      requestAnimationFrame(step);
     }
   }
-  requestAnimationFrame(_0x141926);
+  requestAnimationFrame(step);
 }
 function applyExplode() {
   if (!originalPositions.size) {
     return;
   }
-  const _0xa87199 = new THREE.Vector3();
-  let _0x11a52a = 0;
-  originalPositions.forEach(_0x4fb99c => {
-    _0xa87199.add(_0x4fb99c);
-    _0x11a52a++;
+  const center = new THREE.Vector3();
+  let count = 0;
+  originalPositions.forEach(origCenter => {
+    center.add(origCenter);
+    count++;
   });
-  if (_0x11a52a > 0) {
-    _0xa87199.divideScalar(_0x11a52a);
+  if (count > 0) {
+    center.divideScalar(count);
   }
-  parts.forEach(_0x5dc469 => {
-    const _0xeb9121 = meshMap.get(_0x5dc469.id);
-    const _0x3fd9c4 = edgeLineMap.get(_0x5dc469.id);
-    const _0x114eec = originalPositions.get(_0x5dc469.id);
-    if (!_0xeb9121 || !_0x114eec) {
+  parts.forEach(part => {
+    const explodeMesh = meshMap.get(part.id);
+    const explodeEdge = edgeLineMap.get(part.id);
+    const origPos = originalPositions.get(part.id);
+    if (!explodeMesh || !origPos) {
       return;
     }
-    const _0x148798 = new THREE.Vector3().subVectors(_0x114eec, _0xa87199);
-    const _0x1838e1 = _0x148798.length();
-    if (_0x1838e1 > 0.001) {
-      _0x148798.normalize();
+    const dir = new THREE.Vector3().subVectors(origPos, center);
+    const dist = dir.length();
+    if (dist > 0.001) {
+      dir.normalize();
     }
-    const _0x30aabb = explodeProgress * _0x1838e1 * 0.8;
-    const _0x421b81 = _0x114eec.clone().add(_0x148798.multiplyScalar(_0x30aabb));
-    const _0x21babc = new THREE.Vector3().subVectors(_0x421b81, _0x114eec);
-    _0xeb9121.position.copy(_0x421b81);
-    if (_0x3fd9c4) {
-      _0x3fd9c4.position.copy(_0x421b81);
+    const offset = explodeProgress * dist * 0.8;
+    const newPos = origPos.clone().add(dir.multiplyScalar(offset));
+    const delta = new THREE.Vector3().subVectors(newPos, origPos);
+    explodeMesh.position.copy(newPos);
+    if (explodeEdge) {
+      explodeEdge.position.copy(newPos);
     }
-    const _0x450672 = detailMeshes.get(_0x5dc469.id);
-    if (_0x450672) {
-      _0x450672.forEach(_0x307322 => {
-        if (_0x307322.isMesh || _0x307322.isLineSegments) {
-          _0x307322.position.add(_0x21babc);
+    const explDetails = detailMeshes.get(part.id);
+    if (explDetails) {
+      explDetails.forEach(detailObj => {
+        if (detailObj.isMesh || detailObj.isLineSegments) {
+          detailObj.position.add(delta);
         }
       });
     }
@@ -1038,12 +1057,12 @@ function toggleAssembly() {
   }
 }
 function buildAssemblyOrder() {
-  const _0x4917c1 = Array.from(moduleMap.keys()).sort();
+  const sortedKeys = Array.from(moduleMap.keys()).sort();
   assemblyOrder = [];
-  _0x4917c1.forEach(_0x26a864 => {
-    const _0x56ac50 = moduleMap.get(_0x26a864);
-    if (_0x56ac50) {
-      _0x56ac50.forEach(_0x4b3918 => assemblyOrder.push(_0x4b3918));
+  sortedKeys.forEach(key => {
+    const moduleParts = moduleMap.get(key);
+    if (moduleParts) {
+      moduleParts.forEach(part => assemblyOrder.push(part));
     }
   });
   if (assemblyOrder.length === 0) {
@@ -1054,42 +1073,42 @@ function updateAssemblyStep() {
   if (assemblyOrder.length === 0) {
     return;
   }
-  const _0x334ddd = assemblyOrder[assemblyIndex];
-  if (!_0x334ddd) {
+  const currentPart = assemblyOrder[assemblyIndex];
+  if (!currentPart) {
     return;
   }
   document.getElementById("assemblyStepLabel").textContent = "Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length;
-  const _0x176c95 = _0x334ddd.position ? _0x334ddd.code + " / " + _0x334ddd.position : _0x334ddd.code;
-  document.getElementById("assemblyInfo").textContent = _0x176c95 + " — " + (_0x334ddd.name || "—");
-  meshMap.forEach((_0x958b20, _0x2aa3c7) => {
-    _0x958b20.material.emissive.setHex(0);
-    _0x958b20.material.emissiveIntensity = 0;
-    _0x958b20.material.transparent = false;
-    _0x958b20.material.opacity = 0.15;
+  const partLabel = currentPart.position ? currentPart.code + " / " + currentPart.position : currentPart.code;
+  document.getElementById("assemblyInfo").textContent = partLabel + " — " + (currentPart.name || "—");
+  meshMap.forEach((asmMesh, asmId) => {
+    asmMesh.material.emissive.setHex(0);
+    asmMesh.material.emissiveIntensity = 0;
+    asmMesh.material.transparent = false;
+    asmMesh.material.opacity = 0.15;
   });
-  edgeLineMap.forEach(_0x390fd5 => {
-    _0x390fd5.material.color.setHex(0x1a1a1a);
-    _0x390fd5.material.transparent = true;
-    _0x390fd5.material.opacity = 0.15;
+  edgeLineMap.forEach(asmEdge => {
+    asmEdge.material.color.setHex(0x1a1a1a);
+    asmEdge.material.transparent = true;
+    asmEdge.material.opacity = 0.15;
   });
-  const _0x413641 = meshMap.get(_0x334ddd.id);
-  const _0x371f13 = edgeLineMap.get(_0x334ddd.id);
-  if (_0x413641) {
-    _0x413641.material.emissive.setHex(0x00D4AA);
-    _0x413641.material.emissiveIntensity = 0.6;
-    _0x413641.material.transparent = false;
-    _0x413641.material.opacity = 1;
+  const highlightMesh = meshMap.get(currentPart.id);
+  const highlightEdge = edgeLineMap.get(currentPart.id);
+  if (highlightMesh) {
+    highlightMesh.material.emissive.setHex(0x00D4AA);
+    highlightMesh.material.emissiveIntensity = 0.6;
+    highlightMesh.material.transparent = false;
+    highlightMesh.material.opacity = 1;
   }
-  if (_0x371f13) {
-    _0x371f13.material.color.setHex(0x2a2a2a);
-    _0x371f13.material.transparent = false;
-    _0x371f13.material.opacity = 1;
+  if (highlightEdge) {
+    highlightEdge.material.color.setHex(0x2a2a2a);
+    highlightEdge.material.transparent = false;
+    highlightEdge.material.opacity = 1;
   }
-  startSmoothZoom(_0x334ddd.id);
-  updateSheet(_0x334ddd);
+  startSmoothZoom(currentPart.id);
+  updateSheet(currentPart);
   openSheet();
   renderPartsList();
-  showToast("🔧 Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length + ": " + (_0x334ddd.name || _0x334ddd.code));
+  showToast("🔧 Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length + ": " + (currentPart.name || currentPart.code));
 }
 function stopAssemblyPlay() {
   assemblyPlaying = false;
@@ -1117,139 +1136,139 @@ function updateSummary() {
     return;
   }
   document.getElementById("materialSummary").style.display = "block";
-  const _0x3b1b67 = {};
-  let _0x1c4b65 = 0;
-  parts.forEach(_0x5c13a7 => {
-    const _0x4b2352 = _0x5c13a7.material || "Неизвестно";
-    if (!_0x3b1b67[_0x4b2352]) {
-      _0x3b1b67[_0x4b2352] = {
+  const materialStats = {};
+  let totalMass = 0;
+  parts.forEach(part => {
+    const matName = part.material || "Неизвестно";
+    if (!materialStats[matName]) {
+      materialStats[matName] = {
         count: 0,
         totalArea: 0
       };
     }
-    _0x3b1b67[_0x4b2352].count++;
-    if (_0x5c13a7.L && _0x5c13a7.W) {
-      _0x3b1b67[_0x4b2352].totalArea += _0x5c13a7.L * _0x5c13a7.W / 1000000;
+    materialStats[matName].count++;
+    if (part.L && part.W) {
+      materialStats[matName].totalArea += part.L * part.W / 1000000;
     }
-    if (_0x5c13a7.L && _0x5c13a7.W && _0x5c13a7.T) {
-      _0x1c4b65 += _0x5c13a7.L * _0x5c13a7.W * _0x5c13a7.T / 1000 * 6.5e-7;
+    if (part.L && part.W && part.T) {
+      totalMass += part.L * part.W * part.T / 1000 * 6.5e-7;
     }
   });
-  const _0x146cea = moduleMap.size;
-  let _0x25ce73 = "\n      <div class=\"summary-row\"><span class=\"summary-label\">Всего деталей:</span><span class=\"summary-val\">" + parts.length + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Модулей:</span><span class=\"summary-val\">" + _0x146cea + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Собрано:</span><span class=\"summary-val\" style=\"color:var(--success)\">" + scannedSet.size + " / " + parts.length + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Масса:</span><span class=\"summary-val\">≈ " + _0x1c4b65.toFixed(1) + " кг</span></div>\n      <div style=\"margin-top:4px;border-top:1px solid var(--border);padding-top:4px\">\n    ";
-  const _0x3a0c2a = Object.entries(_0x3b1b67).sort((_0x35d8cf, _0x373351) => _0x373351[1].count - _0x35d8cf[1].count);
-  _0x3a0c2a.slice(0, 6).forEach(([_0x3d1194, _0x1e4fc0]) => {
-    _0x25ce73 += "<div class=\"summary-row\"><span class=\"summary-label\" style=\"font-size:8px\">" + escapeHtml(_0x3d1194.substring(0, 30)) + "</span><span class=\"summary-val\" style=\"font-size:9px\">" + _0x1e4fc0.count + " шт</span></div>";
+  const moduleCount = moduleMap.size;
+  let summaryHtml = "\n      <div class=\"summary-row\"><span class=\"summary-label\">Всего деталей:</span><span class=\"summary-val\">" + parts.length + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Модулей:</span><span class=\"summary-val\">" + moduleCount + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Собрано:</span><span class=\"summary-val\" style=\"color:var(--success)\">" + scannedSet.size + " / " + parts.length + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Масса:</span><span class=\"summary-val\">≈ " + totalMass.toFixed(1) + " кг</span></div>\n      <div style=\"margin-top:4px;border-top:1px solid var(--border);padding-top:4px\">\n    ";
+  const sortedMats = Object.entries(materialStats).sort((a, b) => b[1].count - a[1].count);
+  sortedMats.slice(0, 6).forEach(([mat, stats]) => {
+    summaryHtml += "<div class=\"summary-row\"><span class=\"summary-label\" style=\"font-size:8px\">" + escapeHtml(mat.substring(0, 30)) + "</span><span class=\"summary-val\" style=\"font-size:9px\">" + stats.count + " шт</span></div>";
   });
-  _0x25ce73 += "</div>";
-  document.getElementById("summaryContent").innerHTML = _0x25ce73;
+  summaryHtml += "</div>";
+  document.getElementById("summaryContent").innerHTML = summaryHtml;
 }
 function updateStats() {
-  const _0x2ca248 = parts.length;
-  const _0x231762 = scannedSet.size;
-  const _0x40c396 = _0x2ca248 > 0 ? Math.round(_0x231762 / _0x2ca248 * 100) : 0;
-  document.getElementById("totalCount").textContent = _0x2ca248;
-  document.getElementById("scannedCount").textContent = _0x231762;
-  document.getElementById("progressFill").style.width = _0x40c396 + "%";
+  const total = parts.length;
+  const scanned = scannedSet.size;
+  const percent = total > 0 ? Math.round(scanned / total * 100) : 0;
+  document.getElementById("totalCount").textContent = total;
+  document.getElementById("scannedCount").textContent = scanned;
+  document.getElementById("progressFill").style.width = percent + "%";
 }
 function renderPartsList() {
-  const _0x3d9460 = document.getElementById("partsList");
-  if (!_0x3d9460) {
+  const container = document.getElementById("partsList");
+  if (!container) {
     return;
   }
-  const _0x1ec15f = document.getElementById("searchInput")?.value.toLowerCase() || "";
+  const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
   if (parts.length === 0) {
-    _0x3d9460.innerHTML = "<div style=\"text-align:center;padding:20px;color:var(--text-secondary);font-size:11px\">📁 Загрузите JSON файл для начала</div>";
+    container.innerHTML = "<div style=\"text-align:center;padding:20px;color:var(--text-secondary);font-size:11px\">📁 Загрузите JSON файл для начала</div>";
     return;
   }
-  let _0xe2870e = parts;
-  if (_0x1ec15f) {
-    _0xe2870e = parts.filter(_0x459900 => (_0x459900.name || "").toLowerCase().includes(_0x1ec15f) || (_0x459900.code || "").toLowerCase().includes(_0x1ec15f) || (_0x459900.position || "").toLowerCase().includes(_0x1ec15f));
+  let filteredParts = parts;
+  if (searchVal) {
+    filteredParts = parts.filter(p => (p.name || "").toLowerCase().includes(searchVal) || (p.code || "").toLowerCase().includes(searchVal) || (p.position || "").toLowerCase().includes(searchVal));
   }
-  if (_0x1ec15f) {
-    _0x3d9460.innerHTML = "";
-    if (_0xe2870e.length === 0) {
-      _0x3d9460.innerHTML = "<div style=\"text-align:center;padding:16px;color:var(--text-secondary);font-size:11px\">🔍 Ничего не найдено</div>";
+  if (searchVal) {
+    container.innerHTML = "";
+    if (filteredParts.length === 0) {
+      container.innerHTML = "<div style=\"text-align:center;padding:16px;color:var(--text-secondary);font-size:11px\">🔍 Ничего не найдено</div>";
       return;
     }
-    _0xe2870e.forEach(_0xe95f32 => _0x3d9460.appendChild(createPartItem(_0xe95f32)));
+    filteredParts.forEach(part => container.appendChild(createPartItem(part)));
     return;
   }
-  _0x3d9460.innerHTML = "";
-  const _0x30f91e = Array.from(moduleMap.keys()).sort((_0x56fd03, _0x1018a5) => {
-    if (_0x56fd03 === "HARDWARE") {
+  container.innerHTML = "";
+  const sortedModules = Array.from(moduleMap.keys()).sort((a, b) => {
+    if (a === "HARDWARE") {
       return 1;
     }
-    if (_0x1018a5 === "HARDWARE") {
+    if (b === "HARDWARE") {
       return -1;
     }
-    const _0x9a6a75 = _0x56fd03.replace(/_\d+$/, "");
-    const _0x97df1f = _0x1018a5.replace(/_\d+$/, "");
-    if (_0x9a6a75 !== _0x97df1f) {
-      return _0x9a6a75.localeCompare(_0x97df1f);
+    const aPrefix = a.replace(/_\d+$/, "");
+    const bPrefix = b.replace(/_\d+$/, "");
+    if (aPrefix !== bPrefix) {
+      return aPrefix.localeCompare(bPrefix);
     }
-    const _0x2a1502 = parseInt(_0x56fd03.match(/\d+$/)?.[0] || "0");
-    const _0x114155 = parseInt(_0x1018a5.match(/\d+$/)?.[0] || "0");
-    return _0x2a1502 - _0x114155;
+    const aNum = parseInt(a.match(/\d+$/)?.[0] || "0");
+    const bNum = parseInt(b.match(/\d+$/)?.[0] || "0");
+    return aNum - bNum;
   });
-  _0x30f91e.forEach(_0x4a1608 => {
-    const _0x4043d2 = moduleMap.get(_0x4a1608);
-    if (!_0x4043d2) {
+  sortedModules.forEach(moduleKey => {
+    const moduleParts = moduleMap.get(moduleKey);
+    if (!moduleParts) {
       return;
     }
     // Get groupName from first part in module
-    const _0x2f921c = (_0x4043d2[0] && _0x4043d2[0].groupName) ? _0x4043d2[0].groupName : getModuleName(_0x4a1608 === "HARDWARE" ? "D-000" : _0x4a1608 + "_00");
-    const _0x597a3c = _0x4a1608 === "HARDWARE" ? "#94a3b8" : getModuleColor(_0x4a1608 + "_00");
-    const _0x5ae72d = _0x4043d2.filter(_0x24a7ea => scannedSet.has(_0x24a7ea.id)).length;
-    const _0x46356c = document.createElement("div");
-    _0x46356c.className = "module-group";
-    _0x46356c.innerHTML = "\n        <div class=\"module-header\" data-module=\"" + _0x4a1608 + "\">\n          <div class=\"module-dot\" style=\"background:" + _0x597a3c + "\"></div>\n          <span class=\"module-name\">" + escapeHtml(_0x2f921c) + "</span>\n          <span class=\"module-count\">" + _0x5ae72d + "/" + _0x4043d2.length + "</span>\n          <span class=\"module-arrow open\">▶</span>\n        </div>\n        <div class=\"module-parts\" data-module-parts=\"" + _0x4a1608 + "\"></div>\n      ";
-    const _0x91b2a8 = _0x46356c.querySelector(".module-header");
-    const _0x28dda9 = _0x46356c.querySelector(".module-parts");
-    _0x91b2a8.addEventListener("click", () => {
-      _0x28dda9.classList.toggle("collapsed");
-      _0x91b2a8.querySelector(".module-arrow").classList.toggle("open");
+    const displayName = (moduleParts[0] && moduleParts[0].groupName) ? moduleParts[0].groupName : getModuleName(moduleKey === "HARDWARE" ? "D-000" : moduleKey + "_00");
+    const dotColor = moduleKey === "HARDWARE" ? "#94a3b8" : getModuleColor(moduleKey + "_00");
+    const scannedCount = moduleParts.filter(p => scannedSet.has(p.id)).length;
+    const groupEl = document.createElement("div");
+    groupEl.className = "module-group";
+    groupEl.innerHTML = "\n        <div class=\"module-header\" data-module=\"" + moduleKey + "\">\n          <div class=\"module-dot\" style=\"background:" + dotColor + "\"></div>\n          <span class=\"module-name\">" + escapeHtml(displayName) + "</span>\n          <span class=\"module-count\">" + scannedCount + "/" + moduleParts.length + "</span>\n          <span class=\"module-arrow open\">▶</span>\n        </div>\n        <div class=\"module-parts\" data-module-parts=\"" + moduleKey + "\"></div>\n      ";
+    const headerEl = groupEl.querySelector(".module-header");
+    const partsContainer = groupEl.querySelector(".module-parts");
+    headerEl.addEventListener("click", () => {
+      partsContainer.classList.toggle("collapsed");
+      headerEl.querySelector(".module-arrow").classList.toggle("open");
     });
-    _0x4043d2.forEach(_0x3bea5c => _0x28dda9.appendChild(createPartItem(_0x3bea5c)));
-    _0x3d9460.appendChild(_0x46356c);
+    moduleParts.forEach(part => partsContainer.appendChild(createPartItem(part)));
+    container.appendChild(groupEl);
   });
 }
-function createPartItem(_0x40899f) {
-  const _0x3d248d = hiddenSet.has(_0x40899f.id);
-  const _0x38ceb6 = scannedSet.has(_0x40899f.id);
-  const _0x507de3 = document.createElement("div");
-  _0x507de3.className = "part-item " + (selectedId === _0x40899f.id ? "active" : "");
-  _0x507de3.style.opacity = _0x3d248d ? "0.4" : "1";
-  const _0x27cdb0 = idMode === "position" ? _0x40899f.position || _0x40899f.code || "—" : _0x40899f.code || "—";
-  const _0x4f6ac3 = getModuleColor(idMode === "position" ? _0x40899f.position || _0x40899f.code || "" : _0x40899f.code || "");
-  _0x507de3.innerHTML = "\n      <div class=\"part-swatch\" style=\"background:" + getColor(_0x40899f.material, _0x40899f) + ";border-left:3px solid " + _0x4f6ac3 + "\"></div>\n      <div class=\"part-info\">\n        <div class=\"part-name\">" + escapeHtml(_0x40899f.name || "—") + "</div>\n        <div class=\"part-code\">" + escapeHtml(_0x27cdb0) + "</div>\n        <div class=\"part-dims\">" + (_0x40899f.gab ? _0x40899f.gab.w + "×" + _0x40899f.gab.h + "×" + _0x40899f.gab.d + " мм" : "") + "</div>\n      </div>\n      <div class=\"check " + (_0x38ceb6 ? "done" : "") + "\">" + (_0x38ceb6 ? "✅" : "○") + "</div>\n    ";
-  _0x507de3.addEventListener("click", () => selectPart(_0x40899f.id));
-  return _0x507de3;
+function createPartItem(part) {
+  const isHidden = hiddenSet.has(part.id);
+  const isScanned = scannedSet.has(part.id);
+  const itemEl = document.createElement("div");
+  itemEl.className = "part-item " + (selectedId === part.id ? "active" : "");
+  itemEl.style.opacity = isHidden ? "0.4" : "1";
+  const displayId = idMode === "position" ? part.position || part.code || "—" : part.code || "—";
+  const moduleColor = getModuleColor(idMode === "position" ? part.position || part.code || "" : part.code || "");
+  itemEl.innerHTML = "\n      <div class=\"part-swatch\" style=\"background:" + getColor(part.material, part) + ";border-left:3px solid " + moduleColor + "\"></div>\n      <div class=\"part-info\">\n        <div class=\"part-name\">" + escapeHtml(part.name || "—") + "</div>\n        <div class=\"part-code\">" + escapeHtml(displayId) + "</div>\n        <div class=\"part-dims\">" + (part.gab ? part.gab.w + "×" + part.gab.h + "×" + part.gab.d + " мм" : "") + "</div>\n      </div>\n      <div class=\"check " + (isScanned ? "done" : "") + "\">" + (isScanned ? "✅" : "○") + "</div>\n    ";
+  itemEl.addEventListener("click", () => selectPart(part.id));
+  return itemEl;
 }
 function showStats() {
   if (parts.length === 0) {
     showToast("📁 Сначала загрузите JSON");
     return;
   }
-  const _0x160969 = {};
-  let _0x3d823d = 0;
-  let _0x45f6af = 0;
-  parts.forEach(_0xba6fab => {
-    const _0x9fdc05 = _0xba6fab.material || "Неизвестно";
-    if (!_0x160969[_0x9fdc05]) {
-      _0x160969[_0x9fdc05] = 0;
+  const materialCounts = {};
+  let totalMass = 0;
+  let totalArea = 0;
+  parts.forEach(part => {
+    const matName = part.material || "Неизвестно";
+    if (!materialCounts[matName]) {
+      materialCounts[matName] = 0;
     }
-    _0x160969[_0x9fdc05]++;
-    if (_0xba6fab.L && _0xba6fab.W && _0xba6fab.T) {
-      _0x3d823d += _0xba6fab.L * _0xba6fab.W * _0xba6fab.T / 1000 * 6.5e-7;
-      _0x45f6af += _0xba6fab.L * _0xba6fab.W / 1000000;
+    materialCounts[matName]++;
+    if (part.L && part.W && part.T) {
+      totalMass += part.L * part.W * part.T / 1000 * 6.5e-7;
+      totalArea += part.L * part.W / 1000000;
     }
   });
-  let _0x2b9ad7 = "\n      <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px\">\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + parts.length + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">деталей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + moduleMap.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">модулей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--success)\">" + scannedSet.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">собрано</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--warning)\">≈" + _0x3d823d.toFixed(1) + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">кг масса</div>\n        </div>\n      </div>\n      <div style=\"font-size:10px;font-weight:700;color:var(--accent);margin-bottom:6px\">МАТЕРИАЛЫ:</div>\n    ";
-  Object.entries(_0x160969).sort((_0x2f8696, _0xcea003) => _0xcea003[1] - _0x2f8696[1]).forEach(([_0x45a20c, _0x1865fd]) => {
-    _0x2b9ad7 += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:var(--text-primary)\">" + escapeHtml(_0x45a20c) + "</span>\n        <span style=\"color:var(--accent);font-weight:600\">" + _0x1865fd + " шт</span>\n      </div>";
+  let html = "\n      <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px\">\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + parts.length + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">деталей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + moduleMap.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">модулей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--success)\">" + scannedSet.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">собрано</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--warning)\">≈" + totalMass.toFixed(1) + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">кг масса</div>\n        </div>\n      </div>\n      <div style=\"font-size:10px;font-weight:700;color:var(--accent);margin-bottom:6px\">МАТЕРИАЛЫ:</div>\n    ";
+  Object.entries(materialCounts).sort((a, b) => b[1] - a[1]).forEach(([mat, count]) => {
+    html += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:var(--text-primary)\">" + escapeHtml(mat) + "</span>\n        <span style=\"color:var(--accent);font-weight:600\">" + count + " шт</span>\n      </div>";
   });
-  document.getElementById("statsContent").innerHTML = _0x2b9ad7;
+  document.getElementById("statsContent").innerHTML = html;
   document.getElementById("statsModal").classList.remove("hidden");
 }
 function printSpecification() {
@@ -1257,27 +1276,27 @@ function printSpecification() {
     showToast("📁 Сначала загрузите JSON");
     return;
   }
-  const _0x32213a = window.open("", "_blank");
-  let _0x105cf0 = "<html><head><title>Спецификация</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f0f0f0;font-weight:700}.mod{background:#e8e8ff;font-weight:700}</style></head><body>";
-  _0x105cf0 += "<h2>Спецификация — " + document.getElementById("projectTitle").textContent + "</h2>";
-  _0x105cf0 += "<p>Всего деталей: " + parts.length + " | Собрано: " + scannedSet.size + "</p>";
-  _0x105cf0 += "<table><tr><th>#</th><th>Обозначение</th><th>Позиция</th><th>Наименование</th><th>Материал</th><th>Размеры (мм)</th><th>Статус</th></tr>";
-  let _0x3d7d30 = "";
-  parts.forEach((_0x4008cf, _0x3c9fab) => {
-    const _0x4f5dbe = idMode === "position" ? _0x4008cf.position || _0x4008cf.code || "" : _0x4008cf.code || "";
-    const _0x5addc1 = getModuleKey(_0x4f5dbe);
-    if (_0x5addc1 !== _0x3d7d30) {
-      _0x3d7d30 = _0x5addc1;
-      _0x105cf0 += "<tr><td colspan=\"7\" class=\"mod\">" + escapeHtml(getModuleName(_0x5addc1 === "HARDWARE" ? "D-000" : _0x5addc1 + "_0")) + "</td></tr>";
+  const printWin = window.open("", "_blank");
+  let printHtml = "<html><head><title>Спецификация</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f0f0f0;font-weight:700}.mod{background:#e8e8ff;font-weight:700}</style></head><body>";
+  printHtml += "<h2>Спецификация — " + document.getElementById("projectTitle").textContent + "</h2>";
+  printHtml += "<p>Всего деталей: " + parts.length + " | Собрано: " + scannedSet.size + "</p>";
+  printHtml += "<table><tr><th>#</th><th>Обозначение</th><th>Позиция</th><th>Наименование</th><th>Материал</th><th>Размеры (мм)</th><th>Статус</th></tr>";
+  let lastModule = "";
+  parts.forEach((part, idx) => {
+    const partCode = idMode === "position" ? part.position || part.code || "" : part.code || "";
+    const modKey = getModuleKey(partCode);
+    if (modKey !== lastModule) {
+      lastModule = modKey;
+      printHtml += "<tr><td colspan=\"7\" class=\"mod\">" + escapeHtml(getModuleName(modKey === "HARDWARE" ? "D-000" : modKey + "_0")) + "</td></tr>";
     }
-    const _0x235aea = scannedSet.has(_0x4008cf.id) ? "✅" : "○";
-    const _0x24360e = _0x4008cf.gab ? _0x4008cf.gab.w + "×" + _0x4008cf.gab.h + "×" + _0x4008cf.gab.d : (_0x4008cf.L || "—") + "×" + (_0x4008cf.W || "—") + "×" + (_0x4008cf.T || "—");
-    _0x105cf0 += "<tr><td>" + (_0x3c9fab + 1) + "</td><td>" + escapeHtml(_0x4008cf.code || "") + "</td><td>" + escapeHtml(_0x4008cf.position || "") + "</td><td>" + escapeHtml(_0x4008cf.name || "") + "</td><td>" + escapeHtml(_0x4008cf.material || "") + "</td><td>" + _0x24360e + "</td><td>" + _0x235aea + "</td></tr>";
+    const statusIcon = scannedSet.has(part.id) ? "✅" : "○";
+    const dims = part.gab ? part.gab.w + "×" + part.gab.h + "×" + part.gab.d : (part.L || "—") + "×" + (part.W || "—") + "×" + (part.T || "—");
+    printHtml += "<tr><td>" + (idx + 1) + "</td><td>" + escapeHtml(part.code || "") + "</td><td>" + escapeHtml(part.position || "") + "</td><td>" + escapeHtml(part.name || "") + "</td><td>" + escapeHtml(part.material || "") + "</td><td>" + dims + "</td><td>" + statusIcon + "</td></tr>";
   });
-  _0x105cf0 += "</table></body></html>";
-  _0x32213a.document.write(_0x105cf0);
-  _0x32213a.document.close();
-  _0x32213a.print();
+  printHtml += "</table></body></html>";
+  printWin.document.write(printHtml);
+  printWin.document.close();
+  printWin.print();
 }
 let scanInterval;
 let videoStream;
@@ -1287,71 +1306,71 @@ function openScanner() {
     video: {
       facingMode: "environment"
     }
-  }).then(_0x4b1cc4 => {
-    videoStream = _0x4b1cc4;
-    const _0x55b064 = document.getElementById("video");
-    _0x55b064.srcObject = _0x4b1cc4;
-    _0x55b064.play();
+  }).then(stream => {
+    videoStream = stream;
+    const videoEl2 = document.getElementById("video");
+    videoEl2.srcObject = stream;
+    videoEl2.play();
     startQRScan();
   }).catch(() => showToast("❌ Нет доступа к камере"));
 }
 function closeScanner() {
   document.getElementById("scannerModal").classList.add("hidden");
   if (videoStream) {
-    videoStream.getTracks().forEach(_0x450470 => _0x450470.stop());
+    videoStream.getTracks().forEach(track => track.stop());
   }
   if (scanInterval) {
     clearInterval(scanInterval);
   }
 }
 function startQRScan() {
-  const _0x2bb780 = document.getElementById("video");
-  const _0x2a1544 = document.getElementById("qrCanvas");
-  const _0x37789c = _0x2a1544.getContext("2d");
+  const videoEl = document.getElementById("video");
+  const qrCanvas = document.getElementById("qrCanvas");
+  const qrCtx = qrCanvas.getContext("2d");
   scanInterval = setInterval(() => {
-    if (_0x2bb780.readyState !== _0x2bb780.HAVE_ENOUGH_DATA) {
+    if (videoEl.readyState !== videoEl.HAVE_ENOUGH_DATA) {
       return;
     }
-    _0x2a1544.width = _0x2bb780.videoWidth;
-    _0x2a1544.height = _0x2bb780.videoHeight;
-    _0x37789c.drawImage(_0x2bb780, 0, 0);
-    const _0x124bb1 = _0x37789c.getImageData(0, 0, _0x2a1544.width, _0x2a1544.height);
-    const _0x14f4dc = jsQR(_0x124bb1.data, _0x124bb1.width, _0x124bb1.height);
-    if (_0x14f4dc) {
-      handleScan(_0x14f4dc.data);
+    qrCanvas.width = videoEl.videoWidth;
+    qrCanvas.height = videoEl.videoHeight;
+    qrCtx.drawImage(videoEl, 0, 0);
+    const imgData = qrCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+    const qrResult = jsQR(imgData.data, imgData.width, imgData.height);
+    if (qrResult) {
+      handleScan(qrResult.data);
       closeScanner();
     }
   }, 200);
 }
 function handleManualCode() {
-  const _0x556a7b = document.getElementById("manualCode").value.trim();
-  if (_0x556a7b) {
-    handleScan(_0x556a7b);
+  const manualVal = document.getElementById("manualCode").value.trim();
+  if (manualVal) {
+    handleScan(manualVal);
     closeScanner();
   }
 }
-function handleScan(_0x518bb4) {
-  let _0x279726;
+function handleScan(scanData) {
+  let foundPart;
   if (idMode === "position") {
-    _0x279726 = parts.find(_0x468172 => _0x468172.position === _0x518bb4 || _0x468172.position?.trim() === _0x518bb4.trim() || _0x468172.position?.toLowerCase() === _0x518bb4.toLowerCase());
-    if (!_0x279726) {
-      _0x279726 = parts.find(_0xde1054 => _0x518bb4.includes(_0xde1054.position) || _0xde1054.position?.includes(_0x518bb4));
+    foundPart = parts.find(p => p.position === scanData || p.position?.trim() === scanData.trim() || p.position?.toLowerCase() === scanData.toLowerCase());
+    if (!foundPart) {
+      foundPart = parts.find(p => scanData.includes(p.position) || p.position?.includes(scanData));
     }
   } else {
-    _0x279726 = parts.find(_0x5085ae => _0x5085ae.code === _0x518bb4 || _0x5085ae.code?.trim() === _0x518bb4.trim() || _0x5085ae.code?.toLowerCase() === _0x518bb4.toLowerCase());
-    if (!_0x279726) {
-      _0x279726 = parts.find(_0x1aaf14 => _0x518bb4.includes(_0x1aaf14.code) || _0x1aaf14.code?.includes(_0x518bb4));
+    foundPart = parts.find(p => p.code === scanData || p.code?.trim() === scanData.trim() || p.code?.toLowerCase() === scanData.toLowerCase());
+    if (!foundPart) {
+      foundPart = parts.find(p => scanData.includes(p.code) || p.code?.includes(scanData));
     }
   }
-  if (!_0x279726) {
+  if (!foundPart) {
     showToast("❌ Деталь не найдена");
     return;
   }
-  scannedSet.add(_0x279726.id);
+  scannedSet.add(foundPart.id);
   updateStats();
-  selectPart(_0x279726.id);
-  startSmoothZoom(_0x279726.id);
-  showToast("✅ " + _0x279726.name);
+  selectPart(foundPart.id);
+  startSmoothZoom(foundPart.id);
+  showToast("✅ " + foundPart.name);
   saveProgress();
   renderPartsList();
 }
@@ -1363,20 +1382,20 @@ function saveProgress() {
   }));
 }
 function loadProgress() {
-  const _0x3aeb7b = JSON.parse(localStorage.getItem("aivoProgress") || "{}");
-  if (_0x3aeb7b.scanned) {
-    scannedSet = new Set(_0x3aeb7b.scanned);
+  const saved = JSON.parse(localStorage.getItem("aivoProgress") || "{}");
+  if (saved.scanned) {
+    scannedSet = new Set(saved.scanned);
   }
-  if (_0x3aeb7b.hidden) {
-    hiddenSet = new Set(_0x3aeb7b.hidden);
+  if (saved.hidden) {
+    hiddenSet = new Set(saved.hidden);
   }
 }
 function resetProgress() {
   if (confirm("Сбросить весь прогресс сборки?")) {
     scannedSet.clear();
     hiddenSet.clear();
-    meshMap.forEach(_0x3a0f90 => _0x3a0f90.visible = true);
-    edgeLineMap.forEach(_0x3f8a59 => _0x3f8a59.visible = true);
+    meshMap.forEach(m => m.visible = true);
+    edgeLineMap.forEach(e => e.visible = true);
     selectedId = null;
     updateSheet(null);
     closeSheet();
@@ -1388,9 +1407,11 @@ function resetProgress() {
 }
 function openDrawer() {
   document.getElementById("drawer").classList.add("open");
+  document.getElementById("drawerBackdrop").style.display = "block";
 }
 function closeDrawer() {
   document.getElementById("drawer").classList.remove("open");
+  document.getElementById("drawerBackdrop").style.display = "none";
 }
 function openSheet() {
   document.getElementById("bottomSheet").classList.add("open");
@@ -1398,42 +1419,42 @@ function openSheet() {
 function closeSheet() {
   document.getElementById("bottomSheet").classList.remove("open");
 }
-function escapeHtml(_0x53ae23) {
-  return (_0x53ae23 || "").replace(/[&<>]/g, _0x19f2db => ({
+function escapeHtml(str) {
+  return (str || "").replace(/[&<>]/g, char => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;"
-  })[_0x19f2db]);
+  })[char]);
 }
-function showToast(_0x5f46f3) {
-  let _0x33aae1 = document.getElementById("customToast");
-  if (!_0x33aae1) {
-    _0x33aae1 = document.createElement("div");
-    _0x33aae1.id = "customToast";
-    _0x33aae1.className = "toast";
-    document.body.appendChild(_0x33aae1);
+function showToast(message) {
+  let toastEl = document.getElementById("customToast");
+  if (!toastEl) {
+    toastEl = document.createElement("div");
+    toastEl.id = "customToast";
+    toastEl.className = "toast";
+    document.body.appendChild(toastEl);
   }
-  _0x33aae1.textContent = _0x5f46f3;
-  _0x33aae1.classList.add("show");
-  clearTimeout(_0x33aae1._timer);
-  _0x33aae1._timer = setTimeout(() => _0x33aae1.classList.remove("show"), 2000);
+  toastEl.textContent = message;
+  toastEl.classList.add("show");
+  clearTimeout(toastEl._timer);
+  toastEl._timer = setTimeout(() => toastEl.classList.remove("show"), 2000);
 }
 document.getElementById("themeToggle").addEventListener("click", toggleTheme);
 document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("fileInput").click());
-document.getElementById("fileInput").addEventListener("change", _0x262370 => {
-  const _0xa3032f = _0x262370.target.files[0];
-  if (!_0xa3032f) {
+document.getElementById("fileInput").addEventListener("change", changeEvent => {
+  const file = changeEvent.target.files[0];
+  if (!file) {
     return;
   }
   document.getElementById("loadingOverlay").classList.add("show");
-  const _0xfed3e6 = new FileReader();
-  _0xfed3e6.onload = _0x28de92 => {
+  const reader = new FileReader();
+  reader.onload = loadEvent => {
     try {
-      const _0x3fe2fe = JSON.parse(_0x28de92.target.result);
-      parts = _0x3fe2fe.parts || _0x3fe2fe;
-      parts.forEach((_0x4928c4, _0x46edde) => {
-        if (_0x4928c4.id === undefined) {
-          _0x4928c4.id = _0x46edde;
+      const jsonData = JSON.parse(loadEvent.target.result);
+      parts = jsonData.parts || jsonData;
+      parts.forEach((part, index) => {
+        if (part.id === undefined) {
+          part.id = index;
         }
       });
       autoLayout(parts);
@@ -1444,17 +1465,18 @@ document.getElementById("fileInput").addEventListener("change", _0x262370 => {
       closeDrawer();
       updateStats();
       showToast("✅ Загружено " + parts.length + " деталей");
-      document.getElementById("projectTitle").textContent = _0xa3032f.name.replace(".json", "");
+      document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
       saveProgress();
-    } catch (_0x257fed) {
-      showToast("❌ Ошибка файла: " + _0x257fed.message);
+    } catch (err) {
+      showToast("❌ Ошибка файла: " + err.message);
     } finally {
       document.getElementById("loadingOverlay").classList.remove("show");
     }
   };
-  _0xfed3e6.readAsText(_0xa3032f, "UTF-8");
+  reader.readAsText(file, "UTF-8");
 });
 document.getElementById("menuBtn").addEventListener("click", openDrawer);
+document.getElementById("drawerBackdrop").addEventListener("click", closeDrawer);
 document.getElementById("closeDrawerBtn").addEventListener("click", closeDrawer);
 document.getElementById("closeSheetBtn").addEventListener("click", closeSheet);
 
@@ -1485,14 +1507,16 @@ document.getElementById("resetProgressBtn").addEventListener("click", resetProgr
 document.getElementById("printBtn").addEventListener("click", printSpecification);
 document.getElementById("statsBtn").addEventListener("click", showStats);
 document.getElementById("closeScannerBtn").addEventListener("click", closeScanner);
+document.getElementById("scannerModal").addEventListener("click", function(e) { if (e.target === this) closeScanner(); });
+document.getElementById("statsModal").addEventListener("click", function(e) { if (e.target === this) this.classList.add("hidden"); });
 document.getElementById("manualSubmit").addEventListener("click", handleManualCode);
 document.getElementById("searchInput").addEventListener("input", renderPartsList);
-document.querySelectorAll(".id-mode-btn").forEach(_0x50ec20 => {
-  _0x50ec20.addEventListener("click", () => {
-    idMode = _0x50ec20.dataset.mode;
+document.querySelectorAll(".id-mode-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    idMode = btn.dataset.mode;
     localStorage.setItem("aivoIdMode", idMode);
-    document.querySelectorAll(".id-mode-btn").forEach(_0x7f42f6 => _0x7f42f6.classList.remove("active"));
-    _0x50ec20.classList.add("active");
+    document.querySelectorAll(".id-mode-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
     buildModuleMap();
     renderPartsList();
   });
@@ -1582,6 +1606,7 @@ document.addEventListener('keydown', function(e) {
       closeSheet();
       document.getElementById('scannerModal').classList.add('hidden');
       document.getElementById('statsModal').classList.add('hidden');
+      document.getElementById('onboardingModal').classList.add('hidden');
       break;
     case 'r':
     case 'R':
@@ -1661,6 +1686,7 @@ document.addEventListener('keydown', function(e) {
 
 function animate() {
   requestAnimationFrame(animate);
+  if (document.hidden) return;
   if (autoRotate && !isDragging && !isSmoothZoom) {
     theta += 0.0025;
     updateCamera();
@@ -1689,124 +1715,124 @@ updateStats();
 let currentUser = null;
 let userDeviceLimit = 5;
 async function getDeviceFingerprint() {
-  const _0x2545fd = [navigator.userAgent, navigator.language, screen.width + "x" + screen.height, screen.colorDepth, new Date().getTimezoneOffset(), navigator.hardwareConcurrency || "unknown"];
-  const _0x103832 = _0x2545fd.join("|");
-  let _0x1d32a5 = 0;
-  for (let _0x187e86 = 0; _0x187e86 < _0x103832.length; _0x187e86++) {
-    const _0x23cd79 = _0x103832.charCodeAt(_0x187e86);
-    _0x1d32a5 = (_0x1d32a5 << 5) - _0x1d32a5 + _0x23cd79;
-    _0x1d32a5 = _0x1d32a5 & _0x1d32a5;
+  const components = [navigator.userAgent, navigator.language, screen.width + "x" + screen.height, screen.colorDepth, new Date().getTimezoneOffset(), navigator.hardwareConcurrency || "unknown"];
+  const fingerprintStr = components.join("|");
+  let hash = 0;
+  for (let i = 0; i < fingerprintStr.length; i++) {
+    const charCode = fingerprintStr.charCodeAt(i);
+    hash = (hash << 5) - hash + charCode;
+    hash = hash & hash;
   }
-  return "fp_" + Math.abs(_0x1d32a5).toString(36);
+  return "fp_" + Math.abs(hash).toString(36);
 }
 function getDeviceName() {
-  const _0x43dea2 = navigator.userAgent;
-  if (/iPhone/.test(_0x43dea2)) {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) {
     return "iPhone";
   }
-  if (/iPad/.test(_0x43dea2)) {
+  if (/iPad/.test(ua)) {
     return "iPad";
   }
-  if (/Android/.test(_0x43dea2)) {
-    const _0x1dbabc = _0x43dea2.match(/;\s*([^;]+)\s*Build/);
-    if (_0x1dbabc) {
-      return _0x1dbabc[1].trim();
+  if (/Android/.test(ua)) {
+    const uaMatch = ua.match(/;\s*([^;]+)\s*Build/);
+    if (uaMatch) {
+      return uaMatch[1].trim();
     } else {
       return "Android Device";
     }
   }
-  if (/Windows/.test(_0x43dea2)) {
+  if (/Windows/.test(ua)) {
     return "Windows PC";
   }
-  if (/Mac/.test(_0x43dea2)) {
+  if (/Mac/.test(ua)) {
     return "Mac";
   }
-  if (/Linux/.test(_0x43dea2)) {
+  if (/Linux/.test(ua)) {
     return "Linux PC";
   }
   return "Unknown Device";
 }
-async function checkDeviceLimit(_0x44e7dc) {
-  const _0xd0bd5e = await getDeviceFingerprint();
-  const _0x3237a0 = getDeviceName();
-  const _0x972876 = db.collection("users").doc(_0x44e7dc.uid).collection("devices");
-  const _0x4fda95 = await _0x972876.doc(_0xd0bd5e).get();
-  if (_0x4fda95.exists) {
-    await _0x972876.doc(_0xd0bd5e).update({
+async function checkDeviceLimit(user) {
+  const fingerprint = await getDeviceFingerprint();
+  const deviceName = getDeviceName();
+  const devicesRef = db.collection("users").doc(user.uid).collection("devices");
+  const deviceDoc = await devicesRef.doc(fingerprint).get();
+  if (deviceDoc.exists) {
+    await devicesRef.doc(fingerprint).update({
       lastAccess: firebase.firestore.FieldValue.serverTimestamp()
     });
     return {
       allowed: true
     };
   }
-  const _0x5ada8d = await _0x972876.get();
-  const _0x5ce6c3 = _0x5ada8d.size;
-  const _0xbd4a25 = await db.collection("users").doc(_0x44e7dc.uid).get();
-  const _0x360920 = _0xbd4a25.data()?.deviceLimit || 5;
-  userDeviceLimit = _0x360920;
-  if (_0x5ce6c3 >= _0x360920) {
+  const devicesSnap = await devicesRef.get();
+  const deviceCount = devicesSnap.size;
+  const userDoc = await db.collection("users").doc(user.uid).get();
+  const limit = userDoc.data()?.deviceLimit || 5;
+  userDeviceLimit = limit;
+  if (deviceCount >= limit) {
     return {
       allowed: false,
-      deviceCount: _0x5ce6c3,
-      deviceLimit: _0x360920,
-      message: "Лимит устройств исчерпан (" + _0x5ce6c3 + "/" + _0x360920 + ")"
+      deviceCount: deviceCount,
+      deviceLimit: limit,
+      message: "Лимит устройств исчерпан (" + deviceCount + "/" + limit + ")"
     };
   }
-  await _0x972876.doc(_0xd0bd5e).set({
-    name: _0x3237a0,
-    fingerprint: _0xd0bd5e,
+  await devicesRef.doc(fingerprint).set({
+    name: deviceName,
+    fingerprint: fingerprint,
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     lastAccess: firebase.firestore.FieldValue.serverTimestamp()
   });
   return {
     allowed: true,
-    deviceCount: _0x5ce6c3 + 1,
-    deviceLimit: _0x360920
+    deviceCount: deviceCount + 1,
+    deviceLimit: limit
   };
 }
 async function handleLogin() {
-  const _0x5b225b = document.getElementById("authEmail").value.trim();
-  const _0x16bd4f = document.getElementById("authPassword").value;
-  const _0x4cbe08 = document.getElementById("loginError");
-  const _0x4ce00c = document.getElementById("loginBtn");
-  if (!_0x5b225b || !_0x16bd4f) {
-    _0x4cbe08.textContent = "Введите email и пароль";
-    _0x4cbe08.classList.add("show");
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const errorEl = document.getElementById("loginError");
+  const loginBtn = document.getElementById("loginBtn");
+  if (!email || !password) {
+    errorEl.textContent = "Введите email и пароль";
+    errorEl.classList.add("show");
     return;
   }
-  _0x4ce00c.disabled = true;
-  _0x4ce00c.textContent = "Вход...";
-  _0x4cbe08.classList.remove("show");
+  loginBtn.disabled = true;
+  loginBtn.textContent = "Вход...";
+  errorEl.classList.remove("show");
   try {
-    const _0x202509 = await auth.signInWithEmailAndPassword(_0x5b225b, _0x16bd4f);
-    const _0x4f2e59 = _0x202509.user;
-    const _0x23e7d2 = await checkDeviceLimit(_0x4f2e59);
-    if (!_0x23e7d2.allowed) {
+    const cred = await auth.signInWithEmailAndPassword(email, password);
+    const authUser = cred.user;
+    const deviceResult = await checkDeviceLimit(authUser);
+    if (!deviceResult.allowed) {
       await auth.signOut();
-      throw new Error(_0x23e7d2.message);
+      throw new Error(deviceResult.message);
     }
-    currentUser = _0x4f2e59;
-    document.getElementById("deviceCountInfo").textContent = _0x23e7d2.deviceCount;
-    document.getElementById("deviceLimitInfo").textContent = _0x23e7d2.deviceLimit;
+    currentUser = authUser;
+    document.getElementById("deviceCountInfo").textContent = deviceResult.deviceCount;
+    document.getElementById("deviceLimitInfo").textContent = deviceResult.deviceLimit;
     showMainApp();
-  } catch (_0x185e6d) {
-    let _0x5e3a9f = "Ошибка авторизации";
-    if (_0x185e6d.code === "auth/user-not-found") {
-      _0x5e3a9f = "Пользователь не найден";
-    } else if (_0x185e6d.code === "auth/wrong-password") {
-      _0x5e3a9f = "Неверный пароль";
-    } else if (_0x185e6d.code === "auth/invalid-email") {
-      _0x5e3a9f = "Некорректный email";
-    } else if (_0x185e6d.code === "auth/too-many-requests") {
-      _0x5e3a9f = "Слишком много попыток. Подождите";
+  } catch (authErr) {
+    let errMsg = "Ошибка авторизации";
+    if (authErr.code === "auth/user-not-found") {
+      errMsg = "Пользователь не найден";
+    } else if (authErr.code === "auth/wrong-password") {
+      errMsg = "Неверный пароль";
+    } else if (authErr.code === "auth/invalid-email") {
+      errMsg = "Некорректный email";
+    } else if (authErr.code === "auth/too-many-requests") {
+      errMsg = "Слишком много попыток. Подождите";
     } else {
-      _0x5e3a9f = _0x185e6d.message;
+      errMsg = authErr.message;
     }
-    _0x4cbe08.textContent = _0x5e3a9f;
-    _0x4cbe08.classList.add("show");
+    errorEl.textContent = errMsg;
+    errorEl.classList.add("show");
   } finally {
-    _0x4ce00c.disabled = false;
-    _0x4ce00c.textContent = "Войти";
+    loginBtn.disabled = false;
+    loginBtn.textContent = "Войти";
   }
 }
 function showLoginPage() {
@@ -1829,18 +1855,18 @@ async function checkAccountDeadline(uid) {
         auth.signOut();
       }
     }
-  } catch(e) {}
+  } catch(e) { console.error("Account deadline check failed:", e); }
 }
 
-auth.onAuthStateChanged(_0x2decb7 => {
-  if (_0x2decb7) {
-    currentUser = _0x2decb7;
-    checkDeviceLimit(_0x2decb7).then(_0x2edd69 => {
-      if (_0x2edd69.allowed) {
-        document.getElementById("deviceCountInfo").textContent = _0x2edd69.deviceCount;
-        document.getElementById("deviceLimitInfo").textContent = _0x2edd69.deviceLimit;
+auth.onAuthStateChanged(authUser => {
+  if (authUser) {
+    currentUser = authUser;
+    checkDeviceLimit(authUser).then(result => {
+      if (result.allowed) {
+        document.getElementById("deviceCountInfo").textContent = result.deviceCount;
+        document.getElementById("deviceLimitInfo").textContent = result.deviceLimit;
         showMainApp();
-        checkAccountDeadline(_0x2decb7.uid);
+        checkAccountDeadline(authUser.uid);
       } else {
         showLoginPage();
       }
@@ -1850,13 +1876,13 @@ auth.onAuthStateChanged(_0x2decb7 => {
     showLoginPage();
   }
 });
-document.getElementById("authPassword").addEventListener("keypress", _0x28f814 => {
-  if (_0x28f814.key === "Enter") {
+document.getElementById("authPassword").addEventListener("keypress", e => {
+  if (e.key === "Enter") {
     handleLogin();
   }
 });
-document.getElementById("authEmail").addEventListener("keypress", _0x50865e => {
-  if (_0x50865e.key === "Enter") {
+document.getElementById("authEmail").addEventListener("keypress", e => {
+  if (e.key === "Enter") {
     document.getElementById("authPassword").focus();
   }
 });
@@ -1865,17 +1891,17 @@ const onboardSteps = document.querySelectorAll(".onboard-step");
 const onboardDots = document.querySelectorAll(".onboard-dot");
 const onboardBtn = document.getElementById("onboardNext");
 function showOnboarding() {
-  const _0x4162d6 = localStorage.getItem("aivoOnboarded");
-  if (_0x4162d6) {
+  const onboarded = localStorage.getItem("aivoOnboarded");
+  if (onboarded) {
     return;
   }
   document.getElementById("onboardingModal").classList.remove("hidden");
 }
 function updateOnboardStep() {
-  onboardSteps.forEach((_0x3d9efd, _0x15b79b) => _0x3d9efd.style.display = _0x15b79b === onboardStep ? "block" : "none");
-  onboardDots.forEach((_0x27361e, _0x517c69) => {
-    _0x27361e.style.background = _0x517c69 === onboardStep ? "var(--accent)" : "var(--bg-tertiary)";
-    _0x27361e.style.width = _0x517c69 === onboardStep ? "20px" : "8px";
+  onboardSteps.forEach((step, idx) => step.style.display = idx === onboardStep ? "block" : "none");
+  onboardDots.forEach((dot, idx) => {
+    dot.style.background = idx === onboardStep ? "var(--accent)" : "var(--bg-tertiary)";
+    dot.style.width = idx === onboardStep ? "20px" : "8px";
   });
   onboardBtn.textContent = onboardStep === onboardSteps.length - 1 ? "Начать!" : "Далее";
 }

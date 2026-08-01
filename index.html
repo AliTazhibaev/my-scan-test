@@ -5,12 +5,49 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aivo Scan — 3D сканер мебели</title>
   <meta name="description" content="3D визуализация и пошаговая сборка мебели. Сканируйте QR-коды деталей, отслеживайте прогресс сборки.">
+  <meta name="keywords" content="мебель, сборка, 3D, сканер, QR, базис, цех, производство, визуализация">
+  <meta name="author" content="Aivo Scan">
+  <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#00d4aa">
+  <link rel="canonical" href="https://aivoscan.work/">
+  <meta property="og:type" content="website">
   <meta property="og:title" content="Aivo Scan — 3D сканер мебели">
   <meta property="og:description" content="3D визуализация и пошаговая сборка мебели для цехов">
   <meta property="og:url" content="https://aivoscan.work">
+  <meta property="og:image" content="https://aivoscan.work/og-image.png">
+  <meta property="og:locale" content="ru_RU">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Aivo Scan — 3D сканер мебели">
+  <meta name="twitter:description" content="3D визуализация и пошаговая сборка мебели для цехов">
+  <meta name="twitter:image" content="https://aivoscan.work/og-image.png">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.json">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Aivo Scan",
+    "description": "3D визуализация и пошаговая сборка мебели для цехов. Сканируйте QR-коды деталей, просматривайте 3D-модель и следуйте пошаговой инструкции сборки.",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "url": "https://aivoscan.work",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "RUB"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "Aivo Scan",
+      "url": "https://aivoscan.work",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+996-990-551-884",
+        "contactType": "customer service"
+      }
+    }
+  }
+  </script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -87,6 +124,21 @@
     .nav-links a:hover { color: var(--text); background: var(--glass); }
     .nav-cta { background: var(--accent) !important; color: #000 !important; font-weight: 600 !important; }
     .nav-cta:hover { background: var(--accent2) !important; }
+    .nav-hamburger {
+      display: none; background: none; border: none; color: var(--text);
+      font-size: 24px; cursor: pointer; padding: 8px;
+    }
+    @media (max-width: 600px) {
+      .nav-hamburger { display: block; }
+      .nav-links {
+        display: none; position: absolute; top: 64px; left: 0; right: 0;
+        background: rgba(10, 10, 10, 0.95); backdrop-filter: blur(20px);
+        flex-direction: column; padding: 16px; gap: 4px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      .nav-links.open { display: flex; }
+      .nav-links a { padding: 12px 16px; }
+    }
 
     /* ===== GLASS CARD ===== */
     .glass {
@@ -366,6 +418,7 @@
       .qr-wrapper { flex-direction: column; text-align: center; }
       .qr-text h2 { text-align: center; }
       .footer-inner { justify-content: center; text-align: center; }
+      .pricing-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
     }
     @media (max-width: 600px) {
       .nav { padding: 0 16px; }
@@ -375,6 +428,91 @@
       .contacts-grid { grid-template-columns: 1fr; }
       .step { gap: 16px; }
       .cta-box { padding: 36px 20px; }
+      .pricing-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ===== PRICING ===== */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .pricing-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(24px) saturate(1.4);
+      -webkit-backdrop-filter: blur(24px) saturate(1.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 32px 24px;
+      text-align: center;
+      transition: all 0.3s var(--ease);
+      position: relative;
+    }
+    .pricing-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .pricing-featured {
+      border-color: rgba(0, 212, 170, 0.3);
+      background: rgba(0, 212, 170, 0.06);
+    }
+    .pricing-featured:hover {
+      border-color: rgba(0, 212, 170, 0.5);
+    }
+    .pricing-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: #000;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 16px;
+      border-radius: 100px;
+      letter-spacing: 0.5px;
+    }
+    .pricing-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text2);
+      margin-bottom: 12px;
+    }
+    .pricing-price {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -1px;
+    }
+    .pricing-featured .pricing-price {
+      color: var(--accent);
+    }
+    .pricing-period {
+      font-size: 13px;
+      color: var(--text3);
+      margin-bottom: 24px;
+    }
+    .pricing-features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 28px;
+      text-align: left;
+    }
+    .pricing-features li {
+      font-size: 14px;
+      color: var(--text2);
+      padding: 6px 0;
+      padding-left: 24px;
+      position: relative;
+    }
+    .pricing-features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: 700;
     }
   </style>
 </head>
@@ -389,15 +527,18 @@
     <img src="logo.svg" alt="Aivo Scan">
     <span>Aivo Scan</span>
   </a>
-  <div class="nav-links">
+  <button class="nav-hamburger" id="navHamburger" aria-label="Меню навигации" aria-expanded="false">☰</button>
+  <div class="nav-links" id="navLinks">
     <a href="#features">Возможности</a>
     <a href="#how">Как работает</a>
+    <a href="#pricing">Тарифы</a>
     <a href="#contacts">Контакты</a>
     <a href="app.html" class="nav-cta">Открыть</a>
   </div>
 </nav>
 
 <!-- HERO -->
+<main>
 <section class="hero">
   <div class="hero-badge">3D сканер мебели</div>
   <img src="logo.svg" alt="Aivo Scan" class="hero-logo">
@@ -413,7 +554,7 @@
 </section>
 
 <!-- STATS -->
-<div class="stats-bar reveal">
+<section class="stats-bar reveal" aria-label="Ключевые характеристики">
   <div class="stat-item">
     <div class="stat-num">360°</div>
     <div class="stat-label">визуализация</div>
@@ -427,10 +568,10 @@
     <div class="stat-label">режима</div>
   </div>
   <div class="stat-item">
-    <div class="stat-num">0</div>
-    <div class="stat-label">установок</div>
+    <div class="stat-num">PWA</div>
+    <div class="stat-label">без установки</div>
   </div>
-</div>
+</section>
 
 <!-- FEATURES -->
 <section class="section" id="features">
@@ -512,6 +653,122 @@
   </div>
 </section>
 
+<!-- PRICING -->
+<section class="section" id="pricing">
+  <div class="section-label reveal">Тарифы</div>
+  <h2 class="section-title reveal">Выберите <span class="em">тариф</span></h2>
+  <p class="section-desc reveal">Оплатите подписку через MBank и получите доступ ко всем функциям</p>
+  <div class="pricing-grid reveal">
+    <div class="pricing-card">
+      <div class="pricing-name">Пробный</div>
+      <div class="pricing-price">Бесплатно</div>
+      <div class="pricing-period">7 дней</div>
+      <ul class="pricing-features">
+        <li>Полный функционал</li>
+        <li>До 3 проектов</li>
+        <li>QR-сканирование</li>
+        <li>3D-визуализация</li>
+      </ul>
+      <a href="app.html" class="btn btn-glass" style="width:100%;justify-content:center">Попробовать</a>
+    </div>
+    <div class="pricing-card pricing-featured">
+      <div class="pricing-badge">Популярный</div>
+      <div class="pricing-name">Месячный</div>
+      <div class="pricing-price">500 сом</div>
+      <div class="pricing-period">в месяц</div>
+      <ul class="pricing-features">
+        <li>Безлимит проектов</li>
+        <li>Все функции</li>
+        <li>Пошаговая сборка</li>
+        <li>Печать спецификации</li>
+        <li>Поддержка</li>
+      </ul>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="openPaymentModal('monthly', 500)">Оплатить</button>
+    </div>
+    <div class="pricing-card">
+      <div class="pricing-name">Годовой</div>
+      <div class="pricing-price">5 000 сом</div>
+      <div class="pricing-period">в год (экономия 17%)</div>
+      <ul class="pricing-features">
+        <li>Всё из месячного</li>
+        <li>Приоритетная поддержка</li>
+        <li>2 месяца бесплатно</li>
+      </ul>
+      <button class="btn btn-glass" style="width:100%;justify-content:center" onclick="openPaymentModal('yearly', 5000)">Оплатить</button>
+    </div>
+  </div>
+</section>
+
+<!-- PAYMENT MODAL -->
+<div id="paymentModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);z-index:200;align-items:center;justify-content:center;padding:20px">
+  <div style="background:rgba(20,20,24,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:32px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div style="font-size:18px;font-weight:700;color:#fff">Оплата подписки</div>
+      <button onclick="closePaymentModal()" style="background:none;border:none;color:#8a8a96;font-size:24px;cursor:pointer;padding:4px 8px">✕</button>
+    </div>
+    
+    <!-- Step 1: Show plan & QR -->
+    <div id="payStep1">
+      <div style="background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.2);border-radius:16px;padding:20px;text-align:center;margin-bottom:20px">
+        <div style="font-size:13px;color:#8a8a96;margin-bottom:4px" id="payPlanName">Месячный тариф</div>
+        <div style="font-size:32px;font-weight:800;color:#00d4aa" id="payAmount">500 сом</div>
+      </div>
+      
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:12px">Переведите на карту MBank:</div>
+        <div style="background:#fff;border-radius:16px;padding:16px;display:inline-block;margin-bottom:12px">
+          <div id="payQR" style="width:180px;height:180px;display:flex;align-items:center;justify-content:center">
+            <!-- QR will be generated here -->
+          </div>
+        </div>
+        <div style="font-size:20px;font-weight:700;color:#00d4aa;letter-spacing:1px;margin-bottom:4px">0 706 206 006</div>
+        <div style="font-size:12px;color:#8a8a96">MBank — получатель</div>
+      </div>
+      
+      <div style="background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);border-radius:12px;padding:12px;margin-bottom:20px">
+        <div style="font-size:12px;color:#FFB300;line-height:1.5">
+          ⚠️ После оплаты нажмите кнопку ниже и заполните форму. Подтверждение вручную в течение 24 часов.
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="showPayStep2()">Я оплатил — отправить заявку</button>
+    </div>
+    
+    <!-- Step 2: Payment confirmation form -->
+    <div id="payStep2" style="display:none">
+      <div style="font-size:14px;color:#a0a0a8;margin-bottom:16px">Заполните данные для подтверждения оплаты:</div>
+      
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;color:#8a8a96;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;font-weight:600">Email (для входа в приложение)</label>
+        <input type="email" id="payEmail" placeholder="your@email.com" style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#fff;font-size:14px;outline:none">
+      </div>
+      
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;color:#8a8a96;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;font-weight:600">Сумма оплаты (сом)</label>
+        <input type="number" id="paySum" placeholder="500" style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#fff;font-size:14px;outline:none">
+      </div>
+      
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:11px;color:#8a8a96;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;font-weight:600">Комментарий (необязательно)</label>
+        <input type="text" id="payComment" placeholder="Имя, номер заказа..." style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#fff;font-size:14px;outline:none">
+      </div>
+      
+      <div id="payError" style="display:none;color:#ff6b6b;font-size:12px;text-align:center;margin-bottom:12px;padding:8px;background:rgba(255,107,107,0.08);border-radius:8px"></div>
+      
+      <button class="btn btn-primary" style="width:100%;justify-content:center" id="paySubmitBtn" onclick="submitPayment()">Отправить заявку</button>
+      <button class="btn btn-glass" style="width:100%;justify-content:center;margin-top:8px" onclick="showPayStep1()">← Назад</button>
+    </div>
+    
+    <!-- Step 3: Success -->
+    <div id="payStep3" style="display:none;text-align:center">
+      <div style="font-size:48px;margin-bottom:16px">✅</div>
+      <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:8px">Заявка отправлена!</div>
+      <div style="font-size:13px;color:#a0a0a8;line-height:1.5;margin-bottom:24px">Мы проверим оплату и активируем вашу подписку в течение 24 часов. Уведомление придёт на email.</div>
+      <button class="btn btn-glass" style="width:100%;justify-content:center" onclick="closePaymentModal()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <!-- CTA -->
 <section class="cta-section">
   <div class="cta-box reveal">
@@ -525,6 +782,7 @@
 </section>
 
 <!-- CONTACTS -->
+</main>
 <section class="section" id="contacts">
   <div class="section-label reveal">Контакты</div>
   <h2 class="section-title reveal">Свяжитесь с <span class="em">нами</span></h2>
@@ -566,7 +824,124 @@
   </div>
 </footer>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
+// Firebase init
+var firebaseConfig = {
+  apiKey: "AIzaSyC1zdM8WU5C29Skn7WUhzsX3VzKUlT7dxo",
+  authDomain: "aivo-scan.firebaseapp.com",
+  projectId: "aivo-scan",
+  storageBucket: "aivo-scan.firebasestorage.app",
+  messagingSenderId: "104812750903",
+  appId: "1:104812750903:web:42f097a49719748af5f7b2"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+
+// Payment modal logic
+var currentPlan = '';
+var currentAmount = 0;
+
+function openPaymentModal(plan, amount) {
+  currentPlan = plan;
+  currentAmount = amount;
+  var planNames = { 'monthly': 'Месячный тариф', 'yearly': 'Годовой тариф' };
+  document.getElementById('payPlanName').textContent = planNames[plan] || plan;
+  document.getElementById('payAmount').textContent = amount.toLocaleString('ru-RU') + ' сом';
+  document.getElementById('paySum').value = amount;
+  showPayStep1();
+  var modal = document.getElementById('paymentModal');
+  modal.style.display = 'flex';
+  generatePayQR(amount);
+}
+
+function closePaymentModal() {
+  document.getElementById('paymentModal').style.display = 'none';
+}
+
+function showPayStep1() {
+  document.getElementById('payStep1').style.display = 'block';
+  document.getElementById('payStep2').style.display = 'none';
+  document.getElementById('payStep3').style.display = 'none';
+}
+
+function showPayStep2() {
+  document.getElementById('payStep1').style.display = 'none';
+  document.getElementById('payStep2').style.display = 'block';
+  document.getElementById('payStep3').style.display = 'none';
+}
+
+function showPayStep3() {
+  document.getElementById('payStep1').style.display = 'none';
+  document.getElementById('payStep2').style.display = 'none';
+  document.getElementById('payStep3').style.display = 'block';
+}
+
+function generatePayQR(amount) {
+  var qrContainer = document.getElementById('payQR');
+  var phone = '996706206006';
+  var text = 'tel:+' + phone;
+  var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(text) + '&bgcolor=ffffff&color=000000';
+  qrContainer.innerHTML = '<img src="' + qrUrl + '" alt="QR для оплаты" style="width:180px;height:180px">';
+}
+
+function submitPayment() {
+  var email = document.getElementById('payEmail').value.trim();
+  var sum = parseInt(document.getElementById('paySum').value);
+  var comment = document.getElementById('payComment').value.trim();
+  var errorEl = document.getElementById('payError');
+
+  if (!email) { errorEl.textContent = 'Введите email'; errorEl.style.display = 'block'; return; }
+  if (!email.includes('@')) { errorEl.textContent = 'Введите корректный email'; errorEl.style.display = 'block'; return; }
+  if (!sum || sum < 100) { errorEl.textContent = 'Введите сумму (минимум 100 сом)'; errorEl.style.display = 'block'; return; }
+
+  errorEl.style.display = 'none';
+  var btn = document.getElementById('paySubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Отправка...';
+
+  db.collection('payments').add({
+    email: email,
+    plan: currentPlan,
+    amount: sum,
+    comment: comment,
+    status: 'pending',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    showPayStep3();
+  }).catch(function(err) {
+    errorEl.textContent = 'Ошибка: ' + err.message;
+    errorEl.style.display = 'block';
+  }).finally(function() {
+    btn.disabled = false;
+    btn.textContent = 'Отправить заявку';
+  });
+}
+
+// Close modal on backdrop click
+document.getElementById('paymentModal').addEventListener('click', function(e) {
+  if (e.target === this) closePaymentModal();
+});
+</script>
+
+<script>
+// Mobile nav toggle
+var navHamburger = document.getElementById('navHamburger');
+var navLinks = document.getElementById('navLinks');
+if (navHamburger) {
+  navHamburger.addEventListener('click', function() {
+    navLinks.classList.toggle('open');
+    navHamburger.setAttribute('aria-expanded', navLinks.classList.contains('open'));
+  });
+  navLinks.querySelectorAll('a').forEach(function(link) {
+    link.addEventListener('click', function() {
+      navLinks.classList.remove('open');
+      navHamburger.setAttribute('aria-expanded', 'false');
+    });
+  });
+}
+
 // Scroll reveal
 var reveals = document.querySelectorAll('.reveal');
 var observer = new IntersectionObserver(function(entries) {

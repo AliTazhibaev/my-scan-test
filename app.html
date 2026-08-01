@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Aivo Scan — 3D сканер мебели</title>
   <meta name="description" content="3D визуализация и пошаговая сборка мебели. Сканируйте QR-коды деталей, отслеживайте прогресс сборки.">
   <meta name="keywords" content="мебель, сборка, 3D, сканер, QR, базис, цех, производство">
@@ -87,11 +87,11 @@
 <!-- TOP PANEL -->
 <div class="top-panel">
   <div class="top-left">
-    <button class="top-btn" id="themeToggle" title="Тема"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <button class="top-btn" id="themeToggle" title="Тема" aria-label="Переключить тему"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
     <span class="project-title" id="projectTitle">Aivo Scan</span>
   </div>
   <div class="progress-container">
-    <div class="progress-bar">
+    <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Прогресс сборки">
       <div class="progress-fill" id="progressFill" style="width: 0%"></div>
     </div>
   </div>
@@ -102,30 +102,30 @@
     </div>
   </div>
   <div style="display:flex;gap:4px">
-    <button class="top-btn" id="statsBtn" title="Статистика"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></button>
-    <button class="top-btn" id="printBtn" title="Печать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
-    <button class="top-btn" id="menuBtn" title="Меню"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <button class="top-btn" id="statsBtn" title="Статистика" aria-label="Статистика проекта"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></button>
+    <button class="top-btn" id="printBtn" title="Печать" aria-label="Печать спецификации"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
+    <button class="top-btn" id="menuBtn" title="Меню" aria-label="Открыть меню"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
   </div>
 </div>
 
 <!-- ASSEMBLY GUIDE -->
-<div class="assembly-overlay" id="assemblyOverlay">
+<div class="assembly-overlay" id="assemblyOverlay" role="toolbar" aria-label="Панель пошаговой сборки">
   <div class="assembly-step" id="assemblyStepLabel">Шаг 1/200</div>
   <div class="assembly-info" id="assemblyInfo">Деталь: загрузите JSON</div>
   <div class="assembly-nav">
-    <button id="asmPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-    <button id="asmPlay"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
-    <button id="asmNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button id="asmClose"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <button id="asmPrev" aria-label="Предыдущий шаг"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button id="asmPlay" aria-label="Воспроизведение"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+    <button id="asmNext" aria-label="Следующий шаг"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button id="asmClose" aria-label="Закрыть сборку"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
 </div>
 
 <!-- BOTTOM SHEET -->
-<div id="bottomSheet" class="bottom-sheet">
-  <div class="sheet-handle"></div>
+<div id="bottomSheet" class="bottom-sheet" role="dialog" aria-modal="false" aria-label="Информация о детали">
+  <div class="sheet-handle" aria-hidden="true"></div>
   <div class="sheet-header">
     <span class="sheet-title">ДЕТАЛЬ</span>
-    <button class="sheet-close" id="closeSheetBtn">✕</button>
+    <button class="sheet-close" id="closeSheetBtn" aria-label="Закрыть панель детали">✕</button>
   </div>
   <div id="sheetContent" class="sheet-content">
     <div style="text-align:center;color:var(--text-secondary);padding:10px;font-size:11px;">👆 Нажмите на деталь в 3D или списке</div>
@@ -142,40 +142,43 @@
 
 <!-- BOTTOM TOOLBAR -->
 <div class="bottom-toolbar">
-  <button class="toolbar-btn" id="scanBtn" title="Сканировать QR">
+  <button class="toolbar-btn" id="scanBtn" title="Сканировать QR" aria-label="Сканировать QR-код">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
   </button>
-  <button class="toolbar-btn" id="xrayBtn" title="Рентген">
+  <button class="toolbar-btn" id="xrayBtn" title="Рентген" aria-label="Режим рентгена">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
   </button>
-  <button class="toolbar-btn" id="explodeBtn" title="Взрыв">
+  <button class="toolbar-btn" id="explodeBtn" title="Взрыв" aria-label="Режим взрыва">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
   </button>
-  <button class="toolbar-btn" id="hideBtn" title="Скрыть">
+  <button class="toolbar-btn" id="hideBtn" title="Скрыть" aria-label="Скрыть выбранную деталь">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
   </button>
-  <button class="toolbar-btn" id="showAllBtn" title="Показать все">
+  <button class="toolbar-btn" id="showAllBtn" title="Показать все" aria-label="Показать все детали">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
   </button>
-  <button class="toolbar-btn" id="focusBtn" title="Фокус">
+  <button class="toolbar-btn" id="focusBtn" title="Фокус" aria-label="Фокус на выбранной детали">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
   </button>
-  <button class="toolbar-btn" id="resetViewBtn" title="Сброс вида">
+  <button class="toolbar-btn" id="resetViewBtn" title="Сброс вида" aria-label="Сбросить вид камеры">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
   </button>
 </div>
 
+<!-- DRAWER BACKDROP -->
+<div id="drawerBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:24" aria-hidden="true"></div>
+
 <!-- DRAWER -->
-<div id="drawer" class="drawer">
+<div id="drawer" class="drawer" role="dialog" aria-modal="true" aria-label="Список деталей и модулей">
   <div class="drawer-header">
     <span class="drawer-title">📋 ДЕТАЛИ И МОДУЛИ</span>
-    <button class="drawer-close" id="closeDrawerBtn">✕</button>
+    <button class="drawer-close" id="closeDrawerBtn" aria-label="Закрыть панель деталей">✕</button>
   </div>
   <div class="drawer-search">
-    <input type="text" id="searchInput" class="search-input" placeholder="🔍 Поиск по артикулу или названию...">
+    <input type="text" id="searchInput" class="search-input" placeholder="🔍 Поиск по артикулу или названию..." aria-label="Поиск по артикулу или названию">
   </div>
   <div class="drawer-content">
-    <div class="upload-btn" id="uploadBtn">📂 ЗАГРУЗИТЬ JSON</div>
+    <button class="upload-btn" id="uploadBtn" aria-label="Загрузить JSON файл">📂 ЗАГРУЗИТЬ JSON</button>
     <div class="id-mode-toggle" id="idModeToggle">
       <span class="id-mode-label">Идентификатор:</span>
       <div class="id-mode-switch">
@@ -200,19 +203,19 @@
 </div>
 
 <!-- QR SCANNER -->
-<div id="scannerModal" class="modal hidden">
+<div id="scannerModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Сканер QR-кода">
   <div class="modal-box">
     <div class="modal-title">📷 НАВЕДИТЕ НА QR</div>
-    <video id="video" autoplay playsinline></video>
+    <video id="video" autoplay playsinline aria-label="Камера для сканирования QR"></video>
     <canvas id="qrCanvas" hidden></canvas>
-    <input type="text" id="manualCode" placeholder="Или введите артикул вручную" class="input-field">
+    <input type="text" id="manualCode" placeholder="Или введите артикул вручную" class="input-field" aria-label="Артикул детали">
     <button id="manualSubmit" class="modal-btn">✓ Проверить</button>
     <button id="closeScannerBtn" class="modal-btn secondary">Закрыть</button>
   </div>
 </div>
 
 <!-- STATS MODAL -->
-<div id="statsModal" class="modal hidden">
+<div id="statsModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Статистика проекта">
   <div class="modal-box" style="max-width:360px">
     <div class="modal-title">📊 СТАТИСТИКА ПРОЕКТА</div>
     <div id="statsContent" style="font-size:12px;color:var(--text-primary)"></div>
@@ -221,7 +224,7 @@
 </div>
 
 <!-- ONBOARDING MODAL -->
-<div id="onboardingModal" class="modal hidden">
+<div id="onboardingModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Приветствие">
   <div class="modal-box" style="max-width:380px">
     <div style="text-align:center;margin-bottom:20px">
       <img src="logo.svg" alt="Aivo Scan" style="width:64px;height:64px;border-radius:16px;margin-bottom:12px">

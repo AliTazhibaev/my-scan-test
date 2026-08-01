@@ -1,4 +1,4 @@
-﻿    /* LOGIN PAGE */
+    /* LOGIN PAGE */
     #loginPage {
       display: none;
       position: fixed;
@@ -132,7 +132,7 @@
       --bg-card: #242428;
       --text-primary: #f0f0f4;
       --text-secondary: #a0a0a8;
-      --text-tertiary: #6a6a72;
+      --text-tertiary: #8a8a96;
       --border: rgba(255, 255, 255, 0.08);
       --accent: #00D4AA;
       --accent-glow: rgba(0, 212, 170, 0.08);
@@ -149,7 +149,7 @@
       --bg-card: #ffffff;
       --text-primary: #1a1a1e;
       --text-secondary: #5a5a60;
-      --text-tertiary: #8a8a90;
+      --text-tertiary: #6a6a72;
       --border: rgba(0, 0, 0, 0.1);
       --accent: #00B89C;
       --accent-glow: rgba(0, 184, 156, 0.08);
@@ -254,6 +254,7 @@
     .top-panel {
       position: fixed; top: 0; left: 0; right: 0;
       height: 50px;
+      padding-top: env(safe-area-inset-top, 0px);
       background: var(--bg-secondary);
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
@@ -299,6 +300,7 @@
     .bottom-toolbar {
       position: fixed; bottom: 0; left: 0; right: 0;
       height: 56px;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
       background: var(--bg-secondary);
       border-top: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-around;
@@ -1113,4 +1115,42 @@
     body.light-theme .sheet-content .status-badge,
     body.light-theme .sheet-content .assembly-hint {
       text-shadow: 0 1px 3px rgba(255,255,255,0.6);
+    }
+
+    /* ===== HOVER STATES (desktop) ===== */
+    @media (hover: hover) {
+      .top-btn:hover {
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: var(--text-primary);
+      }
+      .toolbar-btn:hover {
+        background: rgba(0, 212, 170, 0.12) !important;
+        border-color: rgba(0, 212, 170, 0.2) !important;
+      }
+      .part-item:hover {
+        background: rgba(0, 212, 170, 0.08) !important;
+      }
+      .module-header:hover {
+        background: rgba(255, 255, 255, 0.08) !important;
+      }
+      .drawer-action-btn:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+      }
+      .upload-btn:hover {
+        background: rgba(0, 212, 170, 0.08) !important;
+      }
+      .modal-btn:hover {
+        background: rgba(0, 212, 170, 0.12) !important;
+      }
+    }
+
+    /* ===== REDUCED MOTION ===== */
+    @media (prefers-reduced-motion: reduce) {
+      .bg-shape-1, .bg-shape-2, .bg-shape-3 {
+        animation: none !important;
+      }
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
     }
