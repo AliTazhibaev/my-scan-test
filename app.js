@@ -1602,7 +1602,9 @@ document.getElementById("fileInput").addEventListener("change", changeEvent => {
     try {
       const jsonData = JSON.parse(loadEvent.target.result);
       parts = jsonData.parts || jsonData;
-      fastenerData = jsonData.fasteners || [];
+      fastenerData = (jsonData.fasteners || []).filter(f =>
+        f.name && f.type && f.type !== "Фурнитура" || (f.name && /евровинт|петля|шкант|конфирмат|саморез|направляющ|ручка|эксцентр|стяжк|доводчик|ножк|hinge|slide|handle|screw|cam|damper|lift|полкодерж/i.test(f.name))
+      );
       parts.forEach((part, index) => {
         if (part.id === undefined) {
           part.id = index;
@@ -1726,7 +1728,9 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
       try {
         const data = JSON.parse(ev.target.result);
         parts = data.parts || data;
-        fastenerData = data.fasteners || [];
+        fastenerData = (data.fasteners || []).filter(f =>
+          f.name && f.type && f.type !== "Фурнитура" || (f.name && /евровинт|петля|шкант|конфирмат|саморез|направляющ|ручка|эксцентр|стяжк|доводчик|ножк|hinge|slide|handle|screw|cam|damper|lift|полкодерж/i.test(f.name))
+        );
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
         buildScene();
