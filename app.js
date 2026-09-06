@@ -36,6 +36,9 @@ let assemblyIndex = 0;
 let assemblyOrder = [];
 let assemblyPlaying = false;
 let assemblyTimer = null;
+let fastenerData = [];
+let csgEnabled = true;
+let fastenerMeshes = [];
 let scene;
 let camera;
 let renderer;
@@ -467,10 +470,24 @@ function handleRaycast(clickX, clickY, rect) {
       arr.forEach(m => { if (m.visible && m.userData && m.userData.partId) meshes.push(m); });
     });
   }
+  if (typeof fastenerMeshes !== 'undefined') {
+    fastenerMeshes.forEach(m => { if (m.visible && m.userData && m.userData.fastenerId !== undefined) meshes.push(m); });
+  }
   const hits = rc.intersectObjects(meshes);
   if (hits.length === 0) {
     deselectPart();
     return;
+  }
+  // Check if a fastener was clicked
+  for (let i = 0; i < hits.length; i++) {
+    const ud = hits[i].object.userData;
+    if (ud && ud.fastenerId !== undefined) {
+      const f = fastenerData.find(fd => fd.id === ud.fastenerId);
+      if (f) {
+        showToast("🔧 " + (f.name || "Фурнитура") + " [" + (f.type || "?") + "]");
+      }
+      return;
+    }
   }
   const seen = {};
   const unique = [];
@@ -500,6 +517,7 @@ function handleRaycast(clickX, clickY, rect) {
     selectPart(bestId);
   }
 }
+let layoutMinY = 0;
 function autoLayout(partsArr) {
   let minY = Infinity;
   partsArr.forEach(part => {
@@ -510,6 +528,7 @@ function autoLayout(partsArr) {
   if (minY === Infinity) {
     minY = 0;
   }
+  layoutMinY = minY;
   const scaleFactor = 0.001;
   partsArr.forEach(p => {
     if (!p.pos || !p.gab) {
@@ -608,130 +627,216 @@ function buildPartDetails(partInfo, meshObj) {
     return detailArr;
   }
   const meshPos = meshObj.position;
+  const panelW = (partInfo.L || 100) * sc;
+  const panelH = (partInfo.W || 100) * sc;
+  const panelT = (partInfo.T || 16) * sc;
+
+  // --- Пазы: тёмные линии на поверхности панели ---
   grooves.forEach(groove => {
-    const grooveW = (groove.w || 20) * sc;
-    const grooveH = (groove.h || 20) * sc;
-    const grooveD = (groove.d || partInfo.T || 16) * sc;
+    const grooveW = (groove.width || groove.w || 20) * sc;
+    const grooveH = (groove.length || groove.h || 20) * sc;
+    const grooveD = (groove.depth || groove.d || 4) * sc;
     const grooveGeo = new THREE.BoxGeometry(grooveW, grooveH, grooveD);
     const grooveMat = new THREE.MeshStandardMaterial({
-      color: 2236962,
-      roughness: 0.9,
+      color: 1118481,
+      roughness: 0.95,
       metalness: 0
     });
     const grooveMesh = new THREE.Mesh(grooveGeo, grooveMat);
-    grooveMesh.position.set(meshPos.x + (groove.x || 0) * sc, meshPos.y + (groove.y || 0) * sc, meshPos.z + (groove.z || 0) * sc);
-    grooveMesh.userData = {
-      partId: partInfo.id,
-      detailType: "groove"
-    };
+    grooveMesh.position.set(
+      meshPos.x + (groove.x || 0) * sc,
+      meshPos.y + (groove.y || 0) * sc,
+      meshPos.z + (groove.z || 0) * sc
+    );
+    grooveMesh.userData = { partId: partInfo.id, detailType: "groove" };
     scene.add(grooveMesh);
     const grooveEdgeGeo = new THREE.EdgesGeometry(grooveGeo, 15);
-    const grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({
-      color: 5592405
-    }));
+    const grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({ color: 3355443 }));
     grooveEdgeLine.position.copy(grooveMesh.position);
     scene.add(grooveEdgeLine);
     detailArr.push(grooveMesh, grooveEdgeLine);
   });
+
+  // --- Отверстия: тёмные цилиндры ---
   holes.forEach(hole => {
-    const holeRadius = (hole.d || hole.r || 8) / 2 * sc;
-    const holeDepth = (hole.depth || partInfo.T || 16) * sc;
-    const holeGeo = new THREE.CylinderGeometry(holeRadius, holeRadius, holeDepth, 12);
+    const holeRadius = (hole.diameter || hole.d || hole.r || 8) / 2 * sc;
+    const holeDepth = (hole.depth || panelT) * sc;
+    const holeGeo = new THREE.CylinderGeometry(holeRadius, holeRadius, holeDepth, 16);
     const holeMat = new THREE.MeshStandardMaterial({
-      color: 1711134,
-      roughness: 0.8,
-      metalness: 0.2
+      color: 4473924,
+      roughness: 0.7,
+      metalness: 0.3
     });
     const holeMesh = new THREE.Mesh(holeGeo, holeMat);
-    holeMesh.position.set(meshPos.x + (hole.x || 0) * sc, meshPos.y + (hole.y || 0) * sc, meshPos.z + (hole.z || 0) * sc);
-    if (hole.angleX) {
-      holeMesh.rotation.x = hole.angleX * Math.PI / 180;
-    }
-    if (hole.angleZ) {
-      holeMesh.rotation.z = hole.angleZ * Math.PI / 180;
-    }
-    holeMesh.userData = {
-      partId: partInfo.id,
-      detailType: "hole"
-    };
+    holeMesh.position.set(
+      meshPos.x + (hole.x || 0) * sc,
+      meshPos.y + (hole.y || 0) * sc,
+      meshPos.z + (hole.z || 0) * sc
+    );
+    if (hole.angleX) holeMesh.rotation.x = hole.angleX * Math.PI / 180;
+    if (hole.angleZ) holeMesh.rotation.z = hole.angleZ * Math.PI / 180;
+    holeMesh.userData = { partId: partInfo.id, detailType: "hole" };
     scene.add(holeMesh);
-    detailArr.push(holeMesh);
+    const holeRingGeo = new THREE.RingGeometry(holeRadius * 0.85, holeRadius, 24);
+    const holeRingMat = new THREE.MeshBasicMaterial({ color: 2236962, side: THREE.DoubleSide });
+    const holeRingFront = new THREE.Mesh(holeRingGeo, holeRingMat);
+    holeRingFront.position.copy(holeMesh.position);
+    holeRingFront.position.z += panelT / 2 + 0.0001;
+    scene.add(holeRingFront);
+    const holeRingBack = holeRingFront.clone();
+    holeRingBack.position.z = holeMesh.position.z - panelT / 2 - 0.0001;
+    scene.add(holeRingBack);
+    detailArr.push(holeMesh, holeRingFront, holeRingBack);
   });
+
+  // --- Вырезы: CSG-стиль — тёмные объёмные блоки с контуром ---
   cutouts.forEach(cutout => {
     const cutoutW = (cutout.w || 30) * sc;
     const cutoutH = (cutout.h || 30) * sc;
-    const cutoutD = (cutout.d || partInfo.T || 16) * sc;
+    const cutoutD = (cutout.d || panelT) * sc;
     const cutoutGeo = new THREE.BoxGeometry(cutoutW, cutoutH, cutoutD);
     const cutoutMat = new THREE.MeshStandardMaterial({
-      color: 1710638,
+      color: 3355443,
       roughness: 0.95,
       metalness: 0,
       transparent: true,
-      opacity: 0.7
+      opacity: 0.85
     });
     const cutoutMesh = new THREE.Mesh(cutoutGeo, cutoutMat);
-    cutoutMesh.position.set(meshPos.x + (cutout.x || 0) * sc, meshPos.y + (cutout.y || 0) * sc, meshPos.z + (cutout.z || 0) * sc);
-    cutoutMesh.userData = {
-      partId: partInfo.id,
-      detailType: "cutout"
-    };
+    cutoutMesh.position.set(
+      meshPos.x + (cutout.x || 0) * sc,
+      meshPos.y + (cutout.y || 0) * sc,
+      meshPos.z + (cutout.z || 0) * sc
+    );
+    cutoutMesh.userData = { partId: partInfo.id, detailType: "cutout" };
     scene.add(cutoutMesh);
     const cutoutEdgeGeo = new THREE.EdgesGeometry(cutoutGeo, 15);
-    const cutoutEdgeLine = new THREE.LineSegments(cutoutEdgeGeo, new THREE.LineBasicMaterial({
-      color: 6710886
-    }));
+    const cutoutEdgeLine = new THREE.LineSegments(cutoutEdgeGeo, new THREE.LineBasicMaterial({ color: 6710886 }));
     cutoutEdgeLine.position.copy(cutoutMesh.position);
     scene.add(cutoutEdgeLine);
-    detailArr.push(cutoutMesh, cutoutEdgeLine);
+    // Стрелка-индикатор выреза (треугольник)
+    const arrowGeo = new THREE.BufferGeometry();
+    const arrowVerts = new Float32Array([
+      -cutoutW * 0.3, -cutoutH * 0.15, 0,
+       cutoutW * 0.3,  0, 0,
+      -cutoutW * 0.3,  cutoutH * 0.15, 0
+    ]);
+    arrowGeo.setAttribute("position", new THREE.BufferAttribute(arrowVerts, 3));
+    const arrowMat = new THREE.MeshBasicMaterial({ color: 16744448, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+    const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
+    arrowMesh.position.set(cutoutMesh.position.x, cutoutMesh.position.y, meshPos.z + panelT / 2 + 0.0005);
+    scene.add(arrowMesh);
+    detailArr.push(cutoutMesh, cutoutEdgeLine, arrowMesh);
   });
+
+  // --- Кромки: тонкие полосы ---
   edges.forEach(edge => {
     const edgeSide = (edge.side || "").toLowerCase();
     const edgeLen = (edge.length || 0) * sc;
-    const edgeThick = 0.002;
-    let edgeW;
-    let edgeH;
-    let edgeD;
-    let edgeX;
-    let edgeY;
-    let edgeZ;
+    const edgeThick = 0.003;
+    let edgeW, edgeH, edgeD, edgeX, edgeY, edgeZ;
     if (edgeSide.includes("w") || edgeSide.includes("длин")) {
-      edgeW = edgeLen;
+      edgeW = edgeLen || panelW;
       edgeH = edgeThick;
-      edgeD = edgeThick;
+      edgeD = panelT;
       edgeX = meshPos.x;
-      edgeY = meshPos.y;
-      edgeZ = meshPos.z + (edge.offset || 0) * sc;
+      edgeY = meshPos.y + panelH / 2;
+      edgeZ = meshPos.z;
     } else if (edgeSide.includes("h") || edgeSide.includes("выс")) {
       edgeW = edgeThick;
-      edgeH = edgeLen;
-      edgeD = edgeThick;
-      edgeX = meshPos.x + (edge.offset || 0) * sc;
+      edgeH = edgeLen || panelH;
+      edgeD = panelT;
+      edgeX = meshPos.x + panelW / 2;
       edgeY = meshPos.y;
       edgeZ = meshPos.z;
     } else {
-      edgeW = edgeThick;
+      edgeW = panelW;
       edgeH = edgeThick;
-      edgeD = edgeLen;
+      edgeD = panelT;
       edgeX = meshPos.x;
-      edgeY = meshPos.y + (edge.offset || 0) * sc;
+      edgeY = meshPos.y - panelH / 2;
       edgeZ = meshPos.z;
     }
     const edgeGeo = new THREE.BoxGeometry(edgeW || 0.01, edgeH || 0.01, edgeD || 0.01);
     const edgeMat = new THREE.MeshStandardMaterial({
-      color: 3832378,
-      roughness: 0.6,
-      metalness: 0.1
+      color: 10066329,
+      roughness: 0.4,
+      metalness: 0.2,
+      transparent: true,
+      opacity: 0.8
     });
     const edgeMesh = new THREE.Mesh(edgeGeo, edgeMat);
     edgeMesh.position.set(edgeX, edgeY, edgeZ);
-    edgeMesh.userData = {
-      partId: partInfo.id,
-      detailType: "edge"
-    };
+    edgeMesh.userData = { partId: partInfo.id, detailType: "edge" };
     scene.add(edgeMesh);
     detailArr.push(edgeMesh);
   });
   return detailArr;
+}
+
+const FASTENER_COLORS = {
+  "Петля": 16753920,
+  "Направляющая": 10040064,
+  "Ручка": 10079232,
+  "Саморез": 8421504,
+  "Доводчик": 6737151,
+  "Конфирмат": 5592405,
+  "Эксцентрик": 16744576,
+  "Стяжка": 65535,
+  "Ножка": 8388736,
+  "Держатель полки": 8421376,
+  "Вытяжка": 16761024,
+  "Фурнитура": 12632256
+};
+
+function buildFasteners(fasteners) {
+  if (!fasteners || !fasteners.length) return;
+  fasteners.forEach(fastener => {
+    const fx = (fastener.pos ? fastener.pos.x : 0) * sc;
+    const fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
+    const fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4;
+    const color = FASTENER_COLORS[fastener.type] || FASTENER_COLORS["Фурнитура"];
+    let geo;
+    const type = (fastener.type || "").toLowerCase();
+    if (type.indexOf("петл") >= 0 || type.indexOf("hinge") >= 0) {
+      geo = new THREE.CylinderGeometry(0.006, 0.006, 0.02, 8);
+    } else if (type.indexOf("направл") >= 0 || type.indexOf("slide") >= 0 || type.indexOf("rail") >= 0) {
+      geo = new THREE.BoxGeometry(0.004, 0.08, 0.004);
+    } else if (type.indexOf("ручк") >= 0 || type.indexOf("handle") >= 0) {
+      geo = new THREE.TorusGeometry(0.012, 0.003, 8, 16, Math.PI);
+    } else if (type.indexOf("саморез") >= 0 || type.indexOf("screw") >= 0 || type.indexOf("конфирмат") >= 0) {
+      geo = new THREE.CylinderGeometry(0.002, 0.001, 0.015, 6);
+    } else if (type.indexOf("экцентр") >= 0 || type.indexOf("cam") >= 0 || type.indexOf("стяжк") >= 0) {
+      geo = new THREE.CylinderGeometry(0.008, 0.008, 0.006, 12);
+    } else if (type.indexOf("ножк") >= 0 || type.indexOf("leg") >= 0) {
+      geo = new THREE.CylinderGeometry(0.008, 0.01, 0.03, 8);
+    } else if (type.indexOf("доводчик") >= 0 || type.indexOf("damper") >= 0) {
+      geo = new THREE.BoxGeometry(0.006, 0.02, 0.006);
+    } else {
+      geo = new THREE.BoxGeometry(0.008, 0.008, 0.008);
+    }
+    const mat = new THREE.MeshStandardMaterial({
+      color: color,
+      roughness: 0.4,
+      metalness: 0.6,
+      emissive: color,
+      emissiveIntensity: 0.15
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(fx, fy, fz);
+    mesh.userData = { fastenerId: fastener.id, type: "fastener", name: fastener.name };
+    mesh.castShadow = true;
+    scene.add(mesh);
+    fastenerMeshes.push(mesh);
+    // Маркер: кольцо вокруг фурнитуры
+    const ringGeo = new THREE.RingGeometry(0.012, 0.015, 16);
+    const ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.copy(mesh.position);
+    ring.position.z += 0.01;
+    scene.add(ring);
+    fastenerMeshes.push(ring);
+  });
 }
 const detailMeshes = new Map();
 const sc = 0.001;
@@ -739,6 +844,8 @@ function buildScene() {
   meshMap.forEach(function(oldMesh) { oldMesh.geometry.dispose(); oldMesh.material.dispose(); scene.remove(oldMesh); });
   edgeLineMap.forEach(function(oldLine) { oldLine.geometry.dispose(); oldLine.material.dispose(); scene.remove(oldLine); });
   detailMeshes.forEach(function(oldArr) { oldArr.forEach(function(oldObj) { if (oldObj.geometry) oldObj.geometry.dispose(); if (oldObj.material) oldObj.material.dispose(); scene.remove(oldObj); }); });
+  fastenerMeshes.forEach(function(fm) { if (fm.geometry) fm.geometry.dispose(); if (fm.material) fm.material.dispose(); scene.remove(fm); });
+  fastenerMeshes.length = 0;
   meshMap.clear();
   edgeLineMap.clear();
   detailMeshes.clear();
@@ -778,6 +885,7 @@ function buildScene() {
   buildModuleMap();
   renderPartsList();
   updateSummary();
+  buildFasteners(fastenerData);
 }
 function buildModuleMap() {
   moduleMap.clear();
@@ -853,20 +961,21 @@ function renderProcessingInfo(partData) {
   const cutouts2 = partData.cutouts || [];
   const edges2 = partData.edges || [];
   const hasProcessing = grooves.length || holes2.length || cutouts2.length || edges2.length;
-  if (!hasProcessing) {
+  const relatedFasteners = fastenerData.filter(f => f.ownerCode && partData.code && f.ownerCode === partData.code);
+  if (!hasProcessing && !relatedFasteners.length) {
     return "";
   }
   let html = "<div style=\"margin-top:4px;border-top:1px solid var(--border);padding-top:4px\">";
   if (grooves.length) {
     html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Пазы (" + grooves.length + "):</div>";
     grooves.forEach((groove, idx) => {
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (groove.x || 0) + " y:" + (groove.y || 0) + " " + (groove.w || 0) + "×" + (groove.h || 0) + "×" + (groove.d || 0) + " мм</div>";
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (groove.x || 0) + " y:" + (groove.y || 0) + " " + (groove.width || groove.w || 0) + "×" + (groove.length || groove.h || 0) + "×" + (groove.depth || groove.d || 0) + " мм</div>";
     });
   }
   if (holes2.length) {
     html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Отверстия (" + holes2.length + "):</div>";
     holes2.forEach((hole, idx) => {
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (hole.x || 0) + " y:" + (hole.y || 0) + " ⌀" + (hole.d || hole.r || "?") + " мм</div>";
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (hole.x || 0) + " y:" + (hole.y || 0) + " ⌀" + (hole.diameter || hole.d || hole.r || "?") + " мм</div>";
     });
   }
   if (cutouts2.length) {
@@ -878,7 +987,13 @@ function renderProcessingInfo(partData) {
   if (edges2.length) {
     html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Кромка (" + edges2.length + "):</div>";
     edges2.forEach((edge, idx) => {
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + (edge.side || edge.type || "?") + " " + (edge.length || "") + (edge.length ? " мм" : "") + "</div>";
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + (edge.side || edge.type || "?") + " " + (edge.thickness || edge.length || "") + (edge.thickness || edge.length ? " мм" : "") + "</div>";
+    });
+  }
+  if (relatedFasteners.length) {
+    html += "<div style=\"font-size:9px;color:#ff9800;margin-bottom:2px\">Фурнитура (" + relatedFasteners.length + "):</div>";
+    relatedFasteners.forEach((f, idx) => {
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + (f.name || "?") + " [" + (f.type || "?") + "]</div>";
     });
   }
   html += "</div>";
@@ -934,6 +1049,16 @@ function toggleVisibility(partId) {
   }
   saveProgress();
   showToast((hiddenSet.has(partId) ? "🙈" : "👁") + " Деталь " + (hiddenSet.has(partId) ? "скрыта" : "показана"));
+}
+function toggleCSGVisibility() {
+  csgEnabled = !csgEnabled;
+  detailMeshes.forEach(function(arr) {
+    arr.forEach(function(obj) { obj.visible = csgEnabled; });
+  });
+  fastenerMeshes.forEach(function(fm) { fm.visible = csgEnabled; });
+  const btn = document.getElementById("csgBtn");
+  btn.classList.toggle("active", csgEnabled);
+  showToast(csgEnabled ? "Вырезы и фурнитура показаны" : "Вырезы и фурнитура скрыты");
 }
 function showAllParts() {
   hiddenSet.clear();
@@ -1170,6 +1295,10 @@ function updateStats() {
   document.getElementById("totalCount").textContent = total;
   document.getElementById("scannedCount").textContent = scanned;
   document.getElementById("progressFill").style.width = percent + "%";
+  const fastenerInfo = document.getElementById("fastenerCount");
+  if (fastenerInfo) {
+    fastenerInfo.textContent = fastenerData.length ? "🔧 " + fastenerData.length : "";
+  }
 }
 function renderPartsList() {
   const container = document.getElementById("partsList");
@@ -1268,6 +1397,18 @@ function showStats() {
   Object.entries(materialCounts).sort((a, b) => b[1] - a[1]).forEach(([mat, count]) => {
     html += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:var(--text-primary)\">" + escapeHtml(mat) + "</span>\n        <span style=\"color:var(--accent);font-weight:600\">" + count + " шт</span>\n      </div>";
   });
+  if (fastenerData.length) {
+    const fastenerTypeCounts = {};
+    fastenerData.forEach(f => {
+      const t = f.type || "Прочее";
+      if (!fastenerTypeCounts[t]) fastenerTypeCounts[t] = 0;
+      fastenerTypeCounts[t]++;
+    });
+    html += "<div style=\"font-size:10px;font-weight:700;color:#ff9800;margin:10px 0 6px\">ФУРНИТУРА (" + fastenerData.length + "):</div>";
+    Object.entries(fastenerTypeCounts).sort((a, b) => b[1] - a[1]).forEach(([type, count]) => {
+      html += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:var(--text-primary)\">" + escapeHtml(type) + "</span>\n        <span style=\"color:#ff9800;font-weight:600\">" + count + " шт</span>\n      </div>";
+    });
+  }
   document.getElementById("statsContent").innerHTML = html;
   document.getElementById("statsModal").classList.remove("hidden");
 }
@@ -1293,7 +1434,16 @@ function printSpecification() {
     const dims = part.gab ? part.gab.w + "×" + part.gab.h + "×" + part.gab.d : (part.L || "—") + "×" + (part.W || "—") + "×" + (part.T || "—");
     printHtml += "<tr><td>" + (idx + 1) + "</td><td>" + escapeHtml(part.code || "") + "</td><td>" + escapeHtml(part.position || "") + "</td><td>" + escapeHtml(part.name || "") + "</td><td>" + escapeHtml(part.material || "") + "</td><td>" + dims + "</td><td>" + statusIcon + "</td></tr>";
   });
-  printHtml += "</table></body></html>";
+  printHtml += "</table>";
+  if (fastenerData.length) {
+    printHtml += "<h3 style=\"margin-top:20px\">Фурнитура (" + fastenerData.length + ")</h3>";
+    printHtml += "<table><tr><th>#</th><th>Тип</th><th>Наименование</th><th>Привязка</th></tr>";
+    fastenerData.forEach((f, idx) => {
+      printHtml += "<tr><td>" + (idx + 1) + "</td><td>" + escapeHtml(f.type || "") + "</td><td>" + escapeHtml(f.name || "") + "</td><td>" + escapeHtml(f.ownerCode || "—") + "</td></tr>";
+    });
+    printHtml += "</table>";
+  }
+  printHtml += "</body></html>";
   printWin.document.write(printHtml);
   printWin.document.close();
   printWin.print();
@@ -1452,6 +1602,7 @@ document.getElementById("fileInput").addEventListener("change", changeEvent => {
     try {
       const jsonData = JSON.parse(loadEvent.target.result);
       parts = jsonData.parts || jsonData;
+      fastenerData = jsonData.fasteners || [];
       parts.forEach((part, index) => {
         if (part.id === undefined) {
           part.id = index;
@@ -1506,6 +1657,7 @@ document.getElementById("assembleBtn").addEventListener("click", toggleAssembly)
 document.getElementById("resetProgressBtn").addEventListener("click", resetProgress);
 document.getElementById("printBtn").addEventListener("click", printSpecification);
 document.getElementById("statsBtn").addEventListener("click", showStats);
+document.getElementById("csgBtn").addEventListener("click", toggleCSGVisibility);
 document.getElementById("closeScannerBtn").addEventListener("click", closeScanner);
 document.getElementById("scannerModal").addEventListener("click", function(e) { if (e.target === this) closeScanner(); });
 document.getElementById("statsModal").addEventListener("click", function(e) { if (e.target === this) this.classList.add("hidden"); });
@@ -1574,6 +1726,7 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
       try {
         const data = JSON.parse(ev.target.result);
         parts = data.parts || data;
+        fastenerData = data.fasteners || [];
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
         buildScene();
