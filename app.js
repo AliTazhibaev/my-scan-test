@@ -1603,7 +1603,7 @@ document.getElementById("fileInput").addEventListener("change", changeEvent => {
       const jsonData = JSON.parse(loadEvent.target.result);
       parts = jsonData.parts || jsonData;
       fastenerData = (jsonData.fasteners || []).filter(f =>
-        f.name && f.type && f.type !== "Фурнитура" || (f.name && /евровинт|петля|шкант|конфирмат|саморез|направляющ|ручка|эксцентр|стяжк|доводчик|ножк|hinge|slide|handle|screw|cam|damper|lift|полкодерж/i.test(f.name))
+        f.name && f.pos && (f.type !== "Фурнитура" || /евровинт|петля|шкант|конфирмат|саморез|направляющ|ручка|эксцентр|стяжк|доводчик|ножк|hinge|slide|handle|screw|cam|damper|lift|полкодерж/i.test(f.name))
       );
       parts.forEach((part, index) => {
         if (part.id === undefined) {
@@ -1729,7 +1729,7 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
         const data = JSON.parse(ev.target.result);
         parts = data.parts || data;
         fastenerData = (data.fasteners || []).filter(f =>
-          f.name && f.type && f.type !== "Фурнитура" || (f.name && /евровинт|петля|шкант|конфирмат|саморез|направляющ|ручка|эксцентр|стяжк|доводчик|ножк|hinge|slide|handle|screw|cam|damper|lift|полкодерж/i.test(f.name))
+          f.name && f.pos && (f.type !== "Фурнитура" || /евровинт|петля|шкант|конфирмат|саморез|направляющ|ручка|эксцентр|стяжк|доводчик|ножк|hinge|slide|handle|screw|cam|damper|lift|полкодерж/i.test(f.name))
         );
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
