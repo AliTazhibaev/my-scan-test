@@ -741,36 +741,46 @@ function buildPartDetails(partInfo, meshObj) {
     detailArr.push(grooveMesh, grooveEdgeLine);
   });
 
-  // --- Отверстия: тёмные цилиндры ---
+  // --- Отверстия: тёмные цилиндры (v4: drillMode) ---
   holes.forEach(hole => {
     const holeRadius = (hole.diameter || hole.d || hole.r || 8) / 2 * sc;
     const holeDepth = hole.depth ? hole.depth * sc : panelT;
     const holeGeo = new THREE.CylinderGeometry(holeRadius, holeRadius, holeDepth, 16);
     const holeMat = new THREE.MeshStandardMaterial({
-      color: 4473924,
-      roughness: 0.7,
-      metalness: 0.3
+      color: 0x1a1a2e,
+      roughness: 0.5,
+      metalness: 0.4,
+      transparent: true,
+      opacity: 0.9
     });
     const holeMesh = new THREE.Mesh(holeGeo, holeMat);
     holeMesh.position.set(
-      meshPos.x + (hole.x || 0) * sc,
-      meshPos.y + (hole.y || 0) * sc,
+      meshPos.x + ((hole.x || 0) - (partInfo.L || 0) / 2) * sc,
+      meshPos.y + ((hole.y || 0) - (partInfo.W || 0) / 2) * sc,
       meshPos.z + (hole.z || 0) * sc
     );
-    if (hole.angleX) holeMesh.rotation.x = hole.angleX * Math.PI / 180;
-    if (hole.angleZ) holeMesh.rotation.z = hole.angleZ * Math.PI / 180;
+    // v4: drillMode — ориентация отверстия
+    if (hole.drillMode === 1) {
+      holeMesh.rotation.z = Math.PI / 2;
+    } else if (hole.angleX) {
+      holeMesh.rotation.x = hole.angleX * Math.PI / 180;
+    } else if (hole.angleZ) {
+      holeMesh.rotation.z = hole.angleZ * Math.PI / 180;
+    }
     holeMesh.userData = { partId: partInfo.id, detailType: "hole" };
     scene.add(holeMesh);
-    const holeRingGeo = new THREE.RingGeometry(holeRadius * 0.85, holeRadius, 24);
-    const holeRingMat = new THREE.MeshBasicMaterial({ color: 2236962, side: THREE.DoubleSide });
+    const holeRingGeo = new THREE.RingGeometry(holeRadius * 0.7, holeRadius, 24);
+    const holeRingMat = new THREE.MeshBasicMaterial({ color: 0x00D4AA, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
     const holeRingFront = new THREE.Mesh(holeRingGeo, holeRingMat);
     holeRingFront.position.copy(holeMesh.position);
-    holeRingFront.position.z += panelT / 2 + 0.0001;
+    if (hole.drillMode === 1) {
+      holeRingFront.rotation.z = Math.PI / 2;
+      holeRingFront.position.x += panelT / 2 + 0.0001;
+    } else {
+      holeRingFront.position.z += panelT / 2 + 0.0001;
+    }
     scene.add(holeRingFront);
-    const holeRingBack = holeRingFront.clone();
-    holeRingBack.position.z = holeMesh.position.z - panelT / 2 - 0.0001;
-    scene.add(holeRingBack);
-    detailArr.push(holeMesh, holeRingFront, holeRingBack);
+    detailArr.push(holeMesh, holeRingFront);
   });
 
   // --- Вырезы: CSG-стиль — тёмные объёмные блоки с контуром ---
@@ -790,8 +800,8 @@ function buildPartDetails(partInfo, meshObj) {
     });
     const cutoutMesh = new THREE.Mesh(cutoutGeo, cutoutMat);
     cutoutMesh.position.set(
-      meshPos.x + (cutout.x || 0) * sc,
-      meshPos.y + (cutout.y || 0) * sc,
+      meshPos.x + ((cutout.x || 0) - (partInfo.L || 0) / 2) * sc + cutoutW / 2,
+      meshPos.y + ((cutout.y || 0) - (partInfo.W || 0) / 2) * sc + cutoutH / 2,
       meshPos.z + (cutout.z || 0) * sc
     );
     cutoutMesh.userData = { partId: partInfo.id, detailType: "cutout" };
