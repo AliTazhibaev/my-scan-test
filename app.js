@@ -660,7 +660,7 @@ function buildPartDetails(partInfo, meshObj) {
   // --- Отверстия: тёмные цилиндры ---
   holes.forEach(hole => {
     const holeRadius = (hole.diameter || hole.d || hole.r || 8) / 2 * sc;
-    const holeDepth = (hole.depth || panelT) * sc;
+    const holeDepth = hole.depth ? hole.depth * sc : panelT;
     const holeGeo = new THREE.CylinderGeometry(holeRadius, holeRadius, holeDepth, 16);
     const holeMat = new THREE.MeshStandardMaterial({
       color: 4473924,
@@ -693,14 +693,16 @@ function buildPartDetails(partInfo, meshObj) {
   cutouts.forEach(cutout => {
     const cutoutW = (cutout.w || 30) * sc;
     const cutoutH = (cutout.h || 30) * sc;
-    const cutoutD = (cutout.d || panelT) * sc;
+    const cutoutD = cutout.d ? cutout.d * sc : panelT;
     const cutoutGeo = new THREE.BoxGeometry(cutoutW, cutoutH, cutoutD);
     const cutoutMat = new THREE.MeshStandardMaterial({
       color: 3355443,
       roughness: 0.95,
       metalness: 0,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.85,
+      emissive: 1315860,
+      emissiveIntensity: 0.3
     });
     const cutoutMesh = new THREE.Mesh(cutoutGeo, cutoutMat);
     cutoutMesh.position.set(
@@ -711,7 +713,7 @@ function buildPartDetails(partInfo, meshObj) {
     cutoutMesh.userData = { partId: partInfo.id, detailType: "cutout" };
     scene.add(cutoutMesh);
     const cutoutEdgeGeo = new THREE.EdgesGeometry(cutoutGeo, 15);
-    const cutoutEdgeLine = new THREE.LineSegments(cutoutEdgeGeo, new THREE.LineBasicMaterial({ color: 6710886 }));
+    const cutoutEdgeLine = new THREE.LineSegments(cutoutEdgeGeo, new THREE.LineBasicMaterial({ color: 16744448 }));
     cutoutEdgeLine.position.copy(cutoutMesh.position);
     scene.add(cutoutEdgeLine);
     // Стрелка-индикатор выреза (треугольник)
@@ -830,7 +832,7 @@ function buildFasteners(fasteners) {
     fastenerMeshes.push(mesh);
     // Маркер: кольцо вокруг фурнитуры
     const ringGeo = new THREE.RingGeometry(0.012, 0.015, 16);
-    const ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+    const ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.position.copy(mesh.position);
     ring.position.z += 0.01;
@@ -1603,7 +1605,7 @@ document.getElementById("fileInput").addEventListener("change", changeEvent => {
       const jsonData = JSON.parse(loadEvent.target.result);
       parts = jsonData.parts || jsonData;
       fastenerData = (jsonData.fasteners || []).filter(f =>
-        f.name && f.pos && (f.type !== "Фурнитура" || /евровинт|петля|шкант|конфирмат|саморез|направляющ|ручка|эксцентр|стяжк|доводчик|ножк|hinge|slide|handle|screw|cam|damper|lift|полкодерж/i.test(f.name))
+        f.name && f.pos
       );
       parts.forEach((part, index) => {
         if (part.id === undefined) {
@@ -1729,7 +1731,7 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
         const data = JSON.parse(ev.target.result);
         parts = data.parts || data;
         fastenerData = (data.fasteners || []).filter(f =>
-          f.name && f.pos && (f.type !== "Фурнитура" || /евровинт|петля|шкант|конфирмат|саморез|направляющ|ручка|эксцентр|стяжк|доводчик|ножк|hinge|slide|handle|screw|cam|damper|lift|полкодерж/i.test(f.name))
+          f.name && f.pos
         );
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
