@@ -550,7 +550,7 @@ function autoLayout(partsArr) {
     p._pos = {
       x: (p.pos.x + p.gab.w / 2) * scaleFactor,
       y: (p.pos.y - minY + p.gab.h / 2) * scaleFactor,
-      z: (p.pos.z + p.gab.d / 2) * scaleFactor - 4
+      z: (p.pos.z + p.gab.d / 2) * scaleFactor
     };
     p._size = {
       x: Math.max(p.gab.w, 1) * scaleFactor,
@@ -631,62 +631,97 @@ function buildPartDetails(partInfo, meshObj) {
   const panelH = (partInfo.W || 100) * sc;
   const panelT = (partInfo.T || 16) * sc;
 
-  // --- Пазы: тёмные линии на поверхности панели ---
+  // --- Пазы: тёмные полосы на поверхности панели ---
   grooves.forEach(groove => {
     const grooveW = (groove.width || groove.w || 20) * sc;
-    const grooveH = (groove.length || groove.h || 20) * sc;
+    const grooveLen = (groove.length || groove.h || panelW / sc) * sc;
     const grooveD = (groove.depth || groove.d || 4) * sc;
-    const grooveGeo = new THREE.BoxGeometry(grooveW, grooveH, grooveD);
+
+    // Паз идёт по длинной стороне панели
+    const geoW = grooveLen > grooveW ? grooveLen : grooveW;
+    const geoH = grooveLen > grooveW ? grooveW : grooveLen;
+
+    const grooveGeo = new THREE.BoxGeometry(geoW, grooveD, geoH);
     const grooveMat = new THREE.MeshStandardMaterial({
-      color: 1118481,
+      color: 0x111111,
       roughness: 0.95,
-      metalness: 0
+      metalness: 0,
+      transparent: true,
+      opacity: 0.85
     });
     const grooveMesh = new THREE.Mesh(grooveGeo, grooveMat);
-    grooveMesh.position.set(
-      meshPos.x + (groove.x || 0) * sc,
-      meshPos.y + (groove.y || 0) * sc,
-      meshPos.z + (groove.z || 0) * sc
-    );
+
+    // Позиция относительно центра панели
+    const gx = meshPos.x + ((groove.x || 0) - (partInfo.L || 0) / 2) * sc + geoW / 2;
+    const gy = meshPos.y - panelH / 2 + (groove.y || 0) * sc;
+    const gz = meshPos.z;
+
+    grooveMesh.position.set(gx, gy, gz);
     grooveMesh.userData = { partId: partInfo.id, detailType: "groove" };
     scene.add(grooveMesh);
+
     const grooveEdgeGeo = new THREE.EdgesGeometry(grooveGeo, 15);
-    const grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({ color: 3355443 }));
+    const grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo,
+      new THREE.LineBasicMaterial({ color: 0x00D4AA, transparent: true, opacity: 0.5 }));
     grooveEdgeLine.position.copy(grooveMesh.position);
     scene.add(grooveEdgeLine);
     detailArr.push(grooveMesh, grooveEdgeLine);
   });
 
-  // --- Отверстия: тёмные цилиндры ---
+  // --- Отверстия: цилиндры с учётом ориентации панели ---
   holes.forEach(hole => {
     const holeRadius = (hole.diameter || hole.d || hole.r || 8) / 2 * sc;
     const holeDepth = hole.depth ? hole.depth * sc : panelT;
+
+    // Определяем ориентацию по размерам панели (тонкая сторона = Z)
+    // Панель лежит горизонтально если H < W, иначе вертикально
+    const isHorizontal = partInfo.gab && partInfo.gab.h < partInfo.gab.w && partInfo.gab.h < partInfo.gab.d;
+    const isThinZ = partInfo.gab && partInfo.gab.d < partInfo.gab.w && partInfo.gab.d < partInfo.gab.h;
+
     const holeGeo = new THREE.CylinderGeometry(holeRadius, holeRadius, holeDepth, 16);
     const holeMat = new THREE.MeshStandardMaterial({
-      color: 4473924,
-      roughness: 0.7,
-      metalness: 0.3
+      color: 0x1a1a2e,
+      roughness: 0.5,
+      metalness: 0.4,
+      transparent: true,
+      opacity: 0.9
     });
     const holeMesh = new THREE.Mesh(holeGeo, holeMat);
-    holeMesh.position.set(
-      meshPos.x + (hole.x || 0) * sc,
-      meshPos.y + (hole.y || 0) * sc,
-      meshPos.z + (hole.z || 0) * sc
-    );
-    if (hole.angleX) holeMesh.rotation.x = hole.angleX * Math.PI / 180;
-    if (hole.angleZ) holeMesh.rotation.z = hole.angleZ * Math.PI / 180;
+
+    // Позиция относительно центра панели
+    const hx = meshPos.x + ((hole.x || 0) - (partInfo.L || 0) / 2) * sc;
+    const hy = meshPos.y + ((hole.y || 0) - (partInfo.W || 0) / 2) * sc;
+    const hz = meshPos.z;
+
+    holeMesh.position.set(hx, hy, hz);
+
+    // Поворот цилиндра по ориентации панели
+    if (isHorizontal) {
+      holeMesh.rotation.x = Math.PI / 2; // горизонтальная панель — отверстие вертикально
+    } else if (isThinZ) {
+      // тонкая по Z — отверстие по Z
+    } else {
+      holeMesh.rotation.z = Math.PI / 2; // вертикальная панель — отверстие горизонтально
+    }
+
     holeMesh.userData = { partId: partInfo.id, detailType: "hole" };
     scene.add(holeMesh);
-    const holeRingGeo = new THREE.RingGeometry(holeRadius * 0.85, holeRadius, 24);
-    const holeRingMat = new THREE.MeshBasicMaterial({ color: 2236962, side: THREE.DoubleSide });
+
+    // Кольцо-маркер на поверхности
+    const holeRingGeo = new THREE.RingGeometry(holeRadius * 0.7, holeRadius, 24);
+    const holeRingMat = new THREE.MeshBasicMaterial({ color: 0x00D4AA, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
     const holeRingFront = new THREE.Mesh(holeRingGeo, holeRingMat);
     holeRingFront.position.copy(holeMesh.position);
-    holeRingFront.position.z += panelT / 2 + 0.0001;
+
+    if (isHorizontal) {
+      holeRingFront.rotation.x = Math.PI / 2;
+      holeRingFront.position.y += panelT / 2 + 0.0001;
+    } else {
+      holeRingFront.position.z += panelT / 2 + 0.0001;
+    }
+
     scene.add(holeRingFront);
-    const holeRingBack = holeRingFront.clone();
-    holeRingBack.position.z = holeMesh.position.z - panelT / 2 - 0.0001;
-    scene.add(holeRingBack);
-    detailArr.push(holeMesh, holeRingFront, holeRingBack);
+    detailArr.push(holeMesh, holeRingFront);
   });
 
   // --- Вырезы: CSG-стиль — тёмные объёмные блоки с контуром ---
@@ -796,7 +831,7 @@ function buildFasteners(fasteners) {
   fasteners.forEach(fastener => {
     const fx = (fastener.pos ? fastener.pos.x : 0) * sc;
     const fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
-    const fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4;
+    const fz = (fastener.pos ? fastener.pos.z : 0) * sc;
     const color = FASTENER_COLORS[fastener.type] || FASTENER_COLORS["Фурнитура"];
     let geo;
     const type = (fastener.type || "").toLowerCase();
@@ -1604,9 +1639,13 @@ document.getElementById("fileInput").addEventListener("change", changeEvent => {
     try {
       const jsonData = JSON.parse(loadEvent.target.result);
       parts = jsonData.parts || jsonData;
-      fastenerData = (jsonData.fasteners || []).filter(f =>
-        f.name && f.pos
-      );
+      // Фильтруем мусор из фурнитуры (размерные линии, вспомогательные объекты)
+      const JUNK_WORDS = ['размер', 'линия', 'section', 'сечение', 'параллельн', 'dimension', 'parallel'];
+      fastenerData = (jsonData.fasteners || []).filter(f => {
+        if (!f.name || !f.pos) return false;
+        const n = f.name.toLowerCase();
+        return !JUNK_WORDS.some(j => n.includes(j));
+      });
       parts.forEach((part, index) => {
         if (part.id === undefined) {
           part.id = index;
@@ -1730,9 +1769,12 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
       try {
         const data = JSON.parse(ev.target.result);
         parts = data.parts || data;
-        fastenerData = (data.fasteners || []).filter(f =>
-          f.name && f.pos
-        );
+        const JUNK_WORDS2 = ['размер', 'линия', 'section', 'сечение', 'параллельн', 'dimension', 'parallel'];
+        fastenerData = (data.fasteners || []).filter(f => {
+          if (!f.name || !f.pos) return false;
+          const n = f.name.toLowerCase();
+          return !JUNK_WORDS2.some(j => n.includes(j));
+        });
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
         buildScene();
