@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aivo Scan — Каталог фрезировки фасадов</title>
+  <meta name="description" content="Каталог фрезировок мебельных фасадов МДФ. Подготовка деталей для ЧПУ, экспорт DXF.">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --card: rgba(255,255,255,0.04);
+      --card-hover: rgba(255,255,255,0.06);
+      --card-border: rgba(255,255,255,0.08);
+      --text: #f0f0f4;
+      --text2: #a0a0a8;
+      --text3: #6a6a72;
+      --accent: #00D4AA;
+      --accent-hover: #00E8B0;
+      --accent-glow: rgba(0,212,170,0.08);
+      --red: #ef4444;
+      --yellow: #FFB300;
+      --radius: 16px;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 20%, rgba(0,212,170,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 60% at 80% 70%, rgba(0,140,220,0.1) 0%, transparent 50%),
+        var(--bg);
+    }
+
+    /* NAV */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      height: 56px;
+      background: rgba(10,10,10,0.7);
+      backdrop-filter: blur(30px) saturate(1.3);
+      border-bottom: 1px solid var(--card-border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+    }
+    .nav-left { display: flex; align-items: center; gap: 16px; }
+    .nav-back {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--text2); text-decoration: none; font-size: 13px;
+      padding: 6px 12px; border-radius: 10px;
+      transition: all 0.2s;
+    }
+    .nav-back:hover { color: var(--text); background: var(--card); }
+    .nav-title { font-size: 15px; font-weight: 600; }
+    .nav-title span { color: var(--accent); }
+
+    /* LAYOUT */
+    .container {
+      position: relative; z-index: 1;
+      max-width: 1400px; margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+      min-height: calc(100vh - 56px);
+    }
+    @media (max-width: 1000px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    /* PANELS */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .panel-title {
+      font-size: 13px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text2); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title .badge {
+      background: var(--accent-glow); color: var(--accent);
+      font-size: 10px; padding: 2px 8px; border-radius: 6px;
+      font-weight: 700;
+    }
+
+    /* FORM */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block; font-size: 11px; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 6px; font-weight: 600;
+    }
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; }
+    input, select {
+      width: 100%; padding: 10px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 10px; color: var(--text);
+      font-size: 14px; outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--text3); }
+    select { cursor: pointer; }
+    select option { background: #1a1a1e; color: var(--text); }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 20px; border-radius: 12px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none;
+      transition: all 0.2s var(--ease);
+    }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+    .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--card-border); }
+    .btn-ghost:hover { color: var(--text); background: var(--card); }
+    .btn-danger { background: rgba(239,68,68,0.1); color: var(--red); }
+    .btn-danger:hover { background: rgba(239,68,68,0.2); }
+    .btn-block { width: 100%; }
+
+    /* CATEGORY TABS */
+    .cat-tabs {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;
+    }
+    .cat-tab {
+      padding: 6px 14px; border-radius: 10px;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--card-border);
+      background: transparent; color: var(--text2);
+      transition: all 0.2s;
+    }
+    .cat-tab:hover { background: var(--card); color: var(--text); }
+    .cat-tab.active {
+      background: var(--accent); color: #000;
+      border-color: var(--accent);
+    }
+
+    /* VARIANT TABS (subcategories) */
+    .variant-tabs {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+    }
+    .variant-tab {
+      padding: 5px 12px; border-radius: 8px;
+      font-size: 11px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--card-border);
+      background: transparent; color: var(--text3);
+      transition: all 0.2s;
+    }
+    .variant-tab:hover { background: var(--card); color: var(--text2); }
+    .variant-tab.active {
+      background: rgba(0,212,170,0.15); color: var(--accent);
+      border-color: rgba(0,212,170,0.3);
+    }
+
+    /* MODEL GRID */
+    .model-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px; max-height: 320px; overflow-y: auto;
+      padding-right: 4px;
+    }
+    .model-grid::-webkit-scrollbar { width: 4px; }
+    .model-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    .model-card {
+      background: rgba(255,255,255,0.03);
+      border: 2px solid transparent;
+      border-radius: 10px; padding: 8px;
+      cursor: pointer; text-align: center;
+      transition: all 0.2s;
+    }
+    .model-card:hover { background: rgba(255,255,255,0.06); }
+    .model-card.active { border-color: var(--accent); background: var(--accent-glow); }
+    .model-card svg { width: 100%; height: 56px; margin-bottom: 4px; }
+    .model-card-id {
+      font-size: 10px; font-weight: 700;
+      color: var(--text3); letter-spacing: 0.5px;
+    }
+    .model-card.active .model-card-id { color: var(--accent); }
+
+    /* SELECTED MODEL DISPLAY */
+    .selected-display {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(0,212,170,0.2);
+      border-radius: 12px; padding: 12px 16px;
+      margin-bottom: 14px;
+    }
+    .selected-display svg { width: 60px; height: 40px; flex-shrink: 0; }
+    .selected-info { flex: 1; }
+    .selected-info .id { font-size: 14px; font-weight: 700; color: var(--accent); }
+    .selected-info .cat { font-size: 11px; color: var(--text2); }
+    .selected-info .desc { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+    /* PARAMS */
+    .params-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    /* PREVIEW */
+    .preview-area { display: flex; flex-direction: column; gap: 16px; }
+    .preview-canvas {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 280px;
+    }
+    .preview-canvas svg { max-width: 100%; max-height: 380px; }
+    .preview-label {
+      font-size: 11px; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 8px; font-weight: 600;
+    }
+    .preview-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 1000px) { .preview-row { grid-template-columns: 1fr; } }
+    .preview-box {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* 3D PREVIEW */
+    .preview-3d {
+      background: #1a1a1e;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      height: 280px;
+      position: relative; overflow: hidden;
+    }
+    .preview-3d canvas { width: 100% !important; height: 100% !important; }
+    .preview-3d-label {
+      position: absolute; top: 10px; left: 14px;
+      font-size: 10px; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      font-weight: 600; z-index: 2;
+    }
+    .preview-3d-hint {
+      position: absolute; bottom: 10px; left: 14px;
+      font-size: 10px; color: var(--text3);
+      z-index: 2;
+    }
+
+    /* TABLE */
+    .parts-table { width: 100%; border-collapse: collapse; }
+    .parts-table th {
+      font-size: 11px; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      text-align: left; padding: 8px 10px;
+      border-bottom: 1px solid var(--card-border);
+      font-weight: 600;
+    }
+    .parts-table td {
+      font-size: 13px; padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: middle;
+    }
+    .parts-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .parts-table .actions { display: flex; gap: 6px; }
+    .parts-table .empty {
+      text-align: center; color: var(--text3);
+      padding: 32px 10px; font-size: 13px;
+    }
+    .total-row td {
+      font-weight: 700; color: var(--accent);
+      border-top: 1px solid var(--card-border);
+    }
+    .part-milling-cell {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .part-milling-cell svg { width: 40px; height: 28px; flex-shrink: 0; }
+    .part-milling-cell .pm-info { line-height: 1.3; }
+    .part-milling-cell .pm-id { font-size: 12px; font-weight: 700; color: var(--accent); }
+    .part-milling-cell .pm-cat { font-size: 10px; color: var(--text3); }
+
+    /* EXPORT */
+    .export-bar {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      padding: 16px 0;
+    }
+
+    /* SCROLL */
+    .scroll-y {
+      max-height: calc(100vh - 56px - 48px);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+    .scroll-y::-webkit-scrollbar { width: 6px; }
+    .scroll-y::-webkit-scrollbar-track { background: transparent; }
+    .scroll-y::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      background: rgba(0,212,170,0.15); border: 1px solid rgba(0,212,170,0.3);
+      backdrop-filter: blur(20px);
+      padding: 12px 20px; border-radius: 12px;
+      font-size: 13px; color: var(--accent);
+      transform: translateY(80px); opacity: 0;
+      transition: all 0.3s var(--ease);
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+<div class="bg"></div>
+
+<nav class="nav">
+  <div class="nav-left">
+    <a href="index.html" class="nav-back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+      Назад
+    </a>
+    <div class="nav-title"><span>Aivo</span> Каталог фрезировок</div>
+  </div>
+</nav>
+
+<div class="container">
+  <!-- LEFT: FORM -->
+  <div class="scroll-y">
+    <!-- Add Part -->
+    <div class="panel">
+      <div class="panel-title">Новая деталь</div>
+      <div class="form-group">
+        <label>Название детали</label>
+        <input type="text" id="partName" placeholder="Фасад верхний" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ширина (мм)</label>
+          <input type="number" id="partWidth" placeholder="800" min="50" max="3000">
+        </div>
+        <div class="form-group">
+          <label>Высота (мм)</label>
+          <input type="number" id="partHeight" placeholder="400" min="50" max="3000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Количество</label>
+          <input type="number" id="partQty" value="1" min="1" max="999">
+        </div>
+        <div class="form-group">
+          <label>Материал</label>
+          <select id="partMaterial">
+            <option value="mdf16">МДФ 16мм лам.</option>
+            <option value="mdf18" selected>МДФ 18мм лам.</option>
+            <option value="mdf19">МДФ 19мм лам.</option>
+            <option value="mdf22">МДФ 22мм лам.</option>
+            <option value="mdf16raw">МДФ 16мм черновой</option>
+            <option value="mdf18raw">МДФ 18мм черновой</option>
+            <option value="mdf19raw">МДФ 19мм черновой</option>
+            <option value="mdf22raw">МДФ 22мм черновой</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Catalog -->
+    <div class="panel">
+      <div class="panel-title">Каталог фрезировок <span class="badge" id="modelCount">0 моделей</span></div>
+      <div class="cat-tabs" id="catTabs"></div>
+      <div class="variant-tabs" id="variantTabs"></div>
+      <div class="model-grid" id="modelGrid"></div>
+    </div>
+
+    <!-- Selected Model -->
+    <div class="panel" id="selectedPanel" style="display:none">
+      <div class="panel-title">Выбранная фрезировка</div>
+      <div class="selected-display" id="selectedDisplay"></div>
+      <div class="params-grid">
+        <div class="form-group">
+          <label>Глубина (мм)</label>
+          <input type="number" id="paramDepth" value="3" min="0.5" max="10" step="0.5">
+        </div>
+        <div class="form-group">
+          <label>Радиус фрезы (мм)</label>
+          <input type="number" id="paramRadius" value="3" min="0.5" max="15" step="0.5">
+        </div>
+        <div class="form-group">
+          <label>Шаг (мм)</label>
+          <input type="number" id="paramStep" value="20" min="5" max="200" step="1">
+        </div>
+        <div class="form-group">
+          <label>Отступ от края (мм)</label>
+          <input type="number" id="paramMargin" value="20" min="0" max="100" step="1">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="addPart()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Добавить деталь
+      </button>
+    </div>
+
+    <!-- Parts Table -->
+    <div class="panel">
+      <div class="panel-title">Детали заказа</div>
+      <table class="parts-table">
+        <thead>
+          <tr>
+            <th>Деталь</th>
+            <th>Размер</th>
+            <th>Кол-во</th>
+            <th>Материал</th>
+            <th>Фрезировка</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="partsBody">
+          <tr><td colspan="6" class="empty">Добавьте детали</td></tr>
+        </tbody>
+      </table>
+      <div class="export-bar">
+        <button class="btn btn-primary btn-sm" onclick="exportDXF()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Экспорт DXF
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="exportExcel()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Экспорт Excel
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="clearParts()" style="margin-left:auto">Очистить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PREVIEW -->
+  <div class="preview-area scroll-y">
+    <div>
+      <div class="preview-label">Вид сверху — фасад</div>
+      <div class="preview-canvas" id="previewTop">
+        <svg id="previewTopSVG" viewBox="0 0 500 360" width="500" height="360"></svg>
+      </div>
+    </div>
+    <div class="preview-row">
+      <div>
+        <div class="preview-label">Профиль фрезировки</div>
+        <div class="preview-box">
+          <svg id="previewProfileSVG" viewBox="0 0 400 80" width="400" height="80"></svg>
+        </div>
+      </div>
+      <div>
+        <div class="preview-label">3D превью</div>
+        <div class="preview-3d" id="preview3d">
+          <div class="preview-3d-label">3D</div>
+          <div class="preview-3d-hint">ЛКМ — вращение · Колесо — зум · ПКМ — панорама</div>
+          <button class="btn btn-ghost btn-sm" onclick="toggleFullscreen3D()" style="position:absolute;top:8px;right:8px;z-index:2">⛶ Полный экран</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Информация</div>
+      <div id="infoBlock" style="font-size:13px;color:var(--text2);line-height:1.8">
+        Выберите категорию и модель фрезировки из каталога
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// ============================================================
+// CATALOG DATA — based on Gloss Master catalog
+// ============================================================
+const CATEGORIES = [
+  { id: 'reeding', name: 'Рифление', icon: '║' },
+  { id: 'classic', name: 'Классика', icon: '◻' },
+  { id: 'premium', name: 'Премиум', icon: '◈' },
+  { id: 'complex', name: 'Сложные', icon: '❖' },
+];
+
+const REEDING_VARIANTS = [
+  { id: 'straight', name: 'Прямые' },
+  { id: 'oval', name: 'Овал' },
+  { id: 'slate', name: 'Шифер' },
+  { id: 'wave', name: 'Волна' },
+  { id: 'herringbone', name: 'Ёлочка' },
+  { id: 'scales', name: 'Чешуя' },
+  { id: 'fan', name: 'Веер' },
+  { id: 'diagonal', name: 'Косое' },
+];
+
+let activeCat = 'reeding';
+let activeVariant = 'straight';
+let selectedModel = null;
+let parts = [];
+let editingIndex = -1;
+let scene3d, camera3d, renderer3d, mesh3d;
+
+const MODELS = [
+  // === КЛАССИКА (из каталога Gloss Master) ===
+  { id: 'AS-2', cat: 'classic', name: 'AS-2', desc: 'Классическая рамочная', depth: 3, radius: 4, margin: 51, minSize: 202 },
+  { id: 'AS-3', cat: 'classic', name: 'AS-3', desc: 'Рамка с филёнкой', depth: 3, radius: 4, margin: 51, minSize: 202 },
+  { id: 'AS-6', cat: 'classic', name: 'AS-6', desc: 'Глубокая рамка', depth: 4, radius: 3, margin: 63, minSize: 253 },
+  { id: 'AS-52', cat: 'classic', name: 'AS-52', desc: 'Мягкий профиль', depth: 2.5, radius: 5, margin: 58, minSize: 212 },
+  { id: 'HANDLE', cat: 'classic', name: 'Интегр. ручка', desc: 'Интегрированная ручка', depth: 2, radius: 3, margin: 25, minSize: 200 },
+  { id: 'F-1', cat: 'classic', name: 'F-1', desc: 'Простая филёнка', depth: 2, radius: 3, margin: 51, minSize: 235 },
+  { id: 'F-10', cat: 'classic', name: 'F-10', desc: 'Рамка овальная', depth: 3, radius: 8, margin: 51, minSize: 220 },
+  { id: 'F-11', cat: 'classic', name: 'F-11', desc: 'Профиль мягкий', depth: 2.5, radius: 6, margin: 51, minSize: 250 },
+  { id: 'F-12', cat: 'classic', name: 'F-12', desc: 'Классика глубокая', depth: 4, radius: 3, margin: 51, minSize: 220 },
+  { id: 'F-20', cat: 'classic', name: 'F-20', desc: 'Рамка узкая', depth: 2, radius: 2, margin: 59, minSize: 200 },
+  { id: 'F-30', cat: 'classic', name: 'F-30', desc: 'Профиль выраженный', depth: 3.5, radius: 4, margin: 63, minSize: 232 },
+  { id: 'F-31', cat: 'classic', name: 'F-31', desc: 'Филёнка широкая', depth: 3, radius: 5, margin: 63, minSize: 230 },
+  { id: 'F-32', cat: 'classic', name: 'F-32', desc: 'Глубокий профиль', depth: 4, radius: 3, margin: 63, minSize: 232 },
+  { id: 'F-33', cat: 'classic', name: 'F-33', desc: 'Рамка с фаской', depth: 3, radius: 3, margin: 48, minSize: 194 },
+  { id: 'F-50A', cat: 'classic', name: 'F-50A', desc: 'Классика А', depth: 2.5, radius: 4, margin: 59, minSize: 206 },
+  { id: 'F-50', cat: 'classic', name: 'F-50', desc: 'Классика стандарт', depth: 2.5, radius: 4, margin: 52, minSize: 212 },
+  { id: 'F-53', cat: 'classic', name: 'F-53', desc: 'Филёнка радиусная', depth: 3, radius: 8, margin: 52, minSize: 212 },
+  { id: 'F-55', cat: 'classic', name: 'F-55', desc: 'Рамка двойная', depth: 3, radius: 3, margin: 44, minSize: 220 },
+  { id: 'F-145', cat: 'classic', name: 'F-145', desc: 'Филёнка декор', depth: 3, radius: 5, margin: 55, minSize: 212 },
+  { id: 'FA-13', cat: 'classic', name: 'FA-13', desc: 'Арочная рамка', depth: 3, radius: 10, margin: 61, minSize: 232 },
+  { id: 'F-57', cat: 'classic', name: 'F-57', desc: 'Профиль строгий', depth: 3.5, radius: 2, margin: 63, minSize: 206 },
+  { id: 'FR-34', cat: 'classic', name: 'FR-34', desc: 'Рамка рельефная', depth: 3.5, radius: 4, margin: 54, minSize: 220 },
+  { id: 'K-141', cat: 'classic', name: 'K-141', desc: 'Классика спокойная', depth: 2, radius: 4, margin: 72, minSize: 230 },
+  { id: 'K-142', cat: 'classic', name: 'K-142', desc: 'Классика мягкая', depth: 2.5, radius: 5, margin: 69, minSize: 232 },
+  { id: 'K-630', cat: 'classic', name: 'K-630', desc: 'Спокойная под эмаль', depth: 2, radius: 4, margin: 76, minSize: 230 },
+  { id: 'AFINA-CL', cat: 'classic', name: 'Афина клас.', desc: 'Афина классическая', depth: 3, radius: 5, margin: 65, minSize: 266 },
+  { id: 'TS-2', cat: 'classic', name: 'TS-2', desc: 'Традиционная', depth: 3, radius: 3, margin: 60, minSize: 230 },
+  { id: 'TEXAS', cat: 'classic', name: 'Техас', desc: 'Техас профиль', depth: 3, radius: 4, margin: 66, minSize: 228 },
+  { id: 'K-237', cat: 'classic', name: 'K-237', desc: 'Классика 237', depth: 3, radius: 3, margin: 60, minSize: 228 },
+
+  // === ПРЕМИУМ (из каталога Gloss Master) ===
+  { id: 'BOSCA', cat: 'premium', name: 'Bosca', desc: 'Итальянский стиль', depth: 4, radius: 5, margin: 130, minSize: 280 },
+  { id: 'FENIX', cat: 'premium', name: 'Fenix', desc: 'Глубокий премиум', depth: 5, radius: 3, margin: 60, minSize: 204 },
+  { id: 'ATTICO', cat: 'premium', name: 'Аттико', desc: 'Аттический профиль', depth: 4, radius: 5, margin: 54, minSize: 163 },
+  { id: 'BALANCE', cat: 'premium', name: 'Balance', desc: 'Сбалансированный', depth: 3.5, radius: 6, margin: 97, minSize: 283 },
+  { id: 'ANGLIA', cat: 'premium', name: 'Англия', desc: 'Английский стиль', depth: 3.5, radius: 4, margin: 52, minSize: 236 },
+  { id: 'ANGLIA-2', cat: 'premium', name: 'Англия-2', desc: 'Английский двойной', depth: 3.5, radius: 4, margin: 55, minSize: 229 },
+  { id: 'INFINITY', cat: 'premium', name: 'Инфинити', desc: 'Бесконечный профиль', depth: 3, radius: 8, margin: 63, minSize: 230 },
+  { id: 'CAGLIARI', cat: 'premium', name: 'Кальяри', desc: 'Средиземноморский', depth: 4, radius: 5, margin: 60, minSize: 240 },
+  { id: 'MARIA', cat: 'premium', name: 'Мария', desc: 'Мария профиль', depth: 3, radius: 4, margin: 50, minSize: 220 },
+  { id: 'PALERMO', cat: 'premium', name: 'Палермо', desc: 'Сицилийский стиль', depth: 4, radius: 6, margin: 76, minSize: 170 },
+  { id: 'AFINA-2', cat: 'premium', name: 'Афина-2', desc: 'Афинская рамка', depth: 3.5, radius: 5, margin: 66, minSize: 240 },
+  { id: 'AFINA-4', cat: 'premium', name: 'Афина-4', desc: 'Афинская глубокая', depth: 4.5, radius: 4, margin: 65, minSize: 228 },
+  { id: 'AFINA', cat: 'premium', name: 'Афина', desc: 'Афина профиль', depth: 3, radius: 5, margin: 68, minSize: 260 },
+  { id: 'CASHEMIRE-3', cat: 'premium', name: 'Cashemire-3', desc: 'Кашемир тройной', depth: 3, radius: 4, margin: 55, minSize: 180 },
+  { id: 'TS-1', cat: 'premium', name: 'TS-1', desc: 'Премиум классика', depth: 3.5, radius: 4, margin: 64, minSize: 224 },
+  { id: 'TS-3', cat: 'premium', name: 'TS-3', desc: 'Премиум глубокий', depth: 4.5, radius: 3, margin: 50, minSize: 208 },
+  { id: 'AMALFI', cat: 'premium', name: 'Амальфи', desc: 'Итальянская классика', depth: 4, radius: 6, margin: 50, minSize: 222 },
+  { id: 'SMUSSO-1', cat: 'premium', name: 'Smusso-1', desc: 'Сглаженный профиль', depth: 3, radius: 8, margin: 50, minSize: 144 },
+  { id: 'SMUSSO-2', cat: 'premium', name: 'Smusso-2', desc: 'Мягкий премиум', depth: 3.5, radius: 7, margin: 30, minSize: 160 },
+  { id: 'SMUSSO-3', cat: 'premium', name: 'Smusso-3', desc: 'Глубокий сглаженный', depth: 4, radius: 6, margin: 30, minSize: 180 },
+  { id: 'ALBERO', cat: 'premium', name: 'Альберо', desc: 'Деревянный профиль', depth: 3, radius: 5, margin: 54, minSize: 252 },
+  { id: 'LUSSO', cat: 'premium', name: 'Lusso', desc: 'Роскошный профиль', depth: 4.5, radius: 6, margin: 62, minSize: 180 },
+  { id: 'PENELOPA', cat: 'premium', name: 'Пенелопа', desc: 'Пенелопа профиль', depth: 3, radius: 5, margin: 70, minSize: 160 },
+  { id: 'AV-5', cat: 'premium', name: 'AV-5', desc: 'Выразительный профиль', depth: 4, radius: 5, margin: 58, minSize: 175 },
+  { id: 'AGAT', cat: 'premium', name: 'Агат', desc: 'Декоративный профиль', depth: 4, radius: 5, margin: 68, minSize: 248 },
+  { id: 'GM-10', cat: 'premium', name: 'GM-10', desc: 'Современный премиум', depth: 3.5, radius: 5, margin: 51, minSize: 214 },
+  { id: 'FILYONKA', cat: 'premium', name: 'Филёнка', desc: 'Филёнка премиум', depth: 3, radius: 4, margin: 55, minSize: 165 },
+  { id: 'VIVALDI', cat: 'premium', name: 'Вивальди', desc: 'Вивальди профиль', depth: 3, radius: 5, margin: 62, minSize: 224 },
+  { id: 'UNIKA', cat: 'premium', name: 'Уника GM', desc: 'Уника геометрия', depth: 3, radius: 4, margin: 82, minSize: 240 },
+  { id: 'FRANCE', cat: 'premium', name: 'France', desc: 'Французский стиль', depth: 3, radius: 4, margin: 50, minSize: 242 },
+
+  // === СЛОЖНЫЕ (из каталога Gloss Master) ===
+  { id: 'K-210', cat: 'complex', name: 'K-210', desc: 'Сложная геометрия', depth: 3.5, radius: 2, margin: 50, minSize: 140 },
+  { id: 'LINGOTTO', cat: 'complex', name: 'Lingotti', desc: 'Рейка с золотом', depth: 2.5, radius: 1.5, margin: 50, minSize: 120 },
+  { id: 'CASCADE', cat: 'complex', name: 'Cascade', desc: 'Каскадная рейка', depth: 2.5, radius: 2, margin: 50, minSize: 140 },
+  { id: 'K-650', cat: 'complex', name: 'K-650', desc: 'Глубокая декоративная', depth: 4, radius: 3, margin: 50, minSize: 156 },
+  { id: 'IVORY', cat: 'complex', name: 'Айвори', desc: 'Слоновая кость', depth: 2.5, radius: 4, margin: 68, minSize: 228 },
+  { id: 'VITTO', cat: 'complex', name: 'Vitto', desc: 'Витая геометрия', depth: 3, radius: 3, margin: 29, minSize: 80 },
+  { id: 'WAVE', cat: 'complex', name: 'Волна', desc: 'Волна декоративная', depth: 3, radius: 8, margin: 18, minSize: 42 },
+  { id: 'WAVE-SM', cat: 'complex', name: 'Wave', desc: 'Волна малая', depth: 2, radius: 6, margin: 18, minSize: 45 },
+  { id: 'WAVE-2', cat: 'complex', name: 'Волна-2', desc: 'Волна глубокая', depth: 4, radius: 10, margin: 16, minSize: 32 },
+  { id: 'REIKA', cat: 'complex', name: 'Рейка', desc: 'Реечный рисунок', depth: 2, radius: 1.5, margin: 12, minSize: 30 },
+  { id: 'LINEAR', cat: 'complex', name: 'Linear', desc: 'Линейная рейка', depth: 2, radius: 1.5, margin: 12, minSize: 100 },
+  { id: 'VELVET', cat: 'complex', name: 'Velvet', desc: 'Бархатная текстура', depth: 2, radius: 2, margin: 18, minSize: 100 },
+  { id: 'RV-1', cat: 'complex', name: 'RV-1', desc: 'Рейка вертикальная', depth: 2, radius: 2, margin: 58, minSize: 165 },
+  { id: 'RV-2', cat: 'complex', name: 'RV-2', desc: 'Рейка двойная', depth: 2.5, radius: 2, margin: 55, minSize: 156 },
+  { id: 'RV-3', cat: 'complex', name: 'RV-3', desc: 'Рейка тройная', depth: 3, radius: 2, margin: 60, minSize: 161 },
+  { id: 'RAMKA', cat: 'complex', name: 'Рамка', desc: 'Рамка классическая', depth: 3.5, radius: 3, margin: 80, minSize: 180 },
+  { id: 'POLosy', cat: 'complex', name: 'Полосы', desc: 'Горизонтальные полосы', depth: 2, radius: 2, margin: 74, minSize: 170 },
+  { id: 'FRAME', cat: 'complex', name: 'Frame', desc: 'Рамка сложная', depth: 3, radius: 3, margin: 74, minSize: 180 },
+  { id: 'AV-DECOR', cat: 'complex', name: 'AV-декор', desc: 'Декоративная', depth: 3, radius: 3, margin: 67, minSize: 254 },
+  { id: 'BREEZE', cat: 'complex', name: 'Breeze', desc: 'Бриз текстура', depth: 2, radius: 2, margin: 12, minSize: 70 },
+];
+
+// ============================================================
+// SVG GENERATORS
+// ============================================================
+
+function reedingThumbSVG(variant) {
+  let inner = '';
+  switch (variant) {
+    case 'straight':
+      for (let x = 18; x < 85; x += 8) inner += `<line x1="${x}" y1="8" x2="${x}" y2="52" stroke="#00D4AA" stroke-width="1.5" opacity="0.6"/>`;
+      break;
+    case 'oval':
+      for (let x = 20; x < 82; x += 12) inner += `<ellipse cx="${x}" cy="30" rx="4" ry="20" fill="none" stroke="#00D4AA" stroke-width="1.2" opacity="0.5"/>`;
+      break;
+    case 'slate':
+      for (let y = 10; y < 52; y += 8) for (let x = 14; x < 88; x += 12) inner += `<rect x="${x}" y="${y}" width="8" height="5" rx="1" fill="none" stroke="#00D4AA" stroke-width="0.8" opacity="0.5" transform="rotate(${(x+y)%20-10} ${x+4} ${y+2.5})"/>`;
+      break;
+    case 'wave':
+      for (let y = 12; y < 50; y += 8) inner += `<path d="M 10 ${y} Q 30 ${y-5} 50 ${y} Q 70 ${y+5} 90 ${y}" fill="none" stroke="#00D4AA" stroke-width="1.2" opacity="0.5"/>`;
+      break;
+    case 'herringbone':
+      for (let x = 20; x < 82; x += 10) { inner += `<line x1="${x}" y1="10" x2="${x+5}" y2="30" stroke="#00D4AA" stroke-width="1" opacity="0.5"/>`; inner += `<line x1="${x+5}" y1="30" x2="${x}" y2="50" stroke="#00D4AA" stroke-width="1" opacity="0.5"/>`; }
+      break;
+    case 'scales':
+      for (let y = 8; y < 55; y += 10) for (let x = 14; x < 88; x += 10) inner += `<path d="M ${x} ${y+8} Q ${x+5} ${y} ${x+10} ${y+8}" fill="none" stroke="#00D4AA" stroke-width="1" opacity="0.5"/>`;
+      break;
+    case 'fan':
+      for (let x = 20; x < 82; x += 12) { for (let a = -40; a <= 40; a += 16) { const r = 18; const rad = a * Math.PI / 180; inner += `<line x1="${x}" y1="50" x2="${x + Math.sin(rad)*r}" y2="${50 - Math.cos(rad)*r}" stroke="#00D4AA" stroke-width="0.8" opacity="0.4"/>`; } }
+      break;
+    case 'diagonal':
+      for (let i = -60; i < 160; i += 10) inner += `<line x1="${10+i}" y1="52" x2="${i-30}" y2="8" stroke="#00D4AA" stroke-width="1" opacity="0.4"/>`;
+      break;
+  }
+  return `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="4" width="92" height="52" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+    ${inner}
+  </svg>`;
+}
+
+function modelThumbSVG(model) {
+  if (model.cat === 'reeding') return reedingThumbSVG(model.variant || 'straight');
+  let inner = '';
+  switch (model.cat) {
+    case 'classic':
+      // draw inner milling as a subtle recessed area on the main panel
+      inner = `<rect x="12" y="8" width="76" height="44" rx="3" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+               <rect x="20" y="14" width="60" height="32" rx="2" fill="rgba(0,212,170,0.06)" stroke="rgba(0,212,170,0.12)" stroke-width="0.6"/>`;
+      break;
+    case 'premium':
+      inner = `<rect x="10" y="6" width="80" height="48" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1.2"/>
+               <rect x="18" y="12" width="64" height="36" rx="6" fill="rgba(0,212,170,0.05)" stroke="rgba(0,212,170,0.1)" stroke-width="0.8"/>`;
+      break;
+    case 'complex':
+      for (let x = 18; x < 85; x += 8) inner += `<line x1="${x}" y1="10" x2="${x}" y2="50" stroke="#00D4AA" stroke-width="1.2" opacity="0.5"/>`;
+      break;
+  }
+  return `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="4" width="92" height="52" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+    ${inner}
+  </svg>`;
+}
+
+function previewTopSVG(model, width, height, params) {
+  if (!model) return `<svg id="previewTopSVG" viewBox="0 0 500 360" width="500" height="360" xmlns="http://www.w3.org/2000/svg"><text x="250" y="180" text-anchor="middle" fill="#6a6a72" font-size="14" font-family="sans-serif">Выберите модель из каталога</text></svg>`;
+  const scale = Math.min(440 / width, 300 / height);
+  const w = width * scale;
+  const h = height * scale;
+  const ox = (500 - w) / 2;
+  const oy = (360 - h) / 2;
+  const { depth, radius, step, margin } = params;
+  const s = step * scale;
+  const m = margin * scale;
+  let paths = '';
+
+  switch (model.cat) {
+    case 'reeding': {
+      const variant = model.variant || 'straight';
+      switch (variant) {
+        case 'straight':
+          for (let x = ox + m; x <= ox + w - m; x += s) paths += `<line x1="${x}" y1="${oy+m}" x2="${x}" y2="${oy+h-m}" stroke="#00D4AA" stroke-width="1.5" opacity="0.7"/>`;
+          break;
+        case 'oval':
+          for (let x = ox + m; x <= ox + w - m; x += s) paths += `<ellipse cx="${x}" cy="${oy+h/2}" rx="${s*0.3}" ry="${(h-2*m)*0.4}" fill="none" stroke="#00D4AA" stroke-width="1.2" opacity="0.6"/>`;
+          break;
+        case 'slate':
+          for (let y = oy + m; y <= oy + h - m; y += s * 0.6) for (let x = ox + m; x <= ox + w - m; x += s) paths += `<rect x="${x}" y="${y}" width="${s*0.6}" height="${s*0.4}" rx="1" fill="none" stroke="#00D4AA" stroke-width="0.8" opacity="0.5"/>`;
+          break;
+        case 'wave':
+          for (let y = oy + m; y <= oy + h - m; y += s * 0.8) paths += `<path d="M ${ox+m} ${y} Q ${ox+w/3} ${y-s*0.3} ${ox+w/2} ${y} Q ${ox+w*2/3} ${y+s*0.3} ${ox+w-m} ${y}" fill="none" stroke="#00D4AA" stroke-width="1" opacity="0.6"/>`;
+          break;
+        case 'herringbone':
+          for (let y = oy + m; y <= oy + h - m; y += s) { for (let x = ox + m; x <= ox + w - m; x += s) { paths += `<path d="M ${x} ${y} L ${x+s/2} ${y+s/2} L ${x+s} ${y}" fill="none" stroke="#00D4AA" stroke-width="0.8" opacity="0.5"/>`; } }
+          break;
+        case 'scales':
+          for (let y = oy + m; y <= oy + h - m; y += s * 0.7) { for (let x = ox + m; x <= ox + w - m; x += s) paths += `<path d="M ${x} ${y+s*0.5} Q ${x+s/2} ${y} ${x+s} ${y+s*0.5}" fill="none" stroke="#00D4AA" stroke-width="0.8" opacity="0.5"/>`; }
+          break;
+        case 'fan':
+          for (let x = ox + m; x <= ox + w - m; x += s) { for (let a = -30; a <= 30; a += 12) { const r = s * 0.6; const rad = a * Math.PI / 180; paths += `<line x1="${x}" y1="${oy+h-m}" x2="${x+Math.sin(rad)*r}" y2="${oy+h-m-Math.cos(rad)*r}" stroke="#00D4AA" stroke-width="0.8" opacity="0.5"/>`; } }
+          break;
+        case 'diagonal':
+          for (let i = -(h+m); i < w+m; i += s * 0.8) paths += `<line x1="${ox+i}" y1="${oy+h-m}" x2="${ox+i+h-2*m}" y2="${oy+m}" stroke="#00D4AA" stroke-width="1" opacity="0.5"/>`;
+          break;
+      }
+      break;
+    }
+    case 'classic':
+    case 'premium': {
+      const r = Math.min(radius * scale, 10);
+      // draw milling area as a subtle recessed fill on the facade (not as a separate floating panel)
+      paths += `<rect x="${ox+m}" y="${oy+m}" width="${w-2*m}" height="${h-2*m}" rx="${r}" fill="rgba(0,0,0,0.12)" stroke="rgba(0,212,170,0.12)" stroke-width="1.5"/>`;
+      if (model.cat === 'premium') paths += `<rect x="${ox+m*0.4}" y="${oy+m*0.4}" width="${w-2*m*0.4}" height="${h-2*m*0.4}" rx="${r*0.8}" fill="rgba(0,0,0,0.08)" stroke="rgba(0,212,170,0.08)" stroke-width="1"/>`;
+      break;
+    }
+    case 'complex': {
+      for (let x = ox + m; x <= ox + w - m; x += s) paths += `<line x1="${x}" y1="${oy+m}" x2="${x}" y2="${oy+h-m}" stroke="#00D4AA" stroke-width="1.5" opacity="0.6"/>`;
+      break;
+    }
+  }
+
+  return `<svg id="previewTopSVG" viewBox="0 0 500 360" width="500" height="360" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${ox}" y="${oy}" width="${w}" height="${h}" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+    ${paths}
+    <text x="${ox+w/2}" y="${oy-8}" text-anchor="middle" fill="#6a6a72" font-size="11" font-family="sans-serif">${width} мм</text>
+    <text x="${ox-8}" y="${oy+h/2}" text-anchor="middle" fill="#6a6a72" font-size="11" font-family="sans-serif" transform="rotate(-90 ${ox-8} ${oy+h/2})">${height} мм</text>
+  </svg>`;
+}
+
+function profileSVG(model, params) {
+  if (!model) return `<svg id="previewProfileSVG" viewBox="0 0 400 80" width="400" height="80" xmlns="http://www.w3.org/2000/svg"><text x="200" y="45" text-anchor="middle" fill="#6a6a72" font-size="12" font-family="sans-serif">Профиль</text></svg>`;
+  const { depth, radius } = params;
+  const baseY = 55;
+  const th = 18;
+  let p = '';
+
+  p += `<rect x="20" y="${baseY-th}" width="360" height="${th}" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+
+  const d = depth * 4;
+  const r = radius * 2;
+
+  switch (model.cat) {
+    case 'reeding': {
+      const variant = model.variant || 'straight';
+      const step = 14;
+      switch (variant) {
+        case 'straight':
+          for (let x = 35; x < 370; x += step) p += `<path d="M ${x} ${baseY-th} L ${x} ${baseY-d} L ${x+5} ${baseY-d} L ${x+5} ${baseY-th}" fill="none" stroke="#00D4AA" stroke-width="1.2" opacity="0.8"/>`;
+          break;
+        case 'oval':
+          for (let x = 40; x < 365; x += step) p += `<ellipse cx="${x}" cy="${baseY-th/2}" rx="4" ry="${d/2}" fill="none" stroke="#00D4AA" stroke-width="1.2" opacity="0.7"/>`;
+          break;
+        case 'slate':
+          for (let x = 35; x < 370; x += step) p += `<path d="M ${x} ${baseY-th} L ${x+3} ${baseY-d} L ${x+8} ${baseY-d} L ${x+11} ${baseY-th}" fill="none" stroke="#00D4AA" stroke-width="1" opacity="0.7"/>`;
+          break;
+        case 'wave':
+          for (let x = 35; x < 370; x += step) p += `<path d="M ${x} ${baseY-th} Q ${x+3} ${baseY-d} ${x+7} ${baseY-th}" fill="none" stroke="#00D4AA" stroke-width="1.2" opacity="0.7"/>`;
+          break;
+        case 'herringbone':
+          for (let x = 35; x < 370; x += step) { p += `<path d="M ${x} ${baseY-th} L ${x+5} ${baseY-d} L ${x+10} ${baseY-th}" fill="none" stroke="#00D4AA" stroke-width="1" opacity="0.7"/>`; }
+          break;
+        case 'scales':
+          for (let x = 35; x < 370; x += step) p += `<path d="M ${x} ${baseY-th} Q ${x+5} ${baseY-d} ${x+10} ${baseY-th}" fill="none" stroke="#00D4AA" stroke-width="1.2" opacity="0.7"/>`;
+          break;
+        case 'fan':
+          for (let x = 40; x < 365; x += step) { for (let a = -30; a <= 30; a += 15) { const rad = a * Math.PI / 180; const rr = d * 0.8; p += `<line x1="${x}" y1="${baseY}" x2="${x+Math.sin(rad)*rr}" y2="${baseY-Math.cos(rad)*rr}" stroke="#00D4AA" stroke-width="0.8" opacity="0.6"/>`; } }
+          break;
+        case 'diagonal':
+          for (let x = 35; x < 370; x += step) p += `<line x1="${x}" y1="${baseY-th}" x2="${x+d*0.5}" y2="${baseY}" stroke="#00D4AA" stroke-width="1.2" opacity="0.7"/>`;
+          break;
+      }
+      break;
+    }
+    case 'classic':
+      p += `<path d="M 35 ${baseY} L 35 ${baseY-d+r} Q 35 ${baseY-d} ${35+r} ${baseY-d} L ${365-r} ${baseY-d} Q 365 ${baseY-d} 365 ${baseY-d+r} L 365 ${baseY}" fill="none" stroke="#00D4AA" stroke-width="2" opacity="0.8"/>`;
+      break;
+    case 'premium':
+      p += `<path d="M 30 ${baseY} L 30 ${baseY-d*0.3} Q 50 ${baseY-d} 200 ${baseY-d} Q 350 ${baseY-d} 370 ${baseY-d*0.3} L 370 ${baseY}" fill="none" stroke="#00D4AA" stroke-width="2" opacity="0.8"/>`;
+      break;
+    case 'complex':
+      for (let x = 35; x < 370; x += 16) p += `<line x1="${x}" y1="${baseY-th}" x2="${x}" y2="${baseY-d}" stroke="#00D4AA" stroke-width="1.5" opacity="0.7"/>`;
+      break;
+  }
+
+  if (depth > 0) {
+    p += `<line x1="385" y1="${baseY}" x2="385" y2="${baseY-d}" stroke="#FFB300" stroke-width="1" stroke-dasharray="3,2"/>`;
+    p += `<text x="392" y="${baseY-d/2}" fill="#FFB300" font-size="9" font-family="sans-serif">${depth}мм</text>`;
+  }
+
+  return `<svg id="previewProfileSVG" viewBox="0 0 400 80" width="400" height="80" xmlns="http://www.w3.org/2000/svg">${p}</svg>`;
+}
+
+// ============================================================
+// 3D PREVIEW
+// ============================================================
+
+function getMaterialColor() {
+  const mat = document.getElementById('partMaterial').value;
+  if (mat.includes('raw')) return { base: 0xb09070, relief: 0x7a5a3a, ridge: 0xc4a882 };
+  return { base: 0xd4cfc6, relief: 0x9a8a70, ridge: 0xe8e0d4 };
+}
+
+function getMaterialThickness() {
+  const mat = document.getElementById('partMaterial').value;
+  const match = mat.match(/(\d+)/);
+  return match ? parseInt(match[1]) : 18;
+}
+
+let controls3d, autoRotate = true;
+
+function init3D() {
+  if (typeof THREE === 'undefined') {
+    document.getElementById('preview3d').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6a6a72;font-size:13px">3D недоступен</div>';
+    return;
+  }
+  const container = document.getElementById('preview3d');
+
+  // Scene
+  scene3d = new THREE.Scene();
+  scene3d.background = new THREE.Color(0x1a1a1e);
+  scene3d.fog = new THREE.Fog(0x1a1a1e, 2, 8);
+
+  // Camera
+  camera3d = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.01, 50);
+  camera3d.position.set(0.4, 0.35, 0.55);
+
+  // Renderer with shadows
+  renderer3d = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer3d.setSize(container.clientWidth, container.clientHeight);
+  renderer3d.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer3d.shadowMap.enabled = true;
+  renderer3d.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer3d.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer3d.toneMappingExposure = 1.2;
+  renderer3d.outputEncoding = THREE.sRGBEncoding;
+  container.appendChild(renderer3d.domElement);
+
+  // OrbitControls
+  if (THREE.OrbitControls) {
+    controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
+    controls3d.enableDamping = true;
+    controls3d.dampingFactor = 0.08;
+    controls3d.minDistance = 0.2;
+    controls3d.maxDistance = 2;
+    controls3d.autoRotate = true;
+    controls3d.autoRotateSpeed = 1.5;
+    controls3d.target.set(0, 0, 0);
+    controls3d.addEventListener('start', () => { autoRotate = false; controls3d.autoRotate = false; });
+  }
+
+  // Lighting — cinematic setup for showing depth
+  const ambient = new THREE.AmbientLight(0xffffff, 0.25);
+  scene3d.add(ambient);
+
+  // Key light — warm, from top-right
+  const keyLight = new THREE.DirectionalLight(0xfff5e6, 0.9);
+  keyLight.position.set(1.5, 2.5, 1);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.width = 1024;
+  keyLight.shadow.mapSize.height = 1024;
+  keyLight.shadow.camera.near = 0.1;
+  keyLight.shadow.camera.far = 10;
+  keyLight.shadow.camera.left = -1;
+  keyLight.shadow.camera.right = 1;
+  keyLight.shadow.camera.top = 1;
+  keyLight.shadow.camera.bottom = -1;
+  keyLight.shadow.bias = -0.001;
+  scene3d.add(keyLight);
+
+  // Fill light — cool, from left
+  const fillLight = new THREE.DirectionalLight(0xc8d8ff, 0.5);
+  fillLight.position.set(-2, 1.5, 0.5);
+  scene3d.add(fillLight);
+
+  // Rim light — strong side light to reveal depth (45° angle)
+  const rimLight = new THREE.DirectionalLight(0xffffff, 0.7);
+  rimLight.position.set(-0.5, 0.5, 2);
+  scene3d.add(rimLight);
+
+  // Back rim — subtle edge highlight
+  const backRim = new THREE.DirectionalLight(0x88aaff, 0.3);
+  backRim.position.set(0, 1, -2);
+  scene3d.add(backRim);
+
+  // Ground plane for shadows
+  const groundGeo = new THREE.PlaneGeometry(4, 4);
+  const groundMat = new THREE.ShadowMaterial({ opacity: 0.3 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.02;
+  ground.receiveShadow = true;
+  scene3d.add(ground);
+
+  update3D();
+  animate3D();
+}
+
+function makeMat(color, roughness = 0.6, metalness = 0.05) {
+  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+}
+
+// ============================================================
+// PARAMETRIC PROFILE SYSTEM
+// ============================================================
+
+// Profile definitions — mathematical curves for each milling type
+const PROFILES = {
+  // Reeding profiles
+  straight: {
+    type: 'linear',
+    createShape(depth, step) {
+      const s = new THREE.Shape();
+      const hw = step * 0.25;
+      s.moveTo(-hw, 0);
+      s.lineTo(-hw, depth);
+      s.lineTo(hw, depth);
+      s.lineTo(hw, 0);
+      s.closePath();
+      return s;
+    }
+  },
+  oval: {
+    type: 'arc',
+    createShape(depth, step) {
+      const s = new THREE.Shape();
+      const hw = step * 0.3;
+      const r = depth;
+      s.moveTo(-hw, 0);
+      s.absarc(0, depth, hw, Math.PI, 0, false);
+      s.lineTo(hw, 0);
+      s.closePath();
+      return s;
+    }
+  },
+  slate: {
+    type: 'trapezoid',
+    createShape(depth, step) {
+      const s = new THREE.Shape();
+      const hw = step * 0.35;
+      const tw = step * 0.2;
+      s.moveTo(-hw, 0);
+      s.lineTo(-tw, depth);
+      s.lineTo(tw, depth);
+      s.lineTo(hw, 0);
+      s.closePath();
+      return s;
+    }
+  },
+  wave: {
+    type: 'sinusoidal',
+    createShape(depth, step) {
+      const s = new THREE.Shape();
+      const hw = step * 0.3;
+      const segs = 16;
+      s.moveTo(-hw, 0);
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const x = -hw + t * hw * 2;
+        const y = depth * Math.sin(t * Math.PI);
+        s.lineTo(x, y);
+      }
+      s.closePath();
+      return s;
+    }
+  },
+  herringbone: {
+    type: 'chevron',
+    createShape(depth, step) {
+      const s = new THREE.Shape();
+      const hw = step * 0.25;
+      const hd = depth * 0.7;
+      s.moveTo(-hw, 0);
+      s.lineTo(0, hd);
+      s.lineTo(hw, 0);
+      s.closePath();
+      return s;
+    }
+  },
+  scales: {
+    type: 'arc_inv',
+    createShape(depth, step) {
+      const s = new THREE.Shape();
+      const hw = step * 0.35;
+      s.moveTo(-hw, depth);
+      s.absarc(0, depth, hw, Math.PI, 0, true);
+      s.lineTo(hw, 0);
+      s.lineTo(-hw, 0);
+      s.closePath();
+      return s;
+    }
+  },
+  fan: {
+    type: 'radial',
+    createShape(depth, step) {
+      const s = new THREE.Shape();
+      const r = depth * 1.2;
+      const a1 = -Math.PI / 3;
+      const a2 = Math.PI / 3;
+      s.moveTo(0, 0);
+      s.absarc(0, 0, r, a1, a2, false);
+      s.closePath();
+      return s;
+    }
+  },
+  diagonal: {
+    type: 'angled',
+    createShape(depth, step) {
+      const s = new THREE.Shape();
+      const hw = step * 0.25;
+      s.moveTo(-hw, 0);
+      s.lineTo(hw, depth);
+      s.lineTo(hw + hw * 0.3, depth);
+      s.lineTo(-hw + hw * 0.3, 0);
+      s.closePath();
+      return s;
+    }
+  }
+};
+
+function update3D() {
+  if (!scene3d || typeof THREE === 'undefined') return;
+  if (mesh3d) {
+    scene3d.remove(mesh3d);
+    mesh3d.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    });
+  }
+
+  const partW = (parseInt(document.getElementById('partWidth').value) || 400) / 1000;
+  const partH = (parseInt(document.getElementById('partHeight').value) || 300) / 1000;
+  const depth = parseFloat(document.getElementById('paramDepth').value) || 0;
+  const d = (depth / 1000) * 3;
+  const thickness = getMaterialThickness() / 1000;
+  const colors = getMaterialColor();
+
+  const group = new THREE.Group();
+
+  function addMesh(geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    group.add(m);
+    return m;
+  }
+
+  function createReeding(step, w, h, margin, colors, variant) {
+    const grooveD = Math.min(Math.max(thickness * 0.7, 0.002), 0.012);
+    const innerW = w - 2 * margin;
+    const innerH = h - 2 * margin;
+    const count = Math.max(1, Math.floor(innerW / step));
+    const startX = -innerW / 2 + (innerW - count * step) / 2 + step / 2;
+    // Keep machining details embedded in the front surface of the panel,
+    // not as separate volumes floating above the plate.
+    const frontZ = thickness / 2 - grooveD * 0.75;
+
+    addMesh(new THREE.BoxGeometry(w, h, thickness), makeMat(colors.base, 0.6, 0.08), 0, 0, 0);
+
+    const grooveMat = makeMat(0x1a1a1e, 0.9, 0);
+
+    switch (variant) {
+      case 'straight':
+        for (let i = 0; i < count; i++) {
+          const x = startX + i * step;
+          addMesh(new THREE.BoxGeometry(step * 0.42, innerH, grooveD), grooveMat, x, 0, frontZ);
+        }
+        break;
+
+      case 'oval':
+        for (let i = 0; i < count; i++) {
+          const x = startX + i * step;
+          const geo = new THREE.CylinderGeometry(step * 0.3, step * 0.3, grooveD, 24, 1, true);
+          geo.rotateX(Math.PI / 2);
+          addMesh(geo, grooveMat, x, 0, frontZ);
+        }
+        break;
+
+      case 'wave':
+        for (let y = -innerH / 2; y <= innerH / 2; y += step * 0.8) {
+          const xCenter = 0;
+          for (let x = -innerW / 2; x <= innerW / 2; x += step) {
+            const localWave = Math.sin((x / (innerW || 1)) * Math.PI * 2) * (step * 0.35);
+            addMesh(new THREE.BoxGeometry(step * 0.28, step * 0.7, grooveD), grooveMat, x + localWave, y, frontZ);
+          }
+        }
+        break;
+
+      case 'slate':
+        for (let y = -innerH / 2; y <= innerH / 2; y += step * 0.55) {
+          const offset = ((Math.floor((y + innerH / 2) / (step * 0.55))) % 2 === 0) ? 0 : step * 0.45;
+          for (let i = 0; i < count; i++) {
+            const x = startX + i * step + offset;
+            addMesh(new THREE.BoxGeometry(step * 0.45, step * 0.42, grooveD * 0.7), grooveMat, x, y, frontZ);
+          }
+        }
+        break;
+
+      case 'herringbone':
+        for (let i = 0; i < count; i++) {
+          const x = startX + i * step;
+          const geo1 = new THREE.BoxGeometry(step * 0.18, innerH * 0.5, grooveD);
+          geo1.rotateY(0.45);
+          addMesh(geo1, grooveMat, x - step * 0.06, 0, frontZ);
+
+          const geo2 = new THREE.BoxGeometry(step * 0.18, innerH * 0.5, grooveD);
+          geo2.rotateY(-0.45);
+          addMesh(geo2, grooveMat, x + step * 0.06, 0, frontZ);
+        }
+        break;
+
+      case 'scales':
+        for (let y = -innerH / 2; y <= innerH / 2; y += step * 0.5) {
+          const offset = ((Math.floor((y + innerH / 2) / (step * 0.5))) % 2 === 0) ? 0 : step * 0.5;
+          for (let i = 0; i < count; i++) {
+            const x = startX + i * step + offset;
+            const geo = new THREE.SphereGeometry(step * 0.24, 16, 10, 0, Math.PI * 2, 0, Math.PI);
+            addMesh(geo, grooveMat, x, y, frontZ + grooveD * 0.15);
+          }
+        }
+        break;
+
+      case 'fan':
+        for (let i = 0; i < count; i++) {
+          const x = startX + i * step;
+          for (let angle = -35; angle <= 35; angle += 8) {
+            const rad = angle * Math.PI / 180;
+            const len = innerH * 0.3;
+            const geo = new THREE.BoxGeometry(step * 0.08, len, grooveD);
+            geo.rotateY(rad);
+            addMesh(geo, grooveMat, x, 0, frontZ + grooveD * 0.2);
+          }
+        }
+        break;
+
+      case 'diagonal':
+        for (let i = 0; i < count; i++) {
+          const x = startX + i * step;
+          const geo = new THREE.BoxGeometry(step * 0.26, innerH * 1.2, grooveD);
+          geo.rotateY(Math.PI / 4);
+          addMesh(geo, grooveMat, x, 0, frontZ);
+        }
+        break;
+    }
+  }
+
+  if (selectedModel && selectedModel.cat === 'reeding') {
+    const step = (selectedModel.step || 12) / 1000;
+    const margin = (selectedModel.margin || 15) / 1000;
+    const variant = selectedModel.variant || 'straight';
+    createReeding(step, partW, partH, margin, colors, variant);
+  } else {
+    addMesh(new THREE.BoxGeometry(partW, partH, thickness), makeMat(colors.base, 0.55, 0.08), 0, 0, 0);
+
+    if (selectedModel) {
+      const margin = (selectedModel.margin || 50) / 1000;
+      const borderD = Math.min(Math.max(thickness * 0.6, 0.004), 0.012);
+
+      if (selectedModel.cat === 'classic' || selectedModel.cat === 'premium') {
+        const frontInset = Math.max(thickness * 0.18, borderD * 0.75);
+        addMesh(new THREE.BoxGeometry(partW, partH, borderD), makeMat(colors.ridge, 0.5, 0.1), 0, 0, thickness / 2 - frontInset);
+
+        const frameW = partW - 2 * margin;
+        const frameH = partH - 2 * margin;
+        if (frameW > 0.02 && frameH > 0.02) {
+          addMesh(new THREE.BoxGeometry(frameW, frameH, borderD * 0.5), makeMat(colors.relief, 0.6, 0), 0, 0, thickness / 2 - frontInset * 0.55);
+        }
+
+        if (selectedModel.cat === 'premium') {
+          const innerMargin = margin * 0.4;
+          const innerFrameW = partW - 2 * innerMargin;
+          const innerFrameH = partH - 2 * innerMargin;
+          if (innerFrameW > 0.02 && innerFrameH > 0.02) {
+            addMesh(new THREE.BoxGeometry(innerFrameW, innerFrameH, borderD * 0.7), makeMat(colors.ridge, 0.45, 0.12), 0, 0, thickness / 2 - frontInset * 0.25);
+          }
+        }
+      } else if (selectedModel.cat === 'complex') {
+        const step = 0.012;
+        const ridgeW = step * 0.5;
+        const ridgeD = Math.min(0.004, thickness * 0.45);
+        const ridgeInset = Math.max(thickness * 0.18, ridgeD * 1.2);
+        for (let x = -partW / 2 + margin + ridgeW / 2; x <= partW / 2 - margin; x += step) {
+          addMesh(new THREE.BoxGeometry(ridgeW, partH - 2 * margin, ridgeD), makeMat(colors.ridge, 0.5, 0.1), x, 0, thickness / 2 - ridgeInset);
+        }
+      }
+    }
+  }
+
+  group.position.y = 0;
+  scene3d.add(group);
+  mesh3d = group;
+
+  if (controls3d) {
+    controls3d.target.set(0, 0, 0);
+    controls3d.update();
+  }
+}
+
+function animate3D() {
+  requestAnimationFrame(animate3D);
+  if (controls3d) controls3d.update();
+  if (renderer3d && scene3d && camera3d) renderer3d.render(scene3d, camera3d);
+}
+
+function toggleFullscreen3D() {
+  const container = document.getElementById('preview3d');
+  if (!document.fullscreenElement) {
+    container.requestFullscreen().then(() => {
+      setTimeout(() => {
+        const w = container.clientWidth;
+        const ht = container.clientHeight;
+        camera3d.aspect = w / ht;
+        camera3d.updateProjectionMatrix();
+        renderer3d.setSize(w, ht);
+      }, 100);
+    });
+  } else {
+    document.exitFullscreen().then(() => {
+      setTimeout(() => {
+        const w = container.clientWidth;
+        const ht = container.clientHeight;
+        camera3d.aspect = w / ht;
+        camera3d.updateProjectionMatrix();
+        renderer3d.setSize(w, ht);
+      }, 100);
+    });
+  }
+}
+
+// ============================================================
+// UI
+// ============================================================
+
+function renderCatTabs() {
+  const tabs = document.getElementById('catTabs');
+  tabs.innerHTML = CATEGORIES.map(c =>
+    `<div class="cat-tab ${activeCat === c.id ? 'active' : ''}" onclick="selectCat('${c.id}')">${c.icon} ${c.name}</div>`
+  ).join('');
+}
+
+function renderVariantTabs() {
+  const container = document.getElementById('variantTabs');
+  if (activeCat !== 'reeding') { container.innerHTML = ''; return; }
+  container.innerHTML = REEDING_VARIANTS.map(v =>
+    `<div class="variant-tab ${activeVariant === v.id ? 'active' : ''}" onclick="selectVariant('${v.id}')">${v.name}</div>`
+  ).join('');
+}
+
+function renderModels() {
+  const grid = document.getElementById('modelGrid');
+  let models;
+  if (activeCat === 'reeding') {
+    models = [{ id: 'RIF-' + activeVariant, cat: 'reeding', variant: activeVariant, name: REEDING_VARIANTS.find(v=>v.id===activeVariant)?.name || activeVariant, desc: 'Рифление ' + (REEDING_VARIANTS.find(v=>v.id===activeVariant)?.name || ''), depth: 2, radius: 2, margin: 15, step: 12 }];
+  } else {
+    models = MODELS.filter(m => m.cat === activeCat);
+  }
+  document.getElementById('modelCount').textContent = models.length + ' моделей';
+  grid.innerHTML = models.map(m =>
+    `<div class="model-card ${selectedModel && selectedModel.id === m.id ? 'active' : ''}" onclick="selectModel('${m.id}')">
+      ${modelThumbSVG(m)}
+      <div class="model-card-id">${m.name}</div>
+    </div>`
+  ).join('');
+}
+
+function selectCat(id) {
+  activeCat = id;
+  if (id === 'reeding') activeVariant = 'straight';
+  renderCatTabs();
+  renderVariantTabs();
+  renderModels();
+}
+
+function selectVariant(id) {
+  activeVariant = id;
+  renderVariantTabs();
+  renderModels();
+}
+
+function selectModel(id) {
+  if (activeCat === 'reeding') {
+    selectedModel = { id: 'RIF-' + activeVariant, cat: 'reeding', variant: activeVariant, name: REEDING_VARIANTS.find(v=>v.id===activeVariant)?.name || activeVariant, desc: 'Рифление ' + (REEDING_VARIANTS.find(v=>v.id===activeVariant)?.name || ''), depth: 2, radius: 2, margin: 15, step: 12 };
+  } else {
+    selectedModel = MODELS.find(m => m.id === id);
+  }
+  if (!selectedModel) return;
+
+  document.getElementById('paramDepth').value = selectedModel.depth;
+  document.getElementById('paramRadius').value = selectedModel.radius;
+  document.getElementById('paramStep').value = selectedModel.step || 20;
+  document.getElementById('paramMargin').value = selectedModel.margin;
+
+  const panel = document.getElementById('selectedPanel');
+  panel.style.display = 'block';
+  const display = document.getElementById('selectedDisplay');
+  display.innerHTML = `
+    ${modelThumbSVG(selectedModel)}
+    <div class="selected-info">
+      <div class="id">${selectedModel.name}</div>
+      <div class="cat">${CATEGORIES.find(c => c.id === selectedModel.cat)?.name || ''}</div>
+      <div class="desc">${selectedModel.desc}</div>
+    </div>
+  `;
+
+  renderModels();
+  updatePreview();
+}
+
+function getParams() {
+  return {
+    depth: parseFloat(document.getElementById('paramDepth').value) || 0,
+    radius: parseFloat(document.getElementById('paramRadius').value) || 0,
+    step: parseFloat(document.getElementById('paramStep').value) || 20,
+    margin: parseFloat(document.getElementById('paramMargin').value) || 0
+  };
+}
+
+function updatePreview() {
+  const w = parseInt(document.getElementById('partWidth').value) || 400;
+  const h = parseInt(document.getElementById('partHeight').value) || 300;
+  const params = getParams();
+
+  document.getElementById('previewTopSVG').outerHTML = previewTopSVG(selectedModel, w, h, params);
+  document.getElementById('previewProfileSVG').outerHTML = profileSVG(selectedModel, params);
+  update3D();
+
+  const cat = selectedModel ? CATEGORIES.find(c => c.id === selectedModel.cat) : null;
+  document.getElementById('infoBlock').innerHTML = selectedModel ? `
+    <div><strong>Модель:</strong> ${selectedModel.name}</div>
+    <div><strong>Категория:</strong> ${cat ? cat.name : '—'}</div>
+    <div><strong>Описание:</strong> ${selectedModel.desc}</div>
+    <div><strong>Размер:</strong> ${w} × ${h} мм</div>
+    <div><strong>Глубина:</strong> ${params.depth} мм</div>
+    <div><strong>Радиус фрезы:</strong> ${params.radius} мм</div>
+    <div><strong>Шаг:</strong> ${params.step} мм</div>
+    <div><strong>Отступ:</strong> ${params.margin} мм</div>
+  ` : 'Выберите категорию и модель фрезировки из каталога';
+}
+
+// ============================================================
+// PARTS
+// ============================================================
+
+function addPart() {
+  const name = document.getElementById('partName').value.trim() || 'Без названия';
+  const width = parseInt(document.getElementById('partWidth').value);
+  const height = parseInt(document.getElementById('partHeight').value);
+  const qty = parseInt(document.getElementById('partQty').value) || 1;
+  const material = document.getElementById('partMaterial').value;
+  const materialName = document.getElementById('partMaterial').selectedOptions[0].text;
+
+  if (!width || !height) { showToast('Введите размеры детали'); return; }
+  if (!selectedModel) { showToast('Выберите фрезировку'); return; }
+
+  const cat = CATEGORIES.find(c => c.id === selectedModel.cat);
+  const part = {
+    name, width, height, qty, material, materialName,
+    modelId: selectedModel.id,
+    modelName: selectedModel.name,
+    modelCat: cat ? cat.name : '',
+    modelDesc: selectedModel.desc,
+    params: getParams()
+  };
+
+  const wasEditing = editingIndex >= 0;
+  if (wasEditing) {
+    parts[editingIndex] = part;
+    editingIndex = -1;
+  } else {
+    parts.push(part);
+  }
+  renderTable();
+  showToast(wasEditing ? 'Деталь обновлена' : 'Деталь добавлена');
+  document.getElementById('partName').value = '';
+  document.getElementById('partWidth').value = '';
+  document.getElementById('partHeight').value = '';
+  document.getElementById('partQty').value = '1';
+}
+
+function removePart(idx) { parts.splice(idx, 1); renderTable(); showToast('Деталь удалена'); }
+
+function editPart(idx) {
+  const p = parts[idx];
+  document.getElementById('partName').value = p.name;
+  document.getElementById('partWidth').value = p.width;
+  document.getElementById('partHeight').value = p.height;
+  document.getElementById('partQty').value = p.qty;
+  if (p.material) document.getElementById('partMaterial').value = p.material;
+  const m = MODELS.find(mm => mm.id === p.modelId);
+  if (m) { activeCat = m.cat; selectModel(m.id); }
+  document.getElementById('paramDepth').value = p.params.depth;
+  document.getElementById('paramRadius').value = p.params.radius;
+  document.getElementById('paramStep').value = p.params.step;
+  document.getElementById('paramMargin').value = p.params.margin;
+  editingIndex = idx;
+  renderCatTabs(); renderModels();
+  showToast('Редактирование детали');
+}
+
+function clearParts() {
+  if (parts.length === 0) return;
+  if (!confirm('Очистить все детали?')) return;
+  parts = [];
+  renderTable();
+  showToast('Список очищен');
+}
+
+function renderTable() {
+  const tbody = document.getElementById('partsBody');
+  if (parts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Добавьте детали</td></tr>';
+    return;
+  }
+  let html = '';
+  let totalQty = 0;
+  parts.forEach((p, i) => {
+    totalQty += p.qty;
+    const m = MODELS.find(mm => mm.id === p.modelId);
+    html += `<tr>
+      <td>${esc(p.name)}</td>
+      <td>${p.width}×${p.height}</td>
+      <td>${p.qty}</td>
+      <td style="font-size:11px;color:var(--text3)">${esc(p.materialName || '')}</td>
+      <td>
+        <div class="part-milling-cell">
+          ${m ? modelThumbSVG(m) : ''}
+          <div class="pm-info">
+            <div class="pm-id">${esc(p.modelName)}</div>
+            <div class="pm-cat">${esc(p.modelCat)}</div>
+          </div>
+        </div>
+      </td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="editPart(${i})">✎</button>
+        <button class="btn btn-danger btn-sm" onclick="removePart(${i})">×</button>
+      </div></td>
+    </tr>`;
+  });
+  html += `<tr class="total-row"><td colspan="2">Итого</td><td>${totalQty}</td><td colspan="3"></td></tr>`;
+  tbody.innerHTML = html;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ============================================================
+// EXPORT
+// ============================================================
+
+function exportDXF() {
+  if (parts.length === 0) { showToast('Нет деталей для экспорта'); return; }
+  let dxf = '0\nSECTION\n2\nENTITIES\n';
+  parts.forEach((p, idx) => {
+    const ox = idx * (p.width + 50);
+    dxf += rectToDxf(ox, 0, p.width, p.height);
+    const m = p.params.margin;
+    if (p.params.step > 0 && p.params.depth > 0) {
+      for (let x = ox + m; x <= ox + p.width - m; x += p.params.step) {
+        dxf += lineToDxf(x, m, x, p.height - m);
+      }
+    }
+    if (p.modelCat === 'Классика' || p.modelCat === 'Премиум' || p.modelCat === 'Сложные' || p.modelCat === 'Рифление') {
+      dxf += rectToDxf(ox + m, m, p.width - 2*m, p.height - 2*m);
+    }
+  });
+  dxf += '0\nENDSEC\n0\nEOF\n';
+  downloadFile('milling.dxf', dxf, 'application/dxf');
+  showToast('DXF файл скачан');
+}
+
+function rectToDxf(x, y, w, h) {
+  return `0\nLINE\n8\n0\n10\n${x}\n20\n${y}\n11\n${x+w}\n21\n${y}\n` +
+         `0\nLINE\n8\n0\n10\n${x+w}\n20\n${y}\n11\n${x+w}\n21\n${y+h}\n` +
+         `0\nLINE\n8\n0\n10\n${x+w}\n20\n${y+h}\n11\n${x}\n21\n${y+h}\n` +
+         `0\nLINE\n8\n0\n10\n${x}\n20\n${y+h}\n11\n${x}\n21\n${y}\n`;
+}
+
+function lineToDxf(x1, y1, x2, y2) {
+  return `0\nLINE\n8\n0\n10\n${x1}\n20\n${y1}\n11\n${x2}\n21\n${y2}\n`;
+}
+
+function exportExcel() {
+  if (parts.length === 0) { showToast('Нет деталей для экспорта'); return; }
+  let csv = '\uFEFF';
+  csv += '№;Деталь;Ширина (мм);Высота (мм);Количество;Материал;Код фрезировки;Категория;Описание;Глубина (мм);Радиус фрезы (мм);Шаг (мм);Отступ (мм)\n';
+  parts.forEach((p, i) => {
+    csv += `${i+1};${p.name};${p.width};${p.height};${p.qty};${p.materialName || ''};${p.modelName};${p.modelCat};${p.modelDesc};${p.params.depth};${p.params.radius};${p.params.step};${p.params.margin}\n`;
+  });
+  csv += `\n;ИТОГО;;;${parts.reduce((s,p)=>s+p.qty,0)};;;;;;\n`;
+  downloadFile('milling-spec.csv', csv, 'text/csv;charset=utf-8');
+  showToast('Excel (CSV) файл скачан');
+}
+
+function downloadFile(name, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// LIVE UPDATES
+// ============================================================
+
+['partWidth', 'partHeight', 'paramDepth', 'paramRadius', 'paramStep', 'paramMargin'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updatePreview);
+});
+document.getElementById('partMaterial').addEventListener('change', updatePreview);
+
+// ============================================================
+// INIT
+// ============================================================
+
+renderCatTabs();
+renderVariantTabs();
+renderModels();
+init3D();
+updatePreview();
+</script>
+</body>
+</html>
