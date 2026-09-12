@@ -18,6 +18,107 @@ const CONFIG = {
   SCALE_FACTOR: 0.001,
 };
 
+// === WOOD TEXTURE GENERATOR ===
+const woodTextureCache = new Map();
+function createWoodTexture(baseColor, scale) {
+  const key = baseColor + '_' + (scale || 1);
+  if (woodTextureCache.has(key)) return woodTextureCache.get(key);
+  const size = 256;
+  const canvas2d = document.createElement('canvas');
+  canvas2d.width = size; canvas2d.height = size;
+  const ctx = canvas2d.getContext('2d');
+  // Base fill
+  ctx.fillStyle = baseColor;
+  ctx.fillRect(0, 0, size, size);
+  // Parse base color for variation
+  const tmp = document.createElement('canvas').getContext('2d');
+  tmp.fillStyle = baseColor; tmp.fillRect(0, 0, 1, 1);
+  const rgb = tmp.getImageData(0, 0, 1, 1).data;
+  const r0 = rgb[0], g0 = rgb[1], b0 = rgb[2];
+  // Wood grain lines
+  ctx.globalAlpha = 0.12;
+  for (let i = 0; i < 60; i++) {
+    const y = Math.random() * size;
+    const w = 1 + Math.random() * 3;
+    const drift = Math.random() * 20 - 10;
+    ctx.strokeStyle = i % 3 === 0
+      ? `rgba(${Math.max(0, r0 - 30)},${Math.max(0, g0 - 30)},${Math.max(0, b0 - 20)},0.5)`
+      : `rgba(${Math.min(255, r0 + 20)},${Math.min(255, g0 + 15)},${Math.min(255, b0 + 10)},0.3)`;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    for (let x = 0; x < size; x += 20) {
+      ctx.lineTo(x, y + Math.sin(x * 0.02 + drift) * 6);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // Noise overlay
+  const imgData = ctx.getImageData(0, 0, size, size);
+  for (let i = 0; i < imgData.data.length; i += 4) {
+    const n = (Math.random() - 0.5) * 14;
+    imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + n));
+    imgData.data[i + 1] = Math.max(0, Math.min(255, imgData.data[i + 1] + n));
+    imgData.data[i + 2] = Math.max(0, Math.min(255, imgData.data[i + 2] + n));
+  }
+  ctx.putImageData(imgData, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas2d);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(scale || 1, scale || 1);
+  woodTextureCache.set(key, tex);
+  return tex;
+}
+
+// === PANEL SHAPE BUILDER ===
+function buildPanelShape(part) {
+  const w = Math.max(part.gab ? part.gab.w : (part.L || 100), 1) * sc;
+  const h = Math.max(part.gab ? part.gab.h : (part.W || 100), 1) * sc;
+  let shape;
+  if (part.contour && part.contour.length >= 3) {
+    // Custom contour from BAZIS
+    shape = new THREE.Shape();
+    shape.moveTo(part.contour[0].x * sc, part.contour[0].y * sc);
+    for (let i = 1; i < part.contour.length; i++) {
+      shape.lineTo(part.contour[i].x * sc, part.contour[i].y * sc);
+    }
+    shape.closePath();
+  } else {
+    // Default rectangular panel
+    shape = new THREE.Shape();
+    shape.moveTo(-w / 2, -h / 2);
+    shape.lineTo(w / 2, -h / 2);
+    shape.lineTo(w / 2, h / 2);
+    shape.lineTo(-w / 2, h / 2);
+    shape.closePath();
+  }
+  // Add cutouts as holes in the shape
+  const cutouts = part.cutouts || [];
+  const panelW = (part.gab ? part.gab.w : (part.L || 100)) * sc;
+  const panelH = (part.gab ? part.gab.h : (part.W || 100)) * sc;
+  cutouts.forEach(function(cutout) {
+    var cw = (cutout.w || 30) * sc;
+    var ch = (cutout.h || 30) * sc;
+    // Convert world-space cutout position to shape-local 2D coords
+    var localX = ((cutout.x || 0) * sc) - (panelW / 2) + (w / 2);
+    var localY = ((cutout.y || 0) * sc) - (panelH / 2) + (h / 2);
+    // Clamp cutout bounds to panel bounds
+    var hw = cw / 2, hh = ch / 2;
+    var minX = Math.max(-w / 2, localX - hw);
+    var maxX = Math.min(w / 2, localX + hw);
+    var minY = Math.max(-h / 2, localY - hh);
+    var maxY = Math.min(h / 2, localY + hh);
+    if (maxX - minX < 0.001 || maxY - minY < 0.001) return;
+    var holePath = new THREE.Path();
+    holePath.moveTo(minX, minY);
+    holePath.lineTo(maxX, minY);
+    holePath.lineTo(maxX, maxY);
+    holePath.lineTo(minX, maxY);
+    holePath.closePath();
+    shape.holes.push(holePath);
+  });
+  return shape;
+}
+
 let parts = [];
 let selectedId = null;
 let scannedSet = new Set();
@@ -166,6 +267,9 @@ function initThree() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  renderer.outputEncoding = THREE.sRGBEncoding;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(isDarkTheme ? 0x141416 : 0xf0f0f2);
   scene.fog = new THREE.FogExp2(isDarkTheme ? 0x141416 : 0xf0f0f2, 0.012);
@@ -173,10 +277,10 @@ function initThree() {
   camera.position.set(3, 2.5, 3);
   const ambientLight = new THREE.AmbientLight(0x666666, 1.8);
   scene.add(ambientLight);
-  const mainLight = new THREE.DirectionalLight(16777215, 1);
+  const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
   mainLight.position.set(10, 20, 10);
   mainLight.castShadow = true;
-  mainLight.shadow.mapSize.set(1024, 1024);
+  mainLight.shadow.mapSize.set(2048, 2048);
   mainLight.shadow.camera.left = -50;
   mainLight.shadow.camera.right = 50;
   mainLight.shadow.camera.top = 50;
@@ -184,9 +288,13 @@ function initThree() {
   mainLight.shadow.bias = -0.001;
   mainLight.shadow.radius = 4;
   scene.add(mainLight);
-  const fillLight = new THREE.DirectionalLight(8956671, 0.45);
+  const fillLight = new THREE.DirectionalLight(0x88aacc, 0.5);
   fillLight.position.set(-5, 4, -8);
   scene.add(fillLight);
+  // Rim light for edge definition on wood panels
+  const rimLight = new THREE.DirectionalLight(0x00D4AA, 0.25);
+  rimLight.position.set(-10, 8, 5);
+  scene.add(rimLight);
   // Room — floor: 20m wide, 10m deep, one-sided (visible from above only)
   var floorGeo = new THREE.PlaneGeometry(20, 10);
   var floorMat = new THREE.MeshStandardMaterial({
@@ -470,21 +578,32 @@ function handleRaycast(clickX, clickY, rect) {
       arr.forEach(m => { if (m.visible && m.userData && m.userData.partId) meshes.push(m); });
     });
   }
+  // Add instanced fastener meshes for raycasting
   if (typeof fastenerMeshes !== 'undefined') {
-    fastenerMeshes.forEach(m => { if (m.visible && m.userData && m.userData.fastenerId !== undefined) meshes.push(m); });
+    fastenerMeshes.forEach(m => {
+      if (m.visible && m.userData && m.userData.fastenerList) meshes.push(m);
+    });
   }
   const hits = rc.intersectObjects(meshes);
   if (hits.length === 0) {
     deselectPart();
     return;
   }
-  // Check if a fastener was clicked
+  // Check if a fastener was clicked (InstancedMesh)
   for (let i = 0; i < hits.length; i++) {
     const ud = hits[i].object.userData;
-    if (ud && ud.fastenerId !== undefined) {
-      const f = fastenerData.find(fd => fd.id === ud.fastenerId);
+    if (ud && ud.fastenerList) {
+      var instId = hits[i].instanceId;
+      var f = ud.fastenerList[instId];
       if (f) {
         showToast("🔧 " + (f.name || "Фурнитура") + " [" + (f.type || "?") + "]");
+      }
+      return;
+    }
+    if (ud && ud.fastenerId !== undefined) {
+      const f2 = fastenerData.find(fd => fd.id === ud.fastenerId);
+      if (f2) {
+        showToast("🔧 " + (f2.name || "Фурнитура") + " [" + (f2.type || "?") + "]");
       }
       return;
     }
@@ -620,10 +739,9 @@ function getColor(materialStr, partData) {
 function buildPartDetails(partInfo, meshObj) {
   const detailArr = [];
   const grooves = partInfo.grooves || [];
-  const holes = partInfo.holes || [];
-  const cutouts = partInfo.cutouts || [];
-  const edges = partInfo.edges || [];
-  if (!grooves.length && !holes.length && !cutouts.length && !edges.length) {
+  const holes2 = partInfo.holes || [];
+  const edges2 = partInfo.edges || [];
+  if (!grooves.length && !holes2.length && !edges2.length) {
     return detailArr;
   }
   const meshPos = meshObj.position;
@@ -631,16 +749,14 @@ function buildPartDetails(partInfo, meshObj) {
   const panelH = (partInfo.W || 100) * sc;
   const panelT = (partInfo.T || 16) * sc;
 
-  // --- Пазы: тёмные линии на поверхности панели ---
-  grooves.forEach(groove => {
+  // --- Grooves: dark recessed lines on panel surface ---
+  grooves.forEach(function(groove) {
     const grooveW = (groove.width || groove.w || 20) * sc;
     const grooveH = (groove.length || groove.h || 20) * sc;
     const grooveD = (groove.depth || groove.d || 4) * sc;
     const grooveGeo = new THREE.BoxGeometry(grooveW, grooveH, grooveD);
     const grooveMat = new THREE.MeshStandardMaterial({
-      color: 1118481,
-      roughness: 0.95,
-      metalness: 0
+      color: 0x111111, roughness: 0.95, metalness: 0
     });
     const grooveMesh = new THREE.Mesh(grooveGeo, grooveMat);
     grooveMesh.position.set(
@@ -650,22 +766,20 @@ function buildPartDetails(partInfo, meshObj) {
     );
     grooveMesh.userData = { partId: partInfo.id, detailType: "groove" };
     scene.add(grooveMesh);
-    const grooveEdgeGeo = new THREE.EdgesGeometry(grooveGeo, 15);
-    const grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({ color: 3355443 }));
+    var grooveEdgeGeo = new THREE.EdgesGeometry(grooveGeo, 15);
+    var grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({ color: 0x333333 }));
     grooveEdgeLine.position.copy(grooveMesh.position);
     scene.add(grooveEdgeLine);
     detailArr.push(grooveMesh, grooveEdgeLine);
   });
 
-  // --- Отверстия: тёмные цилиндры ---
-  holes.forEach(hole => {
+  // --- Holes: dark cylinders with ring markers ---
+  holes2.forEach(function(hole) {
     const holeRadius = (hole.diameter || hole.d || hole.r || 8) / 2 * sc;
     const holeDepth = (hole.depth || panelT) * sc;
     const holeGeo = new THREE.CylinderGeometry(holeRadius, holeRadius, holeDepth, 16);
     const holeMat = new THREE.MeshStandardMaterial({
-      color: 4473924,
-      roughness: 0.7,
-      metalness: 0.3
+      color: 0x444444, roughness: 0.7, metalness: 0.3
     });
     const holeMesh = new THREE.Mesh(holeGeo, holeMat);
     holeMesh.position.set(
@@ -677,95 +791,40 @@ function buildPartDetails(partInfo, meshObj) {
     if (hole.angleZ) holeMesh.rotation.z = hole.angleZ * Math.PI / 180;
     holeMesh.userData = { partId: partInfo.id, detailType: "hole" };
     scene.add(holeMesh);
-    const holeRingGeo = new THREE.RingGeometry(holeRadius * 0.85, holeRadius, 24);
-    const holeRingMat = new THREE.MeshBasicMaterial({ color: 2236962, side: THREE.DoubleSide });
-    const holeRingFront = new THREE.Mesh(holeRingGeo, holeRingMat);
-    holeRingFront.position.copy(holeMesh.position);
-    holeRingFront.position.z += panelT / 2 + 0.0001;
-    scene.add(holeRingFront);
-    const holeRingBack = holeRingFront.clone();
-    holeRingBack.position.z = holeMesh.position.z - panelT / 2 - 0.0001;
-    scene.add(holeRingBack);
-    detailArr.push(holeMesh, holeRingFront, holeRingBack);
+    var ringGeo = new THREE.RingGeometry(holeRadius * 0.85, holeRadius, 24);
+    var ringMat = new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide });
+    var ringFront = new THREE.Mesh(ringGeo, ringMat);
+    ringFront.position.copy(holeMesh.position);
+    ringFront.position.z += panelT / 2 + 0.0001;
+    scene.add(ringFront);
+    var ringBack = ringFront.clone();
+    ringBack.position.z = holeMesh.position.z - panelT / 2 - 0.0001;
+    scene.add(ringBack);
+    detailArr.push(holeMesh, ringFront, ringBack);
   });
 
-  // --- Вырезы: CSG-стиль — тёмные объёмные блоки с контуром ---
-  cutouts.forEach(cutout => {
-    const cutoutW = (cutout.w || 30) * sc;
-    const cutoutH = (cutout.h || 30) * sc;
-    const cutoutD = (cutout.d || panelT) * sc;
-    const cutoutGeo = new THREE.BoxGeometry(cutoutW, cutoutH, cutoutD);
-    const cutoutMat = new THREE.MeshStandardMaterial({
-      color: 3355443,
-      roughness: 0.95,
-      metalness: 0,
-      transparent: true,
-      opacity: 0.85
-    });
-    const cutoutMesh = new THREE.Mesh(cutoutGeo, cutoutMat);
-    cutoutMesh.position.set(
-      meshPos.x + (cutout.x || 0) * sc,
-      meshPos.y + (cutout.y || 0) * sc,
-      meshPos.z + (cutout.z || 0) * sc
-    );
-    cutoutMesh.userData = { partId: partInfo.id, detailType: "cutout" };
-    scene.add(cutoutMesh);
-    const cutoutEdgeGeo = new THREE.EdgesGeometry(cutoutGeo, 15);
-    const cutoutEdgeLine = new THREE.LineSegments(cutoutEdgeGeo, new THREE.LineBasicMaterial({ color: 6710886 }));
-    cutoutEdgeLine.position.copy(cutoutMesh.position);
-    scene.add(cutoutEdgeLine);
-    // Стрелка-индикатор выреза (треугольник)
-    const arrowGeo = new THREE.BufferGeometry();
-    const arrowVerts = new Float32Array([
-      -cutoutW * 0.3, -cutoutH * 0.15, 0,
-       cutoutW * 0.3,  0, 0,
-      -cutoutW * 0.3,  cutoutH * 0.15, 0
-    ]);
-    arrowGeo.setAttribute("position", new THREE.BufferAttribute(arrowVerts, 3));
-    const arrowMat = new THREE.MeshBasicMaterial({ color: 16744448, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
-    const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
-    arrowMesh.position.set(cutoutMesh.position.x, cutoutMesh.position.y, meshPos.z + panelT / 2 + 0.0005);
-    scene.add(arrowMesh);
-    detailArr.push(cutoutMesh, cutoutEdgeLine, arrowMesh);
-  });
-
-  // --- Кромки: тонкие полосы ---
-  edges.forEach(edge => {
+  // --- Edge bands: thin colored strips ---
+  edges2.forEach(function(edge) {
     const edgeSide = (edge.side || "").toLowerCase();
     const edgeLen = (edge.length || 0) * sc;
     const edgeThick = 0.003;
-    let edgeW, edgeH, edgeD, edgeX, edgeY, edgeZ;
+    var edgeW, edgeH, edgeD, edgeX, edgeY, edgeZ;
     if (edgeSide.includes("w") || edgeSide.includes("длин")) {
-      edgeW = edgeLen || panelW;
-      edgeH = edgeThick;
-      edgeD = panelT;
-      edgeX = meshPos.x;
-      edgeY = meshPos.y + panelH / 2;
-      edgeZ = meshPos.z;
+      edgeW = edgeLen || panelW; edgeH = edgeThick; edgeD = panelT;
+      edgeX = meshPos.x; edgeY = meshPos.y + panelH / 2; edgeZ = meshPos.z;
     } else if (edgeSide.includes("h") || edgeSide.includes("выс")) {
-      edgeW = edgeThick;
-      edgeH = edgeLen || panelH;
-      edgeD = panelT;
-      edgeX = meshPos.x + panelW / 2;
-      edgeY = meshPos.y;
-      edgeZ = meshPos.z;
+      edgeW = edgeThick; edgeH = edgeLen || panelH; edgeD = panelT;
+      edgeX = meshPos.x + panelW / 2; edgeY = meshPos.y; edgeZ = meshPos.z;
     } else {
-      edgeW = panelW;
-      edgeH = edgeThick;
-      edgeD = panelT;
-      edgeX = meshPos.x;
-      edgeY = meshPos.y - panelH / 2;
-      edgeZ = meshPos.z;
+      edgeW = panelW; edgeH = edgeThick; edgeD = panelT;
+      edgeX = meshPos.x; edgeY = meshPos.y - panelH / 2; edgeZ = meshPos.z;
     }
-    const edgeGeo = new THREE.BoxGeometry(edgeW || 0.01, edgeH || 0.01, edgeD || 0.01);
-    const edgeMat = new THREE.MeshStandardMaterial({
-      color: 10066329,
-      roughness: 0.4,
-      metalness: 0.2,
-      transparent: true,
-      opacity: 0.8
+    var edgeGeo = new THREE.BoxGeometry(edgeW || 0.01, edgeH || 0.01, edgeD || 0.01);
+    var edgeMat = new THREE.MeshStandardMaterial({
+      color: 0x999999, roughness: 0.4, metalness: 0.2,
+      transparent: true, opacity: 0.8
     });
-    const edgeMesh = new THREE.Mesh(edgeGeo, edgeMat);
+    var edgeMesh = new THREE.Mesh(edgeGeo, edgeMat);
     edgeMesh.position.set(edgeX, edgeY, edgeZ);
     edgeMesh.userData = { partId: partInfo.id, detailType: "edge" };
     scene.add(edgeMesh);
@@ -791,91 +850,144 @@ const FASTENER_COLORS = {
 
 function buildFasteners(fasteners) {
   if (!fasteners || !fasteners.length) return;
-  fasteners.forEach(fastener => {
-    const fx = (fastener.pos ? fastener.pos.x : 0) * sc;
-    const fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
-    const fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4;
-    const color = FASTENER_COLORS[fastener.type] || FASTENER_COLORS["Фурнитура"];
-    let geo;
-    const type = (fastener.type || "").toLowerCase();
+  // Group fasteners by type for InstancedMesh batching
+  var groups = {};
+  fasteners.forEach(function(fastener) {
+    var type = (fastener.type || "").toLowerCase();
+    var geoKey;
     if (type.indexOf("петл") >= 0 || type.indexOf("hinge") >= 0) {
-      geo = new THREE.CylinderGeometry(0.006, 0.006, 0.02, 8);
+      geoKey = "hinge";
     } else if (type.indexOf("направл") >= 0 || type.indexOf("slide") >= 0 || type.indexOf("rail") >= 0) {
-      geo = new THREE.BoxGeometry(0.004, 0.08, 0.004);
+      geoKey = "slide";
     } else if (type.indexOf("ручк") >= 0 || type.indexOf("handle") >= 0) {
-      geo = new THREE.TorusGeometry(0.012, 0.003, 8, 16, Math.PI);
+      geoKey = "handle";
     } else if (type.indexOf("саморез") >= 0 || type.indexOf("screw") >= 0 || type.indexOf("конфирмат") >= 0) {
-      geo = new THREE.CylinderGeometry(0.002, 0.001, 0.015, 6);
+      geoKey = "screw";
     } else if (type.indexOf("экцентр") >= 0 || type.indexOf("cam") >= 0 || type.indexOf("стяжк") >= 0) {
-      geo = new THREE.CylinderGeometry(0.008, 0.008, 0.006, 12);
+      geoKey = "cam";
     } else if (type.indexOf("ножк") >= 0 || type.indexOf("leg") >= 0) {
-      geo = new THREE.CylinderGeometry(0.008, 0.01, 0.03, 8);
+      geoKey = "leg";
     } else if (type.indexOf("доводчик") >= 0 || type.indexOf("damper") >= 0) {
-      geo = new THREE.BoxGeometry(0.006, 0.02, 0.006);
+      geoKey = "damper";
     } else {
-      geo = new THREE.BoxGeometry(0.008, 0.008, 0.008);
+      geoKey = "default";
     }
-    const mat = new THREE.MeshStandardMaterial({
-      color: color,
-      roughness: 0.4,
-      metalness: 0.6,
-      emissive: color,
-      emissiveIntensity: 0.15
+    if (!groups[geoKey]) groups[geoKey] = [];
+    groups[geoKey].push(fastener);
+  });
+  var geoMap = {
+    hinge:   function() { return new THREE.CylinderGeometry(0.006, 0.006, 0.02, 12); },
+    slide:   function() { return new THREE.BoxGeometry(0.004, 0.08, 0.004); },
+    handle:  function() { return new THREE.TorusGeometry(0.012, 0.003, 8, 24, Math.PI); },
+    screw:   function() { return new THREE.CylinderGeometry(0.002, 0.001, 0.015, 8); },
+    cam:     function() { return new THREE.CylinderGeometry(0.008, 0.008, 0.006, 16); },
+    leg:     function() { return new THREE.CylinderGeometry(0.008, 0.01, 0.03, 12); },
+    damper:  function() { return new THREE.BoxGeometry(0.006, 0.02, 0.006); },
+    "default": function() { return new THREE.BoxGeometry(0.008, 0.008, 0.008); }
+  };
+  Object.keys(groups).forEach(function(geoKey) {
+    var list = groups[geoKey];
+    var geo = geoMap[geoKey] ? geoMap[geoKey]() : geoMap["default"]();
+    // Pick a representative color for this group
+    var repType = (list[0].type || "Фурнитура");
+    var color = FASTENER_COLORS[repType] || FASTENER_COLORS["Фурнитура"];
+    var mat = new THREE.MeshStandardMaterial({
+      color: color, roughness: 0.35, metalness: 0.65,
+      emissive: color, emissiveIntensity: 0.1
     });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(fx, fy, fz);
-    mesh.userData = { fastenerId: fastener.id, type: "fastener", name: fastener.name };
-    mesh.castShadow = true;
-    scene.add(mesh);
-    fastenerMeshes.push(mesh);
-    // Маркер: кольцо вокруг фурнитуры
-    const ringGeo = new THREE.RingGeometry(0.012, 0.015, 16);
-    const ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.copy(mesh.position);
-    ring.position.z += 0.01;
-    scene.add(ring);
-    fastenerMeshes.push(ring);
+    var instMesh = new THREE.InstancedMesh(geo, mat, list.length);
+    instMesh.castShadow = true;
+    var dummy = new THREE.Object3D();
+    list.forEach(function(fastener, i) {
+      var fx = (fastener.pos ? fastener.pos.x : 0) * sc;
+      var fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
+      var fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4;
+      dummy.position.set(fx, fy, fz);
+      dummy.updateMatrix();
+      instMesh.setMatrixAt(i, dummy.matrix);
+      // Store fastenerId in per-instance userData via a lookup array
+      instMesh.userData = instMesh.userData || {};
+    });
+    instMesh.instanceMatrix.needsUpdate = true;
+    scene.add(instMesh);
+    fastenerMeshes.push(instMesh);
+    // Store fastener list reference for raycasting
+    instMesh.userData = { fastenerList: list, type: "instancedFasteners" };
+    // Ring markers (single InstancedMesh for all rings in this group)
+    var ringGeo = new THREE.RingGeometry(0.012, 0.015, 16);
+    var ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
+    var ringInst = new THREE.InstancedMesh(ringGeo, ringMat, list.length);
+    list.forEach(function(fastener, i) {
+      var fx = (fastener.pos ? fastener.pos.x : 0) * sc;
+      var fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
+      var fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4 + 0.01;
+      dummy.position.set(fx, fy, fz);
+      dummy.updateMatrix();
+      ringInst.setMatrixAt(i, dummy.matrix);
+    });
+    ringInst.instanceMatrix.needsUpdate = true;
+    scene.add(ringInst);
+    fastenerMeshes.push(ringInst);
   });
 }
 const detailMeshes = new Map();
 const sc = 0.001;
 function buildScene() {
-  meshMap.forEach(function(oldMesh) { oldMesh.geometry.dispose(); oldMesh.material.dispose(); scene.remove(oldMesh); });
+  meshMap.forEach(function(oldMesh) {
+    if (oldMesh.material.map) oldMesh.material.map.dispose();
+    oldMesh.material.dispose();
+    oldMesh.geometry.dispose();
+    scene.remove(oldMesh);
+  });
   edgeLineMap.forEach(function(oldLine) { oldLine.geometry.dispose(); oldLine.material.dispose(); scene.remove(oldLine); });
   detailMeshes.forEach(function(oldArr) { oldArr.forEach(function(oldObj) { if (oldObj.geometry) oldObj.geometry.dispose(); if (oldObj.material) oldObj.material.dispose(); scene.remove(oldObj); }); });
-  fastenerMeshes.forEach(function(fm) { if (fm.geometry) fm.geometry.dispose(); if (fm.material) fm.material.dispose(); scene.remove(fm); });
+  // Clean up instanced fastener meshes
+  fastenerMeshes.forEach(function(fm) {
+    if (fm.geometry) fm.geometry.dispose();
+    if (fm.material) { if (fm.material.map) fm.material.map.dispose(); fm.material.dispose(); }
+    scene.remove(fm);
+  });
   fastenerMeshes.length = 0;
   meshMap.clear();
   edgeLineMap.clear();
   detailMeshes.clear();
   originalPositions.clear();
   parts.forEach(part => {
-    const boxGeo = new THREE.BoxGeometry(part._size.x, part._size.y, part._size.z);
-    const boxMat = new THREE.MeshStandardMaterial({
-      color: getColor(part.material, part),
-      roughness: 0.55,
-      metalness: 0.1,
+    const panelShape = buildPanelShape(part);
+    const panelT = Math.max((part.gab ? part.gab.d : (part.T || 16)), 1) * sc;
+    // ExtrudeGeometry: real panel shape with holes for cutouts
+    var extrudeSettings = { depth: panelT, bevelEnabled: false };
+    var panelGeo = new THREE.ExtrudeGeometry(panelShape, extrudeSettings);
+    // Center geometry so pivot is at panel center
+    panelGeo.translate(0, 0, -panelT / 2);
+    var baseColor = getColor(part.material, part);
+    var panelMat = new THREE.MeshStandardMaterial({
+      color: baseColor,
+      map: createWoodTexture(baseColor, 4),
+      roughness: 0.6,
+      metalness: 0.05,
       emissive: new THREE.Color(0),
       emissiveIntensity: 0
     });
-    const boxMesh = new THREE.Mesh(boxGeo, boxMat);
-    boxMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
-    boxMesh.userData = {
-      partId: part.id
-    };
-    boxMesh.castShadow = true;
-    boxMesh.receiveShadow = true;
-    scene.add(boxMesh);
-    const edgeGeo = new THREE.EdgesGeometry(boxGeo, 15);
-    const _edgeMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a });
-    const edgeLineObj = new THREE.LineSegments(edgeGeo, _edgeMat);
-    edgeLineObj.position.copy(boxMesh.position);
+    var panelMesh = new THREE.Mesh(panelGeo, panelMat);
+    // Panels are built in XY plane (shape), but scene uses XZ floor + Y up
+    // Rotate so panel face is vertical (Y axis), width along X, height along Y, thickness along Z
+    panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
+    panelMesh.userData = { partId: part.id };
+    panelMesh.castShadow = true;
+    panelMesh.receiveShadow = true;
+    scene.add(panelMesh);
+    // Wireframe edges
+    var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
+    var edgeMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a });
+    var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
+    edgeLineObj.position.copy(panelMesh.position);
     scene.add(edgeLineObj);
     originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
-    meshMap.set(part.id, boxMesh);
+    meshMap.set(part.id, panelMesh);
     edgeLineMap.set(part.id, edgeLineObj);
-    const details = buildPartDetails(part, boxMesh);
+    // Build detail overlays (grooves, holes, edges — cutouts are now in the shape)
+    var details = buildPartDetails(part, panelMesh);
     if (details.length) {
       detailMeshes.set(part.id, details);
     }
