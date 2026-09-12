@@ -952,6 +952,40 @@ function buildFasteners(fasteners) {
     fastenerMeshes.push(mesh);
   });
 }
+// --- Визуализация отверстий из holes[] ---
+var holeMeshes = [];
+function buildHoles(holes) {
+  if (!holes || !holes.length) return;
+  var UP = new THREE.Vector3(0, 1, 0);
+  var dir = new THREE.Vector3();
+  var q = new THREE.Quaternion();
+  holes.forEach(function(hole) {
+    var r = Math.max(0.001, (hole.diameter || 5) / 2 * sc);
+    var len = Math.max(0.001, (hole.depth || 16) * sc);
+    var geo = new THREE.CylinderGeometry(r, r, len, 12);
+    var mat = new THREE.MeshStandardMaterial({
+      color: 0x444444, roughness: 0.7, metalness: 0.3,
+      transparent: true, opacity: 0.6
+    });
+    var mesh = new THREE.Mesh(geo, mat);
+    var px = (hole.pos ? hole.pos[0] : 0) * sc;
+    var py = (hole.pos ? hole.pos[1] : 0) * sc;
+    var pz = (hole.pos ? hole.pos[2] : 0) * sc;
+    dir.set(hole.dir ? hole.dir[0] : 0, hole.dir ? hole.dir[1] : 0, hole.dir ? hole.dir[2] : 1);
+    if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1);
+    dir.normalize();
+    q.setFromUnitVectors(UP, dir);
+    mesh.quaternion.copy(q);
+    mesh.position.set(px + dir.x * len / 2, py + dir.y * len / 2, pz + dir.z * len / 2);
+    scene.add(mesh);
+    holeMeshes.push(mesh);
+  });
+}
+function clearHoles() {
+  holeMeshes.forEach(function(m) { m.geometry.dispose(); m.material.dispose(); scene.remove(m); });
+  holeMeshes.length = 0;
+}
+
 const detailMeshes = new Map();
 const sc = 0.001;
 function buildScene() {
@@ -970,6 +1004,7 @@ function buildScene() {
     scene.remove(fm);
   });
   fastenerMeshes.length = 0;
+  clearHoles();
   meshMap.clear();
   edgeLineMap.clear();
   detailMeshes.clear();
@@ -1020,6 +1055,8 @@ function buildScene() {
   renderPartsList();
   updateSummary();
   buildFasteners(fastenerData);
+  clearHoles();
+  buildHoles(window._loadedHoles || []);
 }
 function buildModuleMap() {
   moduleMap.clear();
@@ -1737,6 +1774,8 @@ document.getElementById("fileInput").addEventListener("change", changeEvent => {
       const jsonData = JSON.parse(loadEvent.target.result);
       parts = jsonData.parts || jsonData;
       fastenerData = jsonData.fasteners || [];
+      var loadedHoles = jsonData.holes || [];
+      window._loadedHoles = loadedHoles;
       parts.forEach((part, index) => {
         if (part.id === undefined) {
           part.id = index;
@@ -1861,6 +1900,8 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
         const data = JSON.parse(ev.target.result);
         parts = data.parts || data;
         fastenerData = data.fasteners || [];
+        var loadedHoles = data.holes || [];
+        window._loadedHoles = loadedHoles;
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
         buildScene();
