@@ -1198,8 +1198,19 @@ function buildScene() {
         else shape.lineTo(pt[0] * sc, pt[1] * sc);
       }
       if (started) shape.closePath();
+      var holeArr = part.polyHoles || [];
+      for (var hi = 0; hi < holeArr.length; hi++) {
+        var holeLoop = holeArr[hi];
+        if (!holeLoop || holeLoop.length < 3) continue;
+        var holePath2 = new THREE.Path();
+        holePath2.moveTo(holeLoop[0][0] * sc, holeLoop[0][1] * sc);
+        for (var hj = 1; hj < holeLoop.length; hj++) {
+          holePath2.lineTo(holeLoop[hj][0] * sc, holeLoop[hj][1] * sc);
+        }
+        holePath2.closePath();
+        shape.holes.push(holePath2);
+      }
     } else if (part.contour && part.contour.length >= 2 && part.contour[0].t) {
-          panelGeo.translate(0, 0, -(extrudeSettings.depth || 0) / 2);
       shape = buildContourShape(part.contour, sc);
     } else {
       // Fallback: прямоугольник от (0,0) если есть placement, иначе центрированный
@@ -1235,7 +1246,6 @@ function buildScene() {
     });
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
     var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    panelGeo.translate(0, 0, -panelT / 2);
     var baseColor = getColor(part.material, part);
     var panelMat = new THREE.MeshStandardMaterial({
       color: baseColor,
