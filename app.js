@@ -1105,12 +1105,20 @@ function buildScene() {
       shape.lineTo(-shapeW / 2, shapeH / 2);
       shape.closePath();
     }
-    // Вырезы как holes
-    (part.cutouts || []).forEach(function(cutout) {
-      if (cutout.type === 'circle') {
-        var hp = new THREE.Path();
-        hp.absarc(cutout.cx * sc, cutout.cy * sc, cutout.r * sc, 0, Math.PI * 2, false);
-        shape.holes.push(hp);
+    // Вырезы как holes (DetalQR формат: {t:'circle', x, y, r} или {pts:[[x,y],...]})
+    var cutouts = part.cuts || part.cutouts || [];
+    cutouts.forEach(function(cut) {
+      var pth = new THREE.Path();
+      if (cut.t === 'circle' && cut.r > 0) {
+        pth.absarc(cut.x * sc, cut.y * sc, cut.r * sc, 0, Math.PI * 2, true);
+        shape.holes.push(pth);
+      } else if (cut.pts && cut.pts.length >= 3) {
+        pth.moveTo(cut.pts[0][0] * sc, cut.pts[0][1] * sc);
+        for (var pi = 1; pi < cut.pts.length; pi++) {
+          pth.lineTo(cut.pts[pi][0] * sc, cut.pts[pi][1] * sc);
+        }
+        pth.closePath();
+        shape.holes.push(pth);
       }
     });
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
