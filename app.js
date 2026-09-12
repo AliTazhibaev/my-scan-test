@@ -700,48 +700,55 @@ function handleRaycast(clickX, clickY, rect) {
 }
 let layoutMinY = 0;
 function autoLayout(partsArr) {
-  // Проверяем формат: v4 с placement или v3 без
   var hasPlacement = false;
   partsArr.forEach(function(p) {
     if (p.placement && p.placement.origin) hasPlacement = true;
   });
 
-  let minY = Infinity;
-  partsArr.forEach(part => {
-    if (part.pos && part.pos.y !== undefined) {
-      minY = Math.min(minY, part.pos.y);
-    }
-  });
-  if (minY === Infinity) minY = 0;
-  layoutMinY = minY;
   const scaleFactor = 0.001;
+  layoutMinY = 0;
 
   partsArr.forEach(p => {
-    if (!p.pos || !p.gab) {
-      const gridSize = Math.ceil(Math.sqrt(partsArr.length));
-      const row = Math.floor(p.id / gridSize);
-      const col = p.id % gridSize;
-      p._pos = { x: (col - gridSize / 2) * 0.15, y: 0, z: (row - gridSize / 2) * 0.15 };
-      p._size = { x: 0.1, y: 0.1, z: 0.1 };
-      return;
-    }
-    // v4: placement.origin — мировые координаты БАЗИС (совпадают с фурнитурой)
     if (hasPlacement && p.placement && p.placement.origin) {
+      // v4: placement.origin + quaternion из ax/ay/az
       var o = p.placement.origin;
       p._pos = { x: o.x * scaleFactor, y: o.y * scaleFactor, z: o.z * scaleFactor };
-    } else {
-      // v3: pos из GabMin — центр = pos + gab/2
+      // Конвертируем базисные векторы в quaternion
+      var ax = p.placement.ax || {x:1,y:0,z:0};
+      var ay = p.placement.ay || {x:0,y:1,z:0};
+      var az = p.placement.az || {x:0,y:0,z:1};
+      var m = new THREE.Matrix4();
+      m.set(ax.x, ay.x, az.x, 0,
+            ax.y, ay.y, az.y, 0,
+            ax.z, ay.z, az.z, 0,
+            0,    0,    0,    1);
+      p._quat = new THREE.Quaternion();
+      p._quat.setFromRotationMatrix(m);
+    } else if (p.pos && p.gab) {
+      // v3: GabMin + gab/2 = центр
       p._pos = {
-        x: (p.pos.x + (p.gab ? p.gab.w : 0) / 2) * scaleFactor,
-        y: (p.pos.y + (p.gab ? p.gab.h : 0) / 2) * scaleFactor,
-        z: (p.pos.z + (p.gab ? p.gab.d : 0) / 2) * scaleFactor
+        x: (p.pos.x + p.gab.w / 2) * scaleFactor,
+        y: (p.pos.y + p.gab.h / 2) * scaleFactor,
+        z: (p.pos.z + p.gab.d / 2) * scaleFactor
       };
+      p._quat = null; // v3 без поворота
+    } else {
+      var gridSize = Math.ceil(Math.sqrt(partsArr.length));
+      var row = Math.floor(p.id / gridSize);
+      var col = p.id % gridSize;
+      p._pos = { x: (col - gridSize / 2) * 0.15, y: 0, z: (row - gridSize / 2) * 0.15 };
+      p._quat = null;
     }
-    p._size = {
-      x: Math.max(p.gab ? p.gab.w : (p.L || 1), 1) * scaleFactor,
-      y: Math.max(p.gab ? p.gab.h : (p.W || 1), 1) * scaleFactor,
-      z: Math.max(p.gab ? p.gab.d : (p.T || 1), 1) * scaleFactor
-    };
+    // Размеры для bounding box и explode
+    if (p.gab) {
+      p._size = {
+        x: Math.max(p.gab.w, 1) * scaleFactor,
+        y: Math.max(p.gab.h, 1) * scaleFactor,
+        z: Math.max(p.gab.d, 1) * scaleFactor
+      };
+    } else {
+      p._size = { x: 0.1, y: 0.1, z: 0.1 };
+    }
   });
 }
 function getColor(materialStr, partData) {
@@ -1025,6 +1032,40 @@ function clearHoles() {
   holeMeshes.length = 0;
 }
 
+function buildContourShape(contour, sc) {
+  var shape = new THREE.Shape();
+  var first = true;
+  for (var ci = 0; ci < contour.length; ci++) {
+    var el = contour[ci];
+    if (el.t === 'line') {
+      if (first) { shape.moveTo(el.x1 * sc, el.y1 * sc); first = false; }
+      shape.lineTo(el.x2 * sc, el.y2 * sc);
+    } else if (el.t === 'arc') {
+      var cx = el.cx * sc, cy = el.cy * sc;
+      var r = Math.sqrt((el.x1 - el.cx) * (el.x1 - el.cx) + (el.y1 - el.cy) * (el.y1 - el.cy)) * sc;
+      var a1 = Math.atan2(el.y1 - el.cy, el.x1 - el.cx);
+      var a2 = Math.atan2(el.y2 - el.cy, el.x2 - el.cx);
+      var da = a2 - a1;
+      if (da > Math.PI) da -= 2 * Math.PI;
+      if (da < -Math.PI) da += 2 * Math.PI;
+      var steps = Math.max(4, Math.floor(Math.abs(da) / 0.15) + 1);
+      for (var ai = 0; ai <= steps; ai++) {
+        var angle = a1 + da * ai / steps;
+        var px = cx + r * Math.cos(angle);
+        var py = cy + r * Math.sin(angle);
+        if (first) { shape.moveTo(px, py); first = false; }
+        else shape.lineTo(px, py);
+      }
+    } else if (el.t === 'circle') {
+      var holePath = new THREE.Path();
+      holePath.absarc(el.cx * sc, el.cy * sc, el.r * sc, 0, Math.PI * 2, false);
+      shape.holes.push(holePath);
+    }
+  }
+  if (!first) shape.closePath();
+  return shape;
+}
+
 const detailMeshes = new Map();
 const sc = 0.001;
 function buildScene() {
@@ -1049,14 +1090,31 @@ function buildScene() {
   detailMeshes.clear();
   originalPositions.clear();
   parts.forEach(part => {
-    const shapeResult = buildPanelShape(part);
-    const panelShape = shapeResult.shape;
-    const panelT = shapeResult.depth;
-    const rotAxis = shapeResult.rotAxis;
-    // ExtrudeGeometry: real panel shape with holes for cutouts
+    // Геометрия в ЛОКАЛЬНЫХ координатах: L×W, экструзия T
+    var shapeW = Math.max(part.L || 100, 1) * sc;
+    var shapeH = Math.max(part.W || 100, 1) * sc;
+    var panelT = Math.max(part.T || 16, 1) * sc;
+    var shape;
+    if (part.contour && part.contour.length >= 2 && part.contour[0].t) {
+      shape = buildContourShape(part.contour, sc);
+    } else {
+      shape = new THREE.Shape();
+      shape.moveTo(-shapeW / 2, -shapeH / 2);
+      shape.lineTo(shapeW / 2, -shapeH / 2);
+      shape.lineTo(shapeW / 2, shapeH / 2);
+      shape.lineTo(-shapeW / 2, shapeH / 2);
+      shape.closePath();
+    }
+    // Вырезы как holes
+    (part.cutouts || []).forEach(function(cutout) {
+      if (cutout.type === 'circle') {
+        var hp = new THREE.Path();
+        hp.absarc(cutout.cx * sc, cutout.cy * sc, cutout.r * sc, 0, Math.PI * 2, false);
+        shape.holes.push(hp);
+      }
+    });
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
-    var panelGeo = new THREE.ExtrudeGeometry(panelShape, extrudeSettings);
-    // Center geometry so pivot is at panel center
+    var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     panelGeo.translate(0, 0, -panelT / 2);
     var baseColor = getColor(part.material, part);
     var panelMat = new THREE.MeshStandardMaterial({
@@ -1068,17 +1126,11 @@ function buildScene() {
       emissiveIntensity: 0
     });
     var panelMesh = new THREE.Mesh(panelGeo, panelMat);
-    // Поворот панели по оси из gab-эвристики
-    // ExtrudeGeometry: shape в XY, экструзия по Z
-    if (rotAxis === 'x') {
-      // Вертикальная (YZ плоскость): повернуть на90° вокруг Y
-      panelMesh.rotation.y = Math.PI / 2;
-    } else if (rotAxis === 'y') {
-      // Горизонтальная (XZ плоскость): повернуть на-90° вокруг X
-      panelMesh.rotation.x = -Math.PI / 2;
-    }
-    // 'z' = фронтальная (XY плоскость), поворот не нужен
+    // Позиция + поворот (DetalQR: pos + quat)
     panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
+    if (part._quat) {
+      panelMesh.quaternion.copy(part._quat);
+    }
     panelMesh.userData = { partId: part.id };
     panelMesh.castShadow = true;
     panelMesh.receiveShadow = true;
@@ -1087,7 +1139,7 @@ function buildScene() {
     var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
     var edgeMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a });
     var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
-    edgeLineObj.rotation.copy(panelMesh.rotation);
+    edgeLineObj.quaternion.copy(panelMesh.quaternion);
     edgeLineObj.position.copy(panelMesh.position);
     scene.add(edgeLineObj);
     originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
