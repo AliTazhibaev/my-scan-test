@@ -1187,6 +1187,7 @@ function buildScene() {
       }
       if (started) shape.closePath();
     } else if (part.contour && part.contour.length >= 2 && part.contour[0].t) {
+          panelGeo.translate(0, 0, -(extrudeSettings.depth || 0) / 2);
       shape = buildContourShape(part.contour, sc);
     } else {
       // Fallback: прямоугольник от (0,0) если есть placement, иначе центрированный
