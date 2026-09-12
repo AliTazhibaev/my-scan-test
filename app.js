@@ -1131,50 +1131,55 @@ function buildScene() {
   detailMeshes.clear();
   originalPositions.clear();
   parts.forEach(part => {
-    // v4: poly (нормализованный контур из BAZIS) → Shape
     var shapeW = Math.max(part.L || 100, 1) * sc;
     var shapeH = Math.max(part.W || 100, 1) * sc;
     var panelT = Math.max(part.T || 16, 1) * sc;
-    var ox = -shapeW / 2, oy = -shapeH / 2; // центрирование: pivot в центре панели
     var shape;
     if (part.poly && part.poly.length >= 3) {
+      // poly: нормализованный контур от (0,0), origin уже скомпенсирован
       shape = new THREE.Shape();
-      var first = true;
+      var started = false;
       for (var pi = 0; pi < part.poly.length; pi++) {
         var pt = part.poly[pi];
         if (typeof pt[0] === 'string' && pt[0] === 'circle') {
           var hp = new THREE.Path();
-          hp.absarc(pt[1] * sc + ox, pt[2] * sc + oy, pt[3] * sc, 0, Math.PI * 2, false);
+          hp.absarc(pt[1] * sc, pt[2] * sc, pt[3] * sc, 0, Math.PI * 2, false);
           shape.holes.push(hp);
           continue;
         }
-        var px = pt[0] * sc + ox;
-        var py = pt[1] * sc + oy;
-        if (first) { shape.moveTo(px, py); first = false; }
-        else shape.lineTo(px, py);
+        if (!started) { shape.moveTo(pt[0] * sc, pt[1] * sc); started = true; }
+        else shape.lineTo(pt[0] * sc, pt[1] * sc);
       }
-      if (!first) shape.closePath();
+      if (started) shape.closePath();
     } else if (part.contour && part.contour.length >= 2 && part.contour[0].t) {
       shape = buildContourShape(part.contour, sc);
     } else {
+      // Fallback: прямоугольник от (0,0) если есть placement, иначе центрированный
       shape = new THREE.Shape();
-      shape.moveTo(-shapeW / 2, -shapeH / 2);
-      shape.lineTo(shapeW / 2, -shapeH / 2);
-      shape.lineTo(shapeW / 2, shapeH / 2);
-      shape.lineTo(-shapeW / 2, shapeH / 2);
+      if (part.placement) {
+        shape.moveTo(0, 0);
+        shape.lineTo(shapeW, 0);
+        shape.lineTo(shapeW, shapeH);
+        shape.lineTo(0, shapeH);
+      } else {
+        shape.moveTo(-shapeW / 2, -shapeH / 2);
+        shape.lineTo(shapeW / 2, -shapeH / 2);
+        shape.lineTo(shapeW / 2, shapeH / 2);
+        shape.lineTo(-shapeW / 2, shapeH / 2);
+      }
       shape.closePath();
     }
-    // Вырезы как holes (DetalQR формат, в нормализованных координатах poly)
+    // Вырезы (без центрирования — координаты как в poly)
     var cutouts = part.cuts || part.cutouts || [];
     cutouts.forEach(function(cut) {
       var pth = new THREE.Path();
       if (cut.t === 'circle' && cut.r > 0) {
-        pth.absarc(cut.x * sc + ox, cut.y * sc + oy, cut.r * sc, 0, Math.PI * 2, true);
+        pth.absarc(cut.x * sc, cut.y * sc, cut.r * sc, 0, Math.PI * 2, true);
         shape.holes.push(pth);
       } else if (cut.pts && cut.pts.length >= 3) {
-        pth.moveTo(cut.pts[0][0] * sc + ox, cut.pts[0][1] * sc + oy);
-        for (var pi = 1; pi < cut.pts.length; pi++) {
-          pth.lineTo(cut.pts[pi][0] * sc + ox, cut.pts[pi][1] * sc + oy);
+        pth.moveTo(cut.pts[0][0] * sc, cut.pts[0][1] * sc);
+        for (var ci = 1; ci < cut.pts.length; ci++) {
+          pth.lineTo(cut.pts[ci][0] * sc, cut.pts[ci][1] * sc);
         }
         pth.closePath();
         shape.holes.push(pth);
