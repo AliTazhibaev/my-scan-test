@@ -1032,6 +1032,46 @@ function clearHoles() {
   holeMeshes.length = 0;
 }
 
+// --- Визуализация карманов/пазов (pockets) как decals на поверхности ---
+var pocketMeshes = [];
+function buildPockets(partsArr) {
+  partsArr.forEach(function(part) {
+    if (!part.pockets || !part.pockets.length) return;
+    var panelT = Math.max(part.T || 16, 1) * sc;
+    var parentMesh = meshMap.get(part.id);
+    if (!parentMesh) return;
+    part.pockets.forEach(function(pk) {
+      var sh;
+      if (pk.t === 'circle' && pk.r > 0) {
+        sh = new THREE.Shape();
+        sh.absarc(pk.x * sc, pk.y * sc, pk.r * sc, 0, Math.PI * 2, false);
+      } else if (pk.t === 'poly' && pk.pts && pk.pts.length >= 3) {
+        sh = new THREE.Shape();
+        sh.moveTo(pk.pts[0][0] * sc, pk.pts[0][1] * sc);
+        for (var i = 1; i < pk.pts.length; i++) sh.lineTo(pk.pts[i][0] * sc, pk.pts[i][1] * sc);
+        sh.closePath();
+      }
+      if (!sh) return;
+      var geo = new THREE.ShapeGeometry(sh);
+      var offset = pk.face === 'B' ? panelT / 2 + 0.0002 : -panelT / 2 - 0.0002;
+      geo.translate(0, 0, offset);
+      var mat = new THREE.MeshBasicMaterial({
+        color: 0x222222, transparent: true, opacity: 0.35,
+        side: THREE.DoubleSide, depthWrite: false
+      });
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(parentMesh.position);
+      mesh.quaternion.copy(parentMesh.quaternion);
+      scene.add(mesh);
+      pocketMeshes.push(mesh);
+    });
+  });
+}
+function clearPockets() {
+  pocketMeshes.forEach(function(m) { m.geometry.dispose(); m.material.dispose(); scene.remove(m); });
+  pocketMeshes.length = 0;
+}
+
 function buildContourShape(contour, sc) {
   var shape = new THREE.Shape();
   var first = true;
@@ -1085,6 +1125,7 @@ function buildScene() {
   });
   fastenerMeshes.length = 0;
   clearHoles();
+  clearPockets();
   meshMap.clear();
   edgeLineMap.clear();
   detailMeshes.clear();
@@ -1167,6 +1208,8 @@ function buildScene() {
   buildFasteners(fastenerData);
   clearHoles();
   buildHoles(window._loadedHoles || []);
+  clearPockets();
+  buildPockets(parts);
 }
 function buildModuleMap() {
   moduleMap.clear();
