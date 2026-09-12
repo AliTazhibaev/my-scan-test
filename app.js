@@ -1070,12 +1070,15 @@ function buildScene() {
     });
     var panelMesh = new THREE.Mesh(panelGeo, panelMat);
     // Поворот панели по оси из gab-эвристики
+    // ExtrudeGeometry: shape в XY, экструзия по Z
     if (rotAxis === 'x') {
-      panelMesh.rotation.z = Math.PI / 2; // Вертикальная -> повернуть вокруг Z
+      // Вертикальная (YZ плоскость): повернуть на90° вокруг Y
+      panelMesh.rotation.y = Math.PI / 2;
     } else if (rotAxis === 'y') {
-      panelMesh.rotation.x = -Math.PI / 2; // Горизонтальная -> повернуть вокруг X
+      // Горизонтальная (XZ плоскость): повернуть на-90° вокруг X
+      panelMesh.rotation.x = -Math.PI / 2;
     }
-    // 'z' = фронтальная, не нужен поворот
+    // 'z' = фронтальная (XY плоскость), поворот не нужен
     panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
     panelMesh.userData = { partId: part.id };
     panelMesh.castShadow = true;
