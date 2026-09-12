@@ -834,6 +834,7 @@ const FASTENER_COLORS = {
   "Стяжка": 65535,
   "Ножка": 8388736,
   "Держатель полки": 8421376,
+  "Шкант": 13882323,
   "Вытяжка": 16761024,
   "Фурнитура": 12632256
 };
@@ -850,6 +851,8 @@ function buildFasteners(fasteners) {
       case "handle": geo = new THREE.TorusGeometry(0.012, 0.003, 8, 24, Math.PI); break;
       case "screw":  geo = new THREE.CylinderGeometry(0.002, 0.001, 0.015, 8); break;
       case "cam":    geo = new THREE.CylinderGeometry(0.008, 0.008, 0.006, 16); break;
+      case "dowel":  geo = new THREE.CylinderGeometry(0.004, 0.004, 0.016, 10); break;
+      case "shelf":  geo = new THREE.CylinderGeometry(0.003, 0.003, 0.012, 8); break;
       case "leg":    geo = new THREE.CylinderGeometry(0.008, 0.01, 0.03, 12); break;
       case "damper": geo = new THREE.BoxGeometry(0.006, 0.02, 0.006); break;
       default:       geo = new THREE.BoxGeometry(0.008, 0.008, 0.008); break;
@@ -874,6 +877,10 @@ function buildFasteners(fasteners) {
       geoKey = "screw";
     } else if (type.indexOf("\u044d\u043a\u0441\u0446\u0435\u043d\u0442\u0440") >= 0 || type.indexOf("cam") >= 0 || type.indexOf("\u0441\u0442\u044f\u0436\u043a") >= 0) {
       geoKey = "cam";
+    } else if (type.indexOf("\u0448\u043a\u0430\u043d\u0442") >= 0 || type.indexOf("dowel") >= 0) {
+      geoKey = "dowel";
+    } else if (type.indexOf("\u043f\u043e\u043b\u043a\u043e\u0434\u0435\u0440\u0436") >= 0 || type.indexOf("shelf") >= 0) {
+      geoKey = "shelf";
     } else if (type.indexOf("\u043d\u043e\u0436\u043a") >= 0 || type.indexOf("leg") >= 0) {
       geoKey = "leg";
     } else if (type.indexOf("\u0434\u043e\u0432\u043e\u0434\u0447\u0438\u043a") >= 0 || type.indexOf("damper") >= 0) {
