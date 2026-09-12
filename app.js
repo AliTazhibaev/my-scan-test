@@ -1135,19 +1135,16 @@ function buildScene() {
     var shapeW = Math.max(part.L || 100, 1) * sc;
     var shapeH = Math.max(part.W || 100, 1) * sc;
     var panelT = Math.max(part.T || 16, 1) * sc;
+    var ox = -shapeW / 2, oy = -shapeH / 2; // центрирование: pivot в центре панели
     var shape;
     if (part.poly && part.poly.length >= 3) {
-      // poly: [[x,y], ...] — координаты от угла панели, нормализованы
       shape = new THREE.Shape();
-      // Центрируем: сдвигаем на -L/2, -W/2 чтобы pivot был в центре
-      var ox = -shapeW / 2, oy = -shapeH / 2;
       var first = true;
       for (var pi = 0; pi < part.poly.length; pi++) {
         var pt = part.poly[pi];
         if (typeof pt[0] === 'string' && pt[0] === 'circle') {
-          // Круглое отверстие в контуре
           var hp = new THREE.Path();
-          hp.absarc((pt[1] * sc) + ox, (pt[2] * sc) + oy, pt[3] * sc, 0, Math.PI * 2, false);
+          hp.absarc(pt[1] * sc + ox, pt[2] * sc + oy, pt[3] * sc, 0, Math.PI * 2, false);
           shape.holes.push(hp);
           continue;
         }
@@ -1158,10 +1155,8 @@ function buildScene() {
       }
       if (!first) shape.closePath();
     } else if (part.contour && part.contour.length >= 2 && part.contour[0].t) {
-      // contour элементы (raw из BAZIS, не нормализованы) — используем как есть
       shape = buildContourShape(part.contour, sc);
     } else {
-      // Fallback: прямоугольник из L/W
       shape = new THREE.Shape();
       shape.moveTo(-shapeW / 2, -shapeH / 2);
       shape.lineTo(shapeW / 2, -shapeH / 2);
@@ -1170,7 +1165,6 @@ function buildScene() {
       shape.closePath();
     }
     // Вырезы как holes (DetalQR формат, в нормализованных координатах poly)
-    var ox = -shapeW / 2, oy = -shapeH / 2;
     var cutouts = part.cuts || part.cutouts || [];
     cutouts.forEach(function(cut) {
       var pth = new THREE.Path();
