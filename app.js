@@ -71,11 +71,44 @@ function createWoodTexture(baseColor, scale) {
 
 // === PANEL SHAPE BUILDER ===
 function buildPanelShape(part) {
-  // v4: если есть placement — используем L/W (локальные размеры панели)
-  // v3: используем gab (мировые габариты, rotation matrix отсутствует)
+  const sc_local = 0.001;
   var useLW = part.placement && part.placement.origin;
-  const w = useLW ? Math.max(part.L || 100, 1) * sc : Math.max(part.gab ? part.gab.w : (part.L || 100), 1) * sc;
-  const h = useLW ? Math.max(part.W || 100, 1) * sc : Math.max(part.gab ? part.gab.h : (part.W || 100), 1) * sc;
+  var shapeW, shapeH, extrudeD;
+
+  if (useLW) {
+    // v4: локальные размеры + placement matrix
+    shapeW = Math.max(part.L || 100, 1) * sc_local;
+    shapeH = Math.max(part.W || 100, 1) * sc_local;
+    extrudeD = Math.max(part.T || 16, 1) * sc_local;
+  } else {
+    // v3: определяем ориентацию из gab vs LWT
+    var gw = part.gab ? part.gab.w : (part.L || 100);
+    var gh = part.gab ? part.gab.h : (part.W || 100);
+    var gd = part.gab ? part.gab.d : (part.T || 16);
+    var T = part.T || 16;
+    // gab.w ~ T => панель вертикальная (YZ плоскость), экструзия по X
+    // gab.h ~ T => панель горизонтальная (XZ плоскость), экструзия по Y
+    // gab.d ~ T => панель фронтальная (XY плоскость), экструзия по Z
+    if (Math.abs(gw - T) < 2) {
+      // Вертикальная панель: форма = gab.h x gab.d, экструзия = gab.w
+      shapeW = Math.max(gh, 1) * sc_local;
+      shapeH = Math.max(gd, 1) * sc_local;
+      extrudeD = Math.max(gw, 1) * sc_local;
+      part._rotAxis = 'x';
+    } else if (Math.abs(gh - T) < 2) {
+      // Горизонтальная панель: форма = gab.w x gab.d, экструзия = gab.h
+      shapeW = Math.max(gw, 1) * sc_local;
+      shapeH = Math.max(gd, 1) * sc_local;
+      extrudeD = Math.max(gh, 1) * sc_local;
+      part._rotAxis = 'y';
+    } else {
+      // Фронтальная панель: форма = gab.w x gab.h, экструзия = gab.d
+      shapeW = Math.max(gw, 1) * sc_local;
+      shapeH = Math.max(gh, 1) * sc_local;
+      extrudeD = Math.max(gd, 1) * sc_local;
+      part._rotAxis = 'z';
+    }
+  }
   let shape;
   if (part.contour && part.contour.length >= 2) {
     // Новый формат: [{t:'line', x1, y1, x2, y2}, {t:'arc', ...}, {t:'circle', ...}]
@@ -125,28 +158,27 @@ function buildPanelShape(part) {
   } else {
     // Default rectangular panel
     shape = new THREE.Shape();
-    shape.moveTo(-w / 2, -h / 2);
-    shape.lineTo(w / 2, -h / 2);
-    shape.lineTo(w / 2, h / 2);
-    shape.lineTo(-w / 2, h / 2);
+    shape.moveTo(-shapeW / 2, -shapeH / 2);
+    shape.lineTo(shapeW / 2, -shapeH / 2);
+    shape.lineTo(shapeW / 2, shapeH / 2);
+    shape.lineTo(-shapeW / 2, shapeH / 2);
     shape.closePath();
   }
   // Add cutouts as holes in the shape
   const cutouts = part.cutouts || [];
-  const panelW = useLW ? Math.max(part.L || 100, 1) * sc : (part.gab ? part.gab.w : (part.L || 100)) * sc;
-  const panelH = useLW ? Math.max(part.W || 100, 1) * sc : (part.gab ? part.gab.h : (part.W || 100)) * sc;
+  const panelW = shapeW;
+  const panelH = shapeH;
   cutouts.forEach(function(cutout) {
     var cw = (cutout.w || 30) * sc;
     var ch = (cutout.h || 30) * sc;
     // Convert world-space cutout position to shape-local 2D coords
-    var localX = ((cutout.x || 0) * sc) - (panelW / 2) + (w / 2);
-    var localY = ((cutout.y || 0) * sc) - (panelH / 2) + (h / 2);
-    // Clamp cutout bounds to panel bounds
+    var localX = ((cutout.x || 0) * sc) - (panelW / 2) + (shapeW / 2);
+    var localY = ((cutout.y || 0) * sc) - (panelH / 2) + (shapeH / 2);
     var hw = cw / 2, hh = ch / 2;
-    var minX = Math.max(-w / 2, localX - hw);
-    var maxX = Math.min(w / 2, localX + hw);
-    var minY = Math.max(-h / 2, localY - hh);
-    var maxY = Math.min(h / 2, localY + hh);
+    var minX = Math.max(-shapeW / 2, localX - hw);
+    var maxX = Math.min(shapeW / 2, localX + hw);
+    var minY = Math.max(-shapeH / 2, localY - hh);
+    var maxY = Math.min(shapeH / 2, localY + hh);
     if (maxX - minX < 0.001 || maxY - minY < 0.001) return;
     var holePath = new THREE.Path();
     holePath.moveTo(minX, minY);
@@ -156,7 +188,7 @@ function buildPanelShape(part) {
     holePath.closePath();
     shape.holes.push(holePath);
   });
-  return shape;
+  return { shape: shape, depth: extrudeD, rotAxis: part._rotAxis || 'z' };
 }
 
 let parts = [];
@@ -1018,9 +1050,10 @@ function buildScene() {
   detailMeshes.clear();
   originalPositions.clear();
   parts.forEach(part => {
-    const panelShape = buildPanelShape(part);
-    var useLW = part.placement && part.placement.origin;
-    const panelT = useLW ? Math.max((part.T || 16), 1) * sc : Math.max((part.gab ? part.gab.d : (part.T || 16)), 1) * sc;
+    const shapeResult = buildPanelShape(part);
+    const panelShape = shapeResult.shape;
+    const panelT = shapeResult.depth;
+    const rotAxis = shapeResult.rotAxis;
     // ExtrudeGeometry: real panel shape with holes for cutouts
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
     var panelGeo = new THREE.ExtrudeGeometry(panelShape, extrudeSettings);
@@ -1036,8 +1069,13 @@ function buildScene() {
       emissiveIntensity: 0
     });
     var panelMesh = new THREE.Mesh(panelGeo, panelMat);
-    // Panels are built in XY plane (shape), but scene uses XZ floor + Y up
-    // Rotate so panel face is vertical (Y axis), width along X, height along Y, thickness along Z
+    // Поворот панели по оси из gab-эвристики
+    if (rotAxis === 'x') {
+      panelMesh.rotation.z = Math.PI / 2; // Вертикальная -> повернуть вокруг Z
+    } else if (rotAxis === 'y') {
+      panelMesh.rotation.x = -Math.PI / 2; // Горизонтальная -> повернуть вокруг X
+    }
+    // 'z' = фронтальная, не нужен поворот
     panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
     panelMesh.userData = { partId: part.id };
     panelMesh.castShadow = true;
@@ -1047,6 +1085,7 @@ function buildScene() {
     var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
     var edgeMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a });
     var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
+    edgeLineObj.rotation.copy(panelMesh.rotation);
     edgeLineObj.position.copy(panelMesh.position);
     scene.add(edgeLineObj);
     originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
