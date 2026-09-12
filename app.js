@@ -666,38 +666,42 @@ function handleRaycast(clickX, clickY, rect) {
 let layoutMinY = 0;
 function autoLayout(partsArr) {
   let minY = Infinity;
+  // Проверяем, есть ли placement (мировые координаты из БАЗИС)
+  var hasPlacement = false;
+  partsArr.forEach(function(p) {
+    if (p.placement && p.placement.origin) hasPlacement = true;
+  });
+
   partsArr.forEach(part => {
     if (part.pos && part.pos.y !== undefined) {
       minY = Math.min(minY, part.pos.y);
     }
   });
-  if (minY === Infinity) {
-    minY = 0;
-  }
+  if (minY === Infinity) minY = 0;
   layoutMinY = minY;
   const scaleFactor = 0.001;
+
   partsArr.forEach(p => {
     if (!p.pos || !p.gab) {
       const gridSize = Math.ceil(Math.sqrt(partsArr.length));
       const row = Math.floor(p.id / gridSize);
       const col = p.id % gridSize;
-      p._pos = {
-        x: (col - gridSize / 2) * 0.15,
-        y: 0,
-        z: (row - gridSize / 2) * 0.15
-      };
-      p._size = {
-        x: 0.1,
-        y: 0.1,
-        z: 0.1
-      };
+      p._pos = { x: (col - gridSize / 2) * 0.15, y: 0, z: (row - gridSize / 2) * 0.15 };
+      p._size = { x: 0.1, y: 0.1, z: 0.1 };
       return;
     }
-    p._pos = {
-      x: (p.pos.x + p.gab.w / 2) * scaleFactor,
-      y: (p.pos.y - minY + p.gab.h / 2) * scaleFactor,
-      z: (p.pos.z + p.gab.d / 2) * scaleFactor - 4
-    };
+    // Новый формат v4: placement.origin — мировые координаты БАЗИС
+    if (hasPlacement && p.placement && p.placement.origin) {
+      var o = p.placement.origin;
+      p._pos = { x: o.x * scaleFactor, y: o.y * scaleFactor, z: o.z * scaleFactor };
+    } else {
+      // Старый формат: pos из GabMin
+      p._pos = {
+        x: (p.pos.x + p.gab.w / 2) * scaleFactor,
+        y: (p.pos.y - minY + p.gab.h / 2) * scaleFactor,
+        z: (p.pos.z + p.gab.d / 2) * scaleFactor - 4
+      };
+    }
     p._size = {
       x: Math.max(p.gab.w, 1) * scaleFactor,
       y: Math.max(p.gab.h, 1) * scaleFactor,
