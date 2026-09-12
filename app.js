@@ -74,14 +74,51 @@ function buildPanelShape(part) {
   const w = Math.max(part.gab ? part.gab.w : (part.L || 100), 1) * sc;
   const h = Math.max(part.gab ? part.gab.h : (part.W || 100), 1) * sc;
   let shape;
-  if (part.contour && part.contour.length >= 3) {
-    // Custom contour from BAZIS
-    shape = new THREE.Shape();
-    shape.moveTo(part.contour[0].x * sc, part.contour[0].y * sc);
-    for (let i = 1; i < part.contour.length; i++) {
-      shape.lineTo(part.contour[i].x * sc, part.contour[i].y * sc);
+  if (part.contour && part.contour.length >= 2) {
+    // Новый формат: [{t:'line', x1, y1, x2, y2}, {t:'arc', ...}, {t:'circle', ...}]
+    if (part.contour[0].t) {
+      shape = new THREE.Shape();
+      var first = true;
+      var arcSteps = 16;
+      for (var ci = 0; ci < part.contour.length; ci++) {
+        var el = part.contour[ci];
+        if (el.t === 'line') {
+          if (first) { shape.moveTo(el.x1 * sc, el.y1 * sc); first = false; }
+          shape.lineTo(el.x2 * sc, el.y2 * sc);
+        } else if (el.t === 'arc') {
+          var cx = el.cx * sc, cy = el.cy * sc;
+          var r = Math.sqrt((el.x1 - el.cx) * (el.x1 - el.cx) + (el.y1 - el.cy) * (el.y1 - el.cy)) * sc;
+          var a1 = Math.atan2(el.y1 - el.cy, el.x1 - el.cx);
+          var a2 = Math.atan2(el.y2 - el.cy, el.x2 - el.cx);
+          var da = a2 - a1;
+          if (da > Math.PI) da -= 2 * Math.PI;
+          if (da < -Math.PI) da += 2 * Math.PI;
+          var steps = Math.max(4, Math.floor(Math.abs(da) / 0.15) + 1);
+          for (var ai = 0; ai <= steps; ai++) {
+            var angle = a1 + da * ai / steps;
+            var px = cx + r * Math.cos(angle);
+            var py = cy + r * Math.sin(angle);
+            if (first) { shape.moveTo(px, py); first = false; }
+            else shape.lineTo(px, py);
+          }
+        } else if (el.t === 'circle') {
+          // Круглое отверстие — добавляем как hole
+          var holePath = new THREE.Path();
+          var holeR = el.r * sc;
+          holePath.absarc(el.cx * sc, el.cy * sc, holeR, 0, Math.PI * 2, false);
+          shape.holes.push(holePath);
+        }
+      }
+      if (!first) shape.closePath();
+    } else {
+      // Старый формат: [{x, y}...]
+      shape = new THREE.Shape();
+      shape.moveTo(part.contour[0].x * sc, part.contour[0].y * sc);
+      for (let i = 1; i < part.contour.length; i++) {
+        shape.lineTo(part.contour[i].x * sc, part.contour[i].y * sc);
+      }
+      shape.closePath();
     }
-    shape.closePath();
   } else {
     // Default rectangular panel
     shape = new THREE.Shape();
@@ -841,9 +878,55 @@ const FASTENER_COLORS = {
 
 function buildFasteners(fasteners) {
   if (!fasteners || !fasteners.length) return;
-  var geoCache = {};
-  function getGeo(geoKey) {
-    if (geoCache[geoKey]) return geoCache[geoKey];
+  var UP = new THREE.Vector3(0, 1, 0);
+  var q = new THREE.Quaternion();
+  var dir = new THREE.Vector3();
+  fasteners.forEach(function(fastener) {
+    var color = FASTENER_COLORS[fastener.type] || FASTENER_COLORS["\u0424\u0443\u0440\u043d\u0438\u0442\u0443\u0440\u0430"];
+    // Новый формат: sections[] — цилиндры
+    if (fastener.sections && fastener.sections.length) {
+      fastener.sections.forEach(function(sec) {
+        var r = Math.max(0.0016, (sec.r || 3) * sc);
+        var len = Math.max(0.001, (sec.len || 14) * sc);
+        var geo = new THREE.CylinderGeometry(r, r, len, 12);
+        var mat = new THREE.MeshStandardMaterial({
+          color: color, roughness: 0.35, metalness: 0.6,
+          emissive: color, emissiveIntensity: 0.12
+        });
+        var mesh = new THREE.Mesh(geo, mat);
+        dir.set(sec.d ? sec.d[0] : 0, sec.d ? sec.d[1] : 0, sec.d ? sec.d[2] : 1);
+        if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1);
+        dir.normalize();
+        q.setFromUnitVectors(UP, dir);
+        mesh.quaternion.copy(q);
+        mesh.position.set(
+          sec.p[0] * sc + dir.x * len / 2,
+          sec.p[1] * sc + dir.y * len / 2,
+          sec.p[2] * sc + dir.z * len / 2
+        );
+        mesh.userData = { fastenerId: fastener.id, type: "fastener", name: fastener.name };
+        mesh.castShadow = true;
+        scene.add(mesh);
+        fastenerMeshes.push(mesh);
+      });
+      return;
+    }
+    // Старый формат: pos + type
+    var fx = (fastener.pos ? fastener.pos.x : 0) * sc;
+    var fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
+    var fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4;
+    var type = (fastener.type || "").toLowerCase();
+    var geoKey;
+    if (type.indexOf("\u043f\u0435\u0442\u043b") >= 0 || type.indexOf("hinge") >= 0) geoKey = "hinge";
+    else if (type.indexOf("\u043d\u0430\u043f\u0440\u0430\u0432\u043b") >= 0 || type.indexOf("slide") >= 0) geoKey = "slide";
+    else if (type.indexOf("\u0440\u0443\u0447\u043a") >= 0 || type.indexOf("handle") >= 0) geoKey = "handle";
+    else if (type.indexOf("\u0441\u0430\u043c\u043e\u0440\u0435\u0437") >= 0 || type.indexOf("\u043a\u043e\u043d\u0444\u0438\u0440\u043c\u0430\u0442") >= 0 || type.indexOf("\u0435\u0432\u0440\u043e\u0432\u0438\u043d\u0442") >= 0) geoKey = "screw";
+    else if (type.indexOf("\u044d\u043a\u0441\u0446\u0435\u043d\u0442\u0440") >= 0 || type.indexOf("\u0441\u0442\u044f\u0436\u043a") >= 0) geoKey = "cam";
+    else if (type.indexOf("\u0448\u043a\u0430\u043d\u0442") >= 0) geoKey = "dowel";
+    else if (type.indexOf("\u043f\u043e\u043b\u043a\u043e\u0434\u0435\u0440\u0436") >= 0) geoKey = "shelf";
+    else if (type.indexOf("\u043d\u043e\u0436\u043a") >= 0) geoKey = "leg";
+    else if (type.indexOf("\u0434\u043e\u0432\u043e\u0434\u0447\u0438\u043a") >= 0) geoKey = "damper";
+    else geoKey = "default";
     var geo;
     switch (geoKey) {
       case "hinge":  geo = new THREE.CylinderGeometry(0.006, 0.006, 0.02, 12); break;
@@ -857,38 +940,6 @@ function buildFasteners(fasteners) {
       case "damper": geo = new THREE.BoxGeometry(0.006, 0.02, 0.006); break;
       default:       geo = new THREE.BoxGeometry(0.008, 0.008, 0.008); break;
     }
-    geoCache[geoKey] = geo;
-    return geo;
-  }
-  fasteners.forEach(function(fastener) {
-    var fx = (fastener.pos ? fastener.pos.x : 0) * sc;
-    var fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
-    var fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4;
-    var color = FASTENER_COLORS[fastener.type] || FASTENER_COLORS["\u0424\u0443\u0440\u043d\u0438\u0442\u0443\u0440\u0430"];
-    var type = (fastener.type || "").toLowerCase();
-    var geoKey;
-    if (type.indexOf("\u043f\u0435\u0442\u043b") >= 0 || type.indexOf("hinge") >= 0) {
-      geoKey = "hinge";
-    } else if (type.indexOf("\u043d\u0430\u043f\u0440\u0430\u0432\u043b") >= 0 || type.indexOf("slide") >= 0 || type.indexOf("rail") >= 0) {
-      geoKey = "slide";
-    } else if (type.indexOf("\u0440\u0443\u0447\u043a") >= 0 || type.indexOf("handle") >= 0) {
-      geoKey = "handle";
-    } else if (type.indexOf("\u0441\u0430\u043c\u043e\u0440\u0435\u0437") >= 0 || type.indexOf("screw") >= 0 || type.indexOf("\u043a\u043e\u043d\u0444\u0438\u0440\u043c\u0430\u0442") >= 0) {
-      geoKey = "screw";
-    } else if (type.indexOf("\u044d\u043a\u0441\u0446\u0435\u043d\u0442\u0440") >= 0 || type.indexOf("cam") >= 0 || type.indexOf("\u0441\u0442\u044f\u0436\u043a") >= 0) {
-      geoKey = "cam";
-    } else if (type.indexOf("\u0448\u043a\u0430\u043d\u0442") >= 0 || type.indexOf("dowel") >= 0) {
-      geoKey = "dowel";
-    } else if (type.indexOf("\u043f\u043e\u043b\u043a\u043e\u0434\u0435\u0440\u0436") >= 0 || type.indexOf("shelf") >= 0) {
-      geoKey = "shelf";
-    } else if (type.indexOf("\u043d\u043e\u0436\u043a") >= 0 || type.indexOf("leg") >= 0) {
-      geoKey = "leg";
-    } else if (type.indexOf("\u0434\u043e\u0432\u043e\u0434\u0447\u0438\u043a") >= 0 || type.indexOf("damper") >= 0) {
-      geoKey = "damper";
-    } else {
-      geoKey = "default";
-    }
-    var geo = getGeo(geoKey);
     var mat = new THREE.MeshStandardMaterial({
       color: color, roughness: 0.35, metalness: 0.65,
       emissive: color, emissiveIntensity: 0.15
@@ -899,13 +950,6 @@ function buildFasteners(fasteners) {
     mesh.castShadow = true;
     scene.add(mesh);
     fastenerMeshes.push(mesh);
-    // Ring marker
-    var ringGeo = new THREE.RingGeometry(0.012, 0.015, 16);
-    var ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-    var ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.set(fx, fy, fz + 0.01);
-    scene.add(ring);
-    fastenerMeshes.push(ring);
   });
 }
 const detailMeshes = new Map();
