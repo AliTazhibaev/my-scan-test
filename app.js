@@ -1151,18 +1151,6 @@ function buildScene() {
     scene.remove(oldMesh);
   });
   edgeLineMap.forEach(function(oldLine) { oldLine.geometry.dispose(); oldLine.material.dispose(); scene.remove(oldLine); });
-        var phArr = part.polyHoles || [];
-      for (var phi = 0; phi < phArr.length; phi++) {
-        var hlp = phArr[phi];
-        if (!hlp || hlp.length < 3) continue;
-        var hpath = new THREE.Path();
-        hpath.moveTo(hlp[0][0] * sc, hlp[0][1] * sc);
-        for (var hpj = 1; hpj < hlp.length; hpj++) {
-          hpath.lineTo(hlp[hpj][0] * sc, hlp[hpj][1] * sc);
-        }
-        hpath.closePath();
-        shape.holes.push(hpath);
-      }
   detailMeshes.forEach(function(oldArr) { oldArr.forEach(function(oldObj) { if (oldObj.geometry) oldObj.geometry.dispose(); if (oldObj.material) oldObj.material.dispose(); scene.remove(oldObj); }); });
   // Clean up fastener meshes
   fastenerMeshes.forEach(function(fm) {
