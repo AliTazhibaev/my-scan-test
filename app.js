@@ -665,13 +665,13 @@ function handleRaycast(clickX, clickY, rect) {
 }
 let layoutMinY = 0;
 function autoLayout(partsArr) {
-  let minY = Infinity;
-  // Проверяем, есть ли placement (мировые координаты из БАЗИС)
+  // Проверяем формат: v4 с placement или v3 без
   var hasPlacement = false;
   partsArr.forEach(function(p) {
     if (p.placement && p.placement.origin) hasPlacement = true;
   });
 
+  let minY = Infinity;
   partsArr.forEach(part => {
     if (part.pos && part.pos.y !== undefined) {
       minY = Math.min(minY, part.pos.y);
@@ -690,16 +690,17 @@ function autoLayout(partsArr) {
       p._size = { x: 0.1, y: 0.1, z: 0.1 };
       return;
     }
-    // Новый формат v4: placement.origin — мировые координаты БАЗИС
+    // v4: placement.origin — мировые координаты БАЗИС (совпадают с фурнитурой)
     if (hasPlacement && p.placement && p.placement.origin) {
       var o = p.placement.origin;
       p._pos = { x: o.x * scaleFactor, y: o.y * scaleFactor, z: o.z * scaleFactor };
     } else {
-      // Старый формат: pos из GabMin
+      // v3: pos из GabMin — используем как есть, без сдвига minY
+      // (иначе фурнитура и панели в разных системах координат)
       p._pos = {
-        x: (p.pos.x + p.gab.w / 2) * scaleFactor,
-        y: (p.pos.y - minY + p.gab.h / 2) * scaleFactor,
-        z: (p.pos.z + p.gab.d / 2) * scaleFactor - 4
+        x: p.pos.x * scaleFactor,
+        y: p.pos.y * scaleFactor,
+        z: p.pos.z * scaleFactor
       };
     }
     p._size = {
@@ -917,8 +918,8 @@ function buildFasteners(fasteners) {
     }
     // Старый формат: pos + type
     var fx = (fastener.pos ? fastener.pos.x : 0) * sc;
-    var fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
-    var fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4;
+    var fy = (fastener.pos ? fastener.pos.y : 0) * sc;
+    var fz = (fastener.pos ? fastener.pos.z : 0) * sc;
     var type = (fastener.type || "").toLowerCase();
     var geoKey;
     if (type.indexOf("\u043f\u0435\u0442\u043b") >= 0 || type.indexOf("hinge") >= 0) geoKey = "hinge";
