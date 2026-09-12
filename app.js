@@ -912,6 +912,7 @@ function buildPartDetails(partInfo, meshObj) {
   });
 
   // --- Edge bands: thin colored strips ---
+  // Shape local coords start at (0,0), mesh position = shape corner, not center
   edges2.forEach(function(edge) {
     const edgeSide = (edge.side || "").toLowerCase();
     const edgeLen = (edge.length || 0) * sc;
@@ -919,13 +920,13 @@ function buildPartDetails(partInfo, meshObj) {
     var edgeW, edgeH, edgeD, edgeX, edgeY, edgeZ;
     if (edgeSide.includes("w") || edgeSide.includes("длин")) {
       edgeW = edgeLen || panelW; edgeH = edgeThick; edgeD = panelT;
-      edgeX = meshPos.x; edgeY = meshPos.y + panelH / 2; edgeZ = meshPos.z;
+      edgeX = meshPos.x + panelW / 2; edgeY = meshPos.y + panelH; edgeZ = meshPos.z;
     } else if (edgeSide.includes("h") || edgeSide.includes("выс")) {
       edgeW = edgeThick; edgeH = edgeLen || panelH; edgeD = panelT;
-      edgeX = meshPos.x + panelW / 2; edgeY = meshPos.y; edgeZ = meshPos.z;
+      edgeX = meshPos.x + panelW; edgeY = meshPos.y + panelH / 2; edgeZ = meshPos.z;
     } else {
       edgeW = panelW; edgeH = edgeThick; edgeD = panelT;
-      edgeX = meshPos.x; edgeY = meshPos.y - panelH / 2; edgeZ = meshPos.z;
+      edgeX = meshPos.x + panelW / 2; edgeY = meshPos.y; edgeZ = meshPos.z;
     }
     var edgeGeo = new THREE.BoxGeometry(edgeW || 0.01, edgeH || 0.01, edgeD || 0.01);
     var edgeMat = new THREE.MeshStandardMaterial({
