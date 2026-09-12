@@ -110,7 +110,35 @@ function buildPanelShape(part) {
     }
   }
   let shape;
-  if (part.contour && part.contour.length >= 2) {
+    if (part.poly && part.poly.length >= 3) {
+    shape = new THREE.Shape();
+    var started = false;
+    for (var ppi = 0; ppi < part.poly.length; ppi++) {
+      var ppt = part.poly[ppi];
+      if (ppt[0] === 'circle') {
+        var cpath = new THREE.Path();
+        cpath.absarc(ppt[1] * sc, ppt[2] * sc, ppt[3] * sc, 0, Math.PI * 2, false);
+        shape.holes.push(cpath);
+        continue;
+      }
+      if (!started) { shape.moveTo(ppt[0] * sc, ppt[1] * sc); started = true; }
+      else { shape.lineTo(ppt[0] * sc, ppt[1] * sc); }
+    }
+    if (started) shape.closePath();
+
+    var phArr = part.polyHoles || [];
+    for (var phi = 0; phi < phArr.length; phi++) {
+      var hlp = phArr[phi];
+      if (!hlp || hlp.length < 3) continue;
+      var hpath = new THREE.Path();
+      hpath.moveTo(hlp[0][0] * sc, hlp[0][1] * sc);
+      for (var hpj = 1; hpj < hlp.length; hpj++) {
+        hpath.lineTo(hlp[hpj][0] * sc, hlp[hpj][1] * sc);
+      }
+      hpath.closePath();
+      shape.holes.push(hpath);
+    }
+  } else if (part.contour && part.contour.length >= 2) {
     // Новый формат: [{t:'line', x1, y1, x2, y2}, {t:'arc', ...}, {t:'circle', ...}]
     if (part.contour[0].t) {
       shape = new THREE.Shape();
@@ -158,10 +186,17 @@ function buildPanelShape(part) {
   } else {
     // Default rectangular panel
     shape = new THREE.Shape();
-    shape.moveTo(-shapeW / 2, -shapeH / 2);
-    shape.lineTo(shapeW / 2, -shapeH / 2);
-    shape.lineTo(shapeW / 2, shapeH / 2);
-    shape.lineTo(-shapeW / 2, shapeH / 2);
+        if (useLW) {
+      shape.moveTo(0, 0);
+      shape.lineTo(shapeW, 0);
+      shape.lineTo(shapeW, shapeH);
+      shape.lineTo(0, shapeH);
+    } else {
+      shape.moveTo(-shapeW / 2, -shapeH / 2);
+      shape.lineTo(shapeW / 2, -shapeH / 2);
+      shape.lineTo(shapeW / 2, shapeH / 2);
+      shape.lineTo(-shapeW / 2, shapeH / 2);
+    }
     shape.closePath();
   }
   // Add cutouts as holes in the shape
