@@ -730,12 +730,11 @@ function autoLayout(partsArr) {
       var o = p.placement.origin;
       p._pos = { x: o.x * scaleFactor, y: o.y * scaleFactor, z: o.z * scaleFactor };
     } else {
-      // v3: pos из GabMin — используем как есть, без сдвига minY
-      // (иначе фурнитура и панели в разных системах координат)
+      // v3: pos из GabMin — центр = pos + gab/2
       p._pos = {
-        x: p.pos.x * scaleFactor,
-        y: p.pos.y * scaleFactor,
-        z: p.pos.z * scaleFactor
+        x: (p.pos.x + (p.gab ? p.gab.w : 0) / 2) * scaleFactor,
+        y: (p.pos.y + (p.gab ? p.gab.h : 0) / 2) * scaleFactor,
+        z: (p.pos.z + (p.gab ? p.gab.d : 0) / 2) * scaleFactor
       };
     }
     p._size = {
