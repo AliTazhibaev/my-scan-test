@@ -578,32 +578,22 @@ function handleRaycast(clickX, clickY, rect) {
       arr.forEach(m => { if (m.visible && m.userData && m.userData.partId) meshes.push(m); });
     });
   }
-  // Add instanced fastener meshes for raycasting
+  // Add fastener meshes for raycasting
   if (typeof fastenerMeshes !== 'undefined') {
-    fastenerMeshes.forEach(m => {
-      if (m.visible && m.userData && m.userData.fastenerList) meshes.push(m);
-    });
+    fastenerMeshes.forEach(m => { if (m.visible && m.userData && m.userData.fastenerId !== undefined) meshes.push(m); });
   }
   const hits = rc.intersectObjects(meshes);
   if (hits.length === 0) {
     deselectPart();
     return;
   }
-  // Check if a fastener was clicked (InstancedMesh)
+  // Check if a fastener was clicked
   for (let i = 0; i < hits.length; i++) {
     const ud = hits[i].object.userData;
-    if (ud && ud.fastenerList) {
-      var instId = hits[i].instanceId;
-      var f = ud.fastenerList[instId];
-      if (f) {
-        showToast("🔧 " + (f.name || "Фурнитура") + " [" + (f.type || "?") + "]");
-      }
-      return;
-    }
     if (ud && ud.fastenerId !== undefined) {
-      const f2 = fastenerData.find(fd => fd.id === ud.fastenerId);
-      if (f2) {
-        showToast("🔧 " + (f2.name || "Фурнитура") + " [" + (f2.type || "?") + "]");
+      const f = fastenerData.find(fd => fd.id === ud.fastenerId);
+      if (f) {
+        showToast("\uD83D\uDD27 " + (f.name || "\u0424\u0443\u0440\u043d\u0438\u0442\u0443\u0440\u0430") + " [" + (f.type || "?") + "]");
       }
       return;
     }
@@ -850,84 +840,65 @@ const FASTENER_COLORS = {
 
 function buildFasteners(fasteners) {
   if (!fasteners || !fasteners.length) return;
-  // Group fasteners by type for InstancedMesh batching
-  var groups = {};
+  var geoCache = {};
+  function getGeo(geoKey) {
+    if (geoCache[geoKey]) return geoCache[geoKey];
+    var geo;
+    switch (geoKey) {
+      case "hinge":  geo = new THREE.CylinderGeometry(0.006, 0.006, 0.02, 12); break;
+      case "slide":  geo = new THREE.BoxGeometry(0.004, 0.08, 0.004); break;
+      case "handle": geo = new THREE.TorusGeometry(0.012, 0.003, 8, 24, Math.PI); break;
+      case "screw":  geo = new THREE.CylinderGeometry(0.002, 0.001, 0.015, 8); break;
+      case "cam":    geo = new THREE.CylinderGeometry(0.008, 0.008, 0.006, 16); break;
+      case "leg":    geo = new THREE.CylinderGeometry(0.008, 0.01, 0.03, 12); break;
+      case "damper": geo = new THREE.BoxGeometry(0.006, 0.02, 0.006); break;
+      default:       geo = new THREE.BoxGeometry(0.008, 0.008, 0.008); break;
+    }
+    geoCache[geoKey] = geo;
+    return geo;
+  }
   fasteners.forEach(function(fastener) {
+    var fx = (fastener.pos ? fastener.pos.x : 0) * sc;
+    var fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
+    var fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4;
+    var color = FASTENER_COLORS[fastener.type] || FASTENER_COLORS["\u0424\u0443\u0440\u043d\u0438\u0442\u0443\u0440\u0430"];
     var type = (fastener.type || "").toLowerCase();
     var geoKey;
-    if (type.indexOf("петл") >= 0 || type.indexOf("hinge") >= 0) {
+    if (type.indexOf("\u043f\u0435\u0442\u043b") >= 0 || type.indexOf("hinge") >= 0) {
       geoKey = "hinge";
-    } else if (type.indexOf("направл") >= 0 || type.indexOf("slide") >= 0 || type.indexOf("rail") >= 0) {
+    } else if (type.indexOf("\u043d\u0430\u043f\u0440\u0430\u0432\u043b") >= 0 || type.indexOf("slide") >= 0 || type.indexOf("rail") >= 0) {
       geoKey = "slide";
-    } else if (type.indexOf("ручк") >= 0 || type.indexOf("handle") >= 0) {
+    } else if (type.indexOf("\u0440\u0443\u0447\u043a") >= 0 || type.indexOf("handle") >= 0) {
       geoKey = "handle";
-    } else if (type.indexOf("саморез") >= 0 || type.indexOf("screw") >= 0 || type.indexOf("конфирмат") >= 0) {
+    } else if (type.indexOf("\u0441\u0430\u043c\u043e\u0440\u0435\u0437") >= 0 || type.indexOf("screw") >= 0 || type.indexOf("\u043a\u043e\u043d\u0444\u0438\u0440\u043c\u0430\u0442") >= 0) {
       geoKey = "screw";
-    } else if (type.indexOf("экцентр") >= 0 || type.indexOf("cam") >= 0 || type.indexOf("стяжк") >= 0) {
+    } else if (type.indexOf("\u044d\u043a\u0441\u0446\u0435\u043d\u0442\u0440") >= 0 || type.indexOf("cam") >= 0 || type.indexOf("\u0441\u0442\u044f\u0436\u043a") >= 0) {
       geoKey = "cam";
-    } else if (type.indexOf("ножк") >= 0 || type.indexOf("leg") >= 0) {
+    } else if (type.indexOf("\u043d\u043e\u0436\u043a") >= 0 || type.indexOf("leg") >= 0) {
       geoKey = "leg";
-    } else if (type.indexOf("доводчик") >= 0 || type.indexOf("damper") >= 0) {
+    } else if (type.indexOf("\u0434\u043e\u0432\u043e\u0434\u0447\u0438\u043a") >= 0 || type.indexOf("damper") >= 0) {
       geoKey = "damper";
     } else {
       geoKey = "default";
     }
-    if (!groups[geoKey]) groups[geoKey] = [];
-    groups[geoKey].push(fastener);
-  });
-  var geoMap = {
-    hinge:   function() { return new THREE.CylinderGeometry(0.006, 0.006, 0.02, 12); },
-    slide:   function() { return new THREE.BoxGeometry(0.004, 0.08, 0.004); },
-    handle:  function() { return new THREE.TorusGeometry(0.012, 0.003, 8, 24, Math.PI); },
-    screw:   function() { return new THREE.CylinderGeometry(0.002, 0.001, 0.015, 8); },
-    cam:     function() { return new THREE.CylinderGeometry(0.008, 0.008, 0.006, 16); },
-    leg:     function() { return new THREE.CylinderGeometry(0.008, 0.01, 0.03, 12); },
-    damper:  function() { return new THREE.BoxGeometry(0.006, 0.02, 0.006); },
-    "default": function() { return new THREE.BoxGeometry(0.008, 0.008, 0.008); }
-  };
-  Object.keys(groups).forEach(function(geoKey) {
-    var list = groups[geoKey];
-    var geo = geoMap[geoKey] ? geoMap[geoKey]() : geoMap["default"]();
-    // Pick a representative color for this group
-    var repType = (list[0].type || "Фурнитура");
-    var color = FASTENER_COLORS[repType] || FASTENER_COLORS["Фурнитура"];
+    var geo = getGeo(geoKey);
     var mat = new THREE.MeshStandardMaterial({
       color: color, roughness: 0.35, metalness: 0.65,
-      emissive: color, emissiveIntensity: 0.1
+      emissive: color, emissiveIntensity: 0.15
     });
-    var instMesh = new THREE.InstancedMesh(geo, mat, list.length);
-    instMesh.castShadow = true;
-    var dummy = new THREE.Object3D();
-    list.forEach(function(fastener, i) {
-      var fx = (fastener.pos ? fastener.pos.x : 0) * sc;
-      var fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
-      var fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4;
-      dummy.position.set(fx, fy, fz);
-      dummy.updateMatrix();
-      instMesh.setMatrixAt(i, dummy.matrix);
-      // Store fastenerId in per-instance userData via a lookup array
-      instMesh.userData = instMesh.userData || {};
-    });
-    instMesh.instanceMatrix.needsUpdate = true;
-    scene.add(instMesh);
-    fastenerMeshes.push(instMesh);
-    // Store fastener list reference for raycasting
-    instMesh.userData = { fastenerList: list, type: "instancedFasteners" };
-    // Ring markers (single InstancedMesh for all rings in this group)
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(fx, fy, fz);
+    mesh.userData = { fastenerId: fastener.id, type: "fastener", name: fastener.name };
+    mesh.castShadow = true;
+    scene.add(mesh);
+    fastenerMeshes.push(mesh);
+    // Ring marker
     var ringGeo = new THREE.RingGeometry(0.012, 0.015, 16);
-    var ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
-    var ringInst = new THREE.InstancedMesh(ringGeo, ringMat, list.length);
-    list.forEach(function(fastener, i) {
-      var fx = (fastener.pos ? fastener.pos.x : 0) * sc;
-      var fy = ((fastener.pos ? fastener.pos.y : 0) - layoutMinY) * sc;
-      var fz = (fastener.pos ? fastener.pos.z : 0) * sc - 4 + 0.01;
-      dummy.position.set(fx, fy, fz);
-      dummy.updateMatrix();
-      ringInst.setMatrixAt(i, dummy.matrix);
-    });
-    ringInst.instanceMatrix.needsUpdate = true;
-    scene.add(ringInst);
-    fastenerMeshes.push(ringInst);
+    var ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+    var ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set(fx, fy, fz + 0.01);
+    scene.add(ring);
+    fastenerMeshes.push(ring);
   });
 }
 const detailMeshes = new Map();
@@ -941,7 +912,7 @@ function buildScene() {
   });
   edgeLineMap.forEach(function(oldLine) { oldLine.geometry.dispose(); oldLine.material.dispose(); scene.remove(oldLine); });
   detailMeshes.forEach(function(oldArr) { oldArr.forEach(function(oldObj) { if (oldObj.geometry) oldObj.geometry.dispose(); if (oldObj.material) oldObj.material.dispose(); scene.remove(oldObj); }); });
-  // Clean up instanced fastener meshes
+  // Clean up fastener meshes
   fastenerMeshes.forEach(function(fm) {
     if (fm.geometry) fm.geometry.dispose();
     if (fm.material) { if (fm.material.map) fm.material.map.dispose(); fm.material.dispose(); }
