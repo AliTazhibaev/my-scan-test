@@ -71,9 +71,11 @@ function createWoodTexture(baseColor, scale) {
 
 // === PANEL SHAPE BUILDER ===
 function buildPanelShape(part) {
-  // L = длина панели, W = ширина/высота, T = толщина
-  const w = Math.max(part.L || 100, 1) * sc;
-  const h = Math.max(part.W || 100, 1) * sc;
+  // v4: если есть placement — используем L/W (локальные размеры панели)
+  // v3: используем gab (мировые габариты, rotation matrix отсутствует)
+  var useLW = part.placement && part.placement.origin;
+  const w = useLW ? Math.max(part.L || 100, 1) * sc : Math.max(part.gab ? part.gab.w : (part.L || 100), 1) * sc;
+  const h = useLW ? Math.max(part.W || 100, 1) * sc : Math.max(part.gab ? part.gab.h : (part.W || 100), 1) * sc;
   let shape;
   if (part.contour && part.contour.length >= 2) {
     // Новый формат: [{t:'line', x1, y1, x2, y2}, {t:'arc', ...}, {t:'circle', ...}]
@@ -131,8 +133,8 @@ function buildPanelShape(part) {
   }
   // Add cutouts as holes in the shape
   const cutouts = part.cutouts || [];
-  const panelW = Math.max(part.L || 100, 1) * sc;
-  const panelH = Math.max(part.W || 100, 1) * sc;
+  const panelW = useLW ? Math.max(part.L || 100, 1) * sc : (part.gab ? part.gab.w : (part.L || 100)) * sc;
+  const panelH = useLW ? Math.max(part.W || 100, 1) * sc : (part.gab ? part.gab.h : (part.W || 100)) * sc;
   cutouts.forEach(function(cutout) {
     var cw = (cutout.w || 30) * sc;
     var ch = (cutout.h || 30) * sc;
@@ -705,9 +707,9 @@ function autoLayout(partsArr) {
       };
     }
     p._size = {
-      x: Math.max(p.L || p.gab.w, 1) * scaleFactor,
-      y: Math.max(p.W || p.gab.h, 1) * scaleFactor,
-      z: Math.max(p.T || p.gab.d, 1) * scaleFactor
+      x: Math.max(p.gab ? p.gab.w : (p.L || 1), 1) * scaleFactor,
+      y: Math.max(p.gab ? p.gab.h : (p.W || 1), 1) * scaleFactor,
+      z: Math.max(p.gab ? p.gab.d : (p.T || 1), 1) * scaleFactor
     };
   });
 }
@@ -1017,7 +1019,8 @@ function buildScene() {
   originalPositions.clear();
   parts.forEach(part => {
     const panelShape = buildPanelShape(part);
-    const panelT = Math.max((part.T || 16), 1) * sc;
+    var useLW = part.placement && part.placement.origin;
+    const panelT = useLW ? Math.max((part.T || 16), 1) * sc : Math.max((part.gab ? part.gab.d : (part.T || 16)), 1) * sc;
     // ExtrudeGeometry: real panel shape with holes for cutouts
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
     var panelGeo = new THREE.ExtrudeGeometry(panelShape, extrudeSettings);
