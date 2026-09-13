@@ -1,3 +1,20 @@
+
+
+// === Wake Lock ===
+async function requestWakeLock() {
+  try {
+    if ("wakeLock" in navigator) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  } catch(e) {}
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && parts.length > 0) requestWakeLock();
+});
 // === Main App Logic ===
 const CONFIG = {
   FOG_DENSITY: 0.012,
@@ -110,7 +127,35 @@ function buildPanelShape(part) {
     }
   }
   let shape;
-  if (part.contour && part.contour.length >= 2) {
+    if (part.poly && part.poly.length >= 3) {
+    shape = new THREE.Shape();
+    var started = false;
+    for (var ppi = 0; ppi < part.poly.length; ppi++) {
+      var ppt = part.poly[ppi];
+      if (ppt[0] === 'circle') {
+        var cpath = new THREE.Path();
+        cpath.absarc(ppt[1] * sc, ppt[2] * sc, ppt[3] * sc, 0, Math.PI * 2, false);
+        shape.holes.push(cpath);
+        continue;
+      }
+      if (!started) { shape.moveTo(ppt[0] * sc, ppt[1] * sc); started = true; }
+      else { shape.lineTo(ppt[0] * sc, ppt[1] * sc); }
+    }
+    if (started) shape.closePath();
+
+    var phArr = part.polyHoles || [];
+    for (var phi = 0; phi < phArr.length; phi++) {
+      var hlp = phArr[phi];
+      if (!hlp || hlp.length < 3) continue;
+      var hpath = new THREE.Path();
+      hpath.moveTo(hlp[0][0] * sc, hlp[0][1] * sc);
+      for (var hpj = 1; hpj < hlp.length; hpj++) {
+        hpath.lineTo(hlp[hpj][0] * sc, hlp[hpj][1] * sc);
+      }
+      hpath.closePath();
+      shape.holes.push(hpath);
+    }
+  } else if (part.contour && part.contour.length >= 2) {
     // Новый формат: [{t:'line', x1, y1, x2, y2}, {t:'arc', ...}, {t:'circle', ...}]
     if (part.contour[0].t) {
       shape = new THREE.Shape();
@@ -158,10 +203,17 @@ function buildPanelShape(part) {
   } else {
     // Default rectangular panel
     shape = new THREE.Shape();
-    shape.moveTo(-shapeW / 2, -shapeH / 2);
-    shape.lineTo(shapeW / 2, -shapeH / 2);
-    shape.lineTo(shapeW / 2, shapeH / 2);
-    shape.lineTo(-shapeW / 2, shapeH / 2);
+        if (useLW) {
+      shape.moveTo(0, 0);
+      shape.lineTo(shapeW, 0);
+      shape.lineTo(shapeW, shapeH);
+      shape.lineTo(0, shapeH);
+    } else {
+      shape.moveTo(-shapeW / 2, -shapeH / 2);
+      shape.lineTo(shapeW / 2, -shapeH / 2);
+      shape.lineTo(shapeW / 2, shapeH / 2);
+      shape.lineTo(-shapeW / 2, shapeH / 2);
+    }
     shape.closePath();
   }
   // Add cutouts as holes in the shape
@@ -212,6 +264,9 @@ let assemblyTimer = null;
 let fastenerData = [];
 let csgEnabled = true;
 let fastenerMeshes = [];
+let isolatedModule = null;
+let explodeModuleKey = null;
+let wakeLock = null;
 let scene;
 let camera;
 let renderer;
@@ -877,6 +932,7 @@ function buildPartDetails(partInfo, meshObj) {
   });
 
   // --- Edge bands: thin colored strips ---
+  // Shape local coords start at (0,0), mesh position = shape corner, not center
   edges2.forEach(function(edge) {
     const edgeSide = (edge.side || "").toLowerCase();
     const edgeLen = (edge.length || 0) * sc;
@@ -884,13 +940,13 @@ function buildPartDetails(partInfo, meshObj) {
     var edgeW, edgeH, edgeD, edgeX, edgeY, edgeZ;
     if (edgeSide.includes("w") || edgeSide.includes("длин")) {
       edgeW = edgeLen || panelW; edgeH = edgeThick; edgeD = panelT;
-      edgeX = meshPos.x; edgeY = meshPos.y + panelH / 2; edgeZ = meshPos.z;
+      edgeX = meshPos.x + panelW / 2; edgeY = meshPos.y + panelH; edgeZ = meshPos.z;
     } else if (edgeSide.includes("h") || edgeSide.includes("выс")) {
       edgeW = edgeThick; edgeH = edgeLen || panelH; edgeD = panelT;
-      edgeX = meshPos.x + panelW / 2; edgeY = meshPos.y; edgeZ = meshPos.z;
+      edgeX = meshPos.x + panelW; edgeY = meshPos.y + panelH / 2; edgeZ = meshPos.z;
     } else {
       edgeW = panelW; edgeH = edgeThick; edgeD = panelT;
-      edgeX = meshPos.x; edgeY = meshPos.y - panelH / 2; edgeZ = meshPos.z;
+      edgeX = meshPos.x + panelW / 2; edgeY = meshPos.y; edgeZ = meshPos.z;
     }
     var edgeGeo = new THREE.BoxGeometry(edgeW || 0.01, edgeH || 0.01, edgeD || 0.01);
     var edgeMat = new THREE.MeshStandardMaterial({
@@ -1151,6 +1207,18 @@ function buildScene() {
         else shape.lineTo(pt[0] * sc, pt[1] * sc);
       }
       if (started) shape.closePath();
+      var holeArr = part.polyHoles || [];
+      for (var hi = 0; hi < holeArr.length; hi++) {
+        var holeLoop = holeArr[hi];
+        if (!holeLoop || holeLoop.length < 3) continue;
+        var holePath2 = new THREE.Path();
+        holePath2.moveTo(holeLoop[0][0] * sc, holeLoop[0][1] * sc);
+        for (var hj = 1; hj < holeLoop.length; hj++) {
+          holePath2.lineTo(holeLoop[hj][0] * sc, holeLoop[hj][1] * sc);
+        }
+        holePath2.closePath();
+        shape.holes.push(holePath2);
+      }
     } else if (part.contour && part.contour.length >= 2 && part.contour[0].t) {
       shape = buildContourShape(part.contour, sc);
     } else {
@@ -1187,7 +1255,6 @@ function buildScene() {
     });
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
     var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    panelGeo.translate(0, 0, -panelT / 2);
     var baseColor = getColor(part.material, part);
     var panelMat = new THREE.MeshStandardMaterial({
       color: baseColor,
@@ -1346,26 +1413,95 @@ function renderProcessingInfo(partData) {
   html += "</div>";
   return html;
 }
+function findNeighbors(part) {
+  if (!fastenerData.length || !part) return [];
+  var neighbors = [];
+  var seen = new Set();
+  var code = part.code || "";
+  fastenerData.forEach(function(f) {
+    if (f.ownerCode && f.ownerCode === code && f.neighborCode && !seen.has(f.neighborCode)) {
+      seen.add(f.neighborCode);
+      neighbors.push(f.neighborCode);
+    }
+  });
+  return neighbors;
+}
+function navigateToNeighbor(code) {
+  var found = parts.find(function(p) { return p.code === code; });
+  if (found) { selectPart(found.id); startSmoothZoom(found.id); }
+}
+function isMobileSheet() {
+  return window.innerWidth <= 600;
+}
+var sheetCollapsed = false;
 function updateSheet(part) {
-  const sheetEl = document.getElementById("sheetContent");
+  var sheetEl = document.getElementById("sheetContent");
+  var previewCodeEl = document.getElementById("sheetPreviewCode");
+  var bottomSheet = document.getElementById("bottomSheet");
   if (!part) {
-    sheetEl.innerHTML = "<div style=\"text-align:center;color:var(--text-secondary);padding:10px;font-size:11px;\">👆 Нажмите на деталь</div>";
+    sheetEl.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:10px;font-size:11px;">Нажмите на деталь</div>';
+    if (previewCodeEl) previewCodeEl.textContent = '—';
+    bottomSheet.removeAttribute('data-state');
+    sheetCollapsed = false;
     return;
   }
-  const isScanned = scannedSet.has(part.id);
-  const displayCode = idMode === "position" ? part.position || part.code || "" : part.code || "";
-  const modKey = getModuleKey(displayCode);
-  const modName = part.groupName || getModuleName(displayCode);
-  const modColor = getModuleColor(displayCode);
-  let assemblyHint = "";
-  if (modKey !== "HARDWARE" && modKey !== "OTHER") {
-    const modParts = moduleMap.get(modKey) || [];
-    const partIndex = modParts.indexOf(part) + 1;
-    assemblyHint = "<div class=\"assembly-hint\">📦 " + modName + " — деталь " + partIndex + " из " + modParts.length + " в модуле</div>";
+  var isScanned = scannedSet.has(part.id);
+  var displayCode = idMode === "position" ? part.position || part.code || "" : part.code || "";
+  var displayCode2 = idMode === "position" ? (part.code || "") : (part.position || "");
+  var modKey = getModuleKey(displayCode);
+  var modName = part.groupName || getModuleName(displayCode);
+  var modColor = getModuleColor(displayCode);
+  var neighbors = findNeighbors(part);
+  if (previewCodeEl) previewCodeEl.textContent = displayCode || '—';
+  var html = '<div class="detail-card">';
+  html += '<div style="font-size:18px;font-weight:700;color:var(--code-color);font-family:Monaco,Menlo,monospace;margin-bottom:4px">' + escapeHtml(displayCode || '—') + '</div>';
+  if (displayCode2) {
+    html += '<div style="font-size:11px;color:var(--text-tertiary);font-family:Monaco,Menlo,monospace;margin-bottom:6px">' + escapeHtml(displayCode2) + '</div>';
   }
-  sheetEl.innerHTML = "\n      <div class=\"detail-card\">\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Наименование:</span>\n          <span class=\"detail-value\" style=\"font-size:13px;font-weight:600\">" + escapeHtml(part.name || "—") + "</span>\n        </div>\n        <div class=\"detail-row\">\n          <span class=\"detail-label\">Обозначение:</span>\n          <span class=\"detail-code\">" + escapeHtml(part.code || "—") + "</span>\n        </div>\n        " + (part.position ? "<div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"detail-label\">Позиция:</span>\n          <span class=\"detail-code\">" + escapeHtml(part.position) + "</span>\n        </div>" : "") + "\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"material-tag\">" + escapeHtml(part.material || "Материал") + "</span>\n          <span class=\"module-badge\" style=\"color:" + modColor + ";background:" + modColor + "18;border-color:" + modColor + "30\">" + modName + "</span>\n        </div>\n        " + (part.group ? "<div class=\"detail-row\" style=\"margin-top:2px\"><span class=\"detail-label\">Группа:</span><span class=\"detail-code\" style=\"font-size:11px\">" + escapeHtml(part.group) + " — " + escapeHtml(part.groupName || modName) + "</span></div>" : "") + "\n        <div class=\"dims-row\" style=\"margin-top:3px\">\n          <div class=\"dim\"><span class=\"dim-label\">Д</span><span class=\"dim-value\">" + (part.L || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Ш</span><span class=\"dim-value\">" + (part.W || "—") + "</span></div>\n          <div class=\"dim\"><span class=\"dim-label\">Т</span><span class=\"dim-value\">" + (part.T || "—") + "</span></div>\n        </div>\n        <div class=\"detail-row\" style=\"margin-top:2px\">\n          <span class=\"status-badge " + (isScanned ? "scanned" : "waiting") + "\">" + (isScanned ? "✅ ОТСКАНИРОВАНО" : "⏳ ОЖИДАЕТ") + "</span>\n        </div>\n        " + assemblyHint + "\n        " + renderProcessingInfo(part) + "\n      </div>\n    ";
-
+  html += '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px">' + escapeHtml(part.name || '—') + '</div>';
+  html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">';
+  html += '<div class="dim"><span class="dim-label">Д</span><span class="dim-value">' + (part.L || '—') + '</span></div>';
+  html += '<div class="dim"><span class="dim-label">Ш</span><span class="dim-value">' + (part.W || '—') + '</span></div>';
+  html += '<div class="dim"><span class="dim-label">Т</span><span class="dim-value">' + (part.T || '—') + '</span></div>';
+  html += '<span class="material-tag">' + escapeHtml(part.material || 'Материал') + '</span>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">';
+  html += '<span class="status-badge ' + (isScanned ? 'scanned' : 'waiting') + '">' + (isScanned ? 'СОБРАНО' : 'ОЖИДАЕТ') + '</span>';
+  html += '<span class="module-badge" style="color:' + modColor + ';background:' + modColor + '18;border-color:' + modColor + '30">' + modName + '</span>';
+  html += '</div>';
+  if (modKey !== 'HARDWARE' && modKey !== 'OTHER') {
+    var modParts = moduleMap.get(modKey) || [];
+    var partIndex = modParts.indexOf(part) + 1;
+    if (partIndex > 0) {
+      html += '<div class="assembly-hint">' + modName + ' — деталь ' + partIndex + ' из ' + modParts.length + ' в модуле</div>';
+    }
+  }
+  if (neighbors.length) {
+    html += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">Соседи</div>';
+    html += '<div style="display:flex;gap:4px;flex-wrap:wrap">';
+    neighbors.forEach(function(nb) {
+      html += '<span onclick="navigateToNeighbor(\'' + escapeHtml(nb).replace(/'/g, "\\'") + '\')" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--code-color);font-family:Monaco,Menlo,monospace;cursor:pointer">' + escapeHtml(nb) + '</span>';
+    });
+    html += '</div></div>';
+  }
+  html += renderProcessingInfo(part);
+  html += '<div class="action-buttons">';
+  html += '<div class="action-btn" onclick="handleScan(\'' + escapeHtml(displayCode).replace(/'/g, "\\'") + '\')">Скан</div>';
+  html += '<div class="action-btn" onclick="startSmoothZoom(' + part.id + ')">Фокус</div>';
+  html += '<div class="action-btn" onclick="toggleVisibility(' + part.id + ')">' + (hiddenSet.has(part.id) ? 'Показать' : 'Скрыть') + '</div>';
+  html += '</div>';
+  html += '</div>';
+  sheetEl.innerHTML = html;
+  if (isMobileSheet() && !assemblyMode) {
+    bottomSheet.setAttribute('data-state', 'collapsed');
+    sheetCollapsed = true;
+  } else {
+    bottomSheet.removeAttribute('data-state');
+    sheetCollapsed = false;
+  }
 }
+
 function toggleVisibility(partId) {
   const visMesh = meshMap.get(partId);
   const visEdge = edgeLineMap.get(partId);
@@ -1409,17 +1545,123 @@ function toggleCSGVisibility() {
 }
 function showAllParts() {
   hiddenSet.clear();
+  isolatedModule = null;
+  explodeModuleKey = null;
   meshMap.forEach(m => {
     m.visible = true;
+    m.material.transparent = false;
+    m.material.opacity = 1;
   });
   edgeLineMap.forEach(e => {
     e.visible = true;
+    e.material.transparent = false;
+    e.material.opacity = 1;
+  });
+  detailMeshes.forEach(arr => {
+    arr.forEach(obj => { obj.visible = true; });
   });
   renderPartsList();
-  if (xrayActive) {
-    applyXray();
+  if (xrayActive) { applyXray(); }
+  if (explodeActive) {
+    animateExplodeTo(0);
+    explodeActive = false;
+    document.getElementById("explodeBtn").classList.remove("active");
   }
-  showToast("👁 Все детали показаны");
+  document.getElementById("isolationBar").style.display = "none";
+  showToast("Все модули показаны");
+}
+
+// === Module Isolation ===
+function isolateModule(moduleKey) {
+  if (!moduleMap.has(moduleKey)) return;
+  isolatedModule = moduleKey;
+  var moduleParts = moduleMap.get(moduleKey);
+  var moduleIds = new Set(moduleParts.map(p => p.id));
+  meshMap.forEach((m, id) => {
+    if (moduleIds.has(id)) {
+      m.visible = true;
+      m.material.transparent = false;
+      m.material.opacity = 1;
+    } else {
+      m.visible = false;
+    }
+  });
+  edgeLineMap.forEach((e, id) => {
+    if (moduleIds.has(id)) {
+      e.visible = true;
+    } else {
+      e.visible = false;
+    }
+  });
+  detailMeshes.forEach((arr, id) => {
+    arr.forEach(obj => { obj.visible = moduleIds.has(id); });
+  });
+  // Show isolation bar
+  var bar = document.getElementById("isolationBar");
+  var firstPart = moduleParts[0];
+  var displayName = (firstPart && firstPart.groupName) ? firstPart.groupName : getModuleName(moduleKey + "_00");
+  var modColor = getModuleColor(moduleKey + "_00");
+  bar.querySelector(".isolation-name").textContent = displayName;
+  bar.querySelector(".isolation-name").style.color = modColor;
+  bar.querySelector(".isolation-count").textContent = moduleParts.length + " деталей";
+  bar.style.display = "flex";
+  centerCameraOnParts(moduleParts);
+  renderPartsList();
+  showToast("Изолирован: " + displayName);
+}
+function exitIsolation() {
+  isolatedModule = null;
+  explodeModuleKey = null;
+  meshMap.forEach(m => {
+    m.visible = true;
+    m.material.transparent = false;
+    m.material.opacity = 1;
+  });
+  edgeLineMap.forEach(e => {
+    e.visible = true;
+    e.material.transparent = false;
+    e.material.opacity = 1;
+  });
+  detailMeshes.forEach(arr => {
+    arr.forEach(obj => { obj.visible = true; });
+  });
+  if (explodeActive) {
+    animateExplodeTo(0);
+    explodeActive = false;
+    document.getElementById("explodeBtn").classList.remove("active");
+  }
+  document.getElementById("isolationBar").style.display = "none";
+  centerCamera();
+  renderPartsList();
+  showToast("Изоляция снята");
+}
+function centerCameraOnParts(partsArr) {
+  if (!partsArr.length) return;
+  var minX = Infinity, maxX = -Infinity;
+  var minY = Infinity, maxY = -Infinity;
+  var minZ = Infinity, maxZ = -Infinity;
+  partsArr.forEach(p => {
+    if (!p._pos) return;
+    minX = Math.min(minX, p._pos.x - p._size.x / 2);
+    maxX = Math.max(maxX, p._pos.x + p._size.x / 2);
+    minY = Math.min(minY, p._pos.y - p._size.y / 2);
+    maxY = Math.max(maxY, p._pos.y + p._size.y / 2);
+    minZ = Math.min(minZ, p._pos.z - p._size.z / 2);
+    maxZ = Math.max(maxZ, p._pos.z + p._size.z / 2);
+  });
+  targetPosition.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+  var maxExtent = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+  camDist = Math.max(maxExtent * 2, 1.5);
+  updateCamera();
+}
+function explodeIsolatedModule() {
+  if (!isolatedModule) return;
+  explodeModuleKey = isolatedModule;
+  if (!explodeActive) {
+    explodeActive = true;
+    document.getElementById("explodeBtn").classList.add("active");
+  }
+  animateExplodeTo(1);
 }
 function applyXray() {
   meshMap.forEach((xrayMesh, xrayId) => {
@@ -1453,8 +1695,11 @@ function toggleExplode() {
   explodeActive = !explodeActive;
   document.getElementById("explodeBtn").classList.toggle("active", explodeActive);
   if (!explodeActive) {
+    explodeModuleKey = null;
     animateExplodeTo(0);
   } else {
+    if (isolatedModule) { explodeModuleKey = isolatedModule; }
+    else { explodeModuleKey = null; }
     animateExplodeTo(1);
   }
 }
@@ -1474,19 +1719,27 @@ function animateExplodeTo(target) {
   requestAnimationFrame(step);
 }
 function applyExplode() {
-  if (!originalPositions.size) {
-    return;
+  if (!originalPositions.size) return;
+  var center = new THREE.Vector3();
+  var count = 0;
+  if (explodeModuleKey && moduleMap.has(explodeModuleKey)) {
+    var modParts = moduleMap.get(explodeModuleKey);
+    modParts.forEach(p => {
+      var pos = originalPositions.get(p.id);
+      if (pos) { center.add(pos); count++; }
+    });
+  } else {
+    originalPositions.forEach(origCenter => {
+      center.add(origCenter);
+      count++;
+    });
   }
-  const center = new THREE.Vector3();
-  let count = 0;
-  originalPositions.forEach(origCenter => {
-    center.add(origCenter);
-    count++;
-  });
-  if (count > 0) {
-    center.divideScalar(count);
-  }
+  if (count > 0) center.divideScalar(count);
   parts.forEach(part => {
+    if (explodeModuleKey) {
+      var partGroup = part.group || getModuleKey(part.code || "");
+      if (partGroup !== explodeModuleKey) return;
+    }
     const explodeMesh = meshMap.get(part.id);
     const explodeEdge = edgeLineMap.get(part.id);
     const origPos = originalPositions.get(part.id);
@@ -1700,11 +1953,30 @@ function renderPartsList() {
     groupEl.className = "module-group";
     groupEl.innerHTML = "\n        <div class=\"module-header\" data-module=\"" + moduleKey + "\">\n          <div class=\"module-dot\" style=\"background:" + dotColor + "\"></div>\n          <span class=\"module-name\">" + escapeHtml(displayName) + "</span>\n          <span class=\"module-count\">" + scannedCount + "/" + moduleParts.length + "</span>\n          <span class=\"module-arrow open\">▶</span>\n        </div>\n        <div class=\"module-parts\" data-module-parts=\"" + moduleKey + "\"></div>\n      ";
     const headerEl = groupEl.querySelector(".module-header");
+    // Add isolate button to module header
+    var isolateBtn = document.createElement("button");
+    isolateBtn.className = "module-isolate-btn";
+    isolateBtn.textContent = "\u2299";
+    isolateBtn.title = "Изолировать модуль";
+    isolateBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      isolateModule(moduleKey);
+    });
+    var arrowEl = headerEl.querySelector(".module-arrow");
+    if (arrowEl) headerEl.insertBefore(isolateBtn, arrowEl);
     const partsContainer = groupEl.querySelector(".module-parts");
-    headerEl.addEventListener("click", () => {
+    headerEl.addEventListener("click", (e) => {
+      if (e.target.closest(".module-isolate-btn")) return;
       partsContainer.classList.toggle("collapsed");
       headerEl.querySelector(".module-arrow").classList.toggle("open");
     });
+    // Long-press to isolate
+    var pressTimer = null;
+    headerEl.addEventListener("touchstart", () => {
+      pressTimer = setTimeout(() => isolateModule(moduleKey), 500);
+    }, { passive: true });
+    headerEl.addEventListener("touchend", () => clearTimeout(pressTimer), { passive: true });
+    headerEl.addEventListener("touchmove", () => clearTimeout(pressTimer), { passive: true });
     moduleParts.forEach(part => partsContainer.appendChild(createPartItem(part)));
     container.appendChild(groupEl);
   });
@@ -1914,7 +2186,10 @@ function openSheet() {
   document.getElementById("bottomSheet").classList.add("open");
 }
 function closeSheet() {
-  document.getElementById("bottomSheet").classList.remove("open");
+  var bs = document.getElementById("bottomSheet");
+  bs.classList.remove("open");
+  bs.removeAttribute("data-state");
+  sheetCollapsed = false;
 }
 function escapeHtml(str) {
   return (str || "").replace(/[&<>]/g, char => ({
@@ -2087,6 +2362,7 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
         closeDrawer();
         updateStats();
         showToast('✅ Загружено ' + parts.length + ' деталей');
+        requestWakeLock();
         document.getElementById('projectTitle').textContent = file.name.replace('.json', '');
         saveProgress();
       } catch (err) {
@@ -2188,6 +2464,51 @@ document.addEventListener('keydown', function(e) {
 
 // End UX improvements
 
+
+// === Mobile sheet expand/collapse ===
+(function() {
+  var preview = document.getElementById('sheetPreview');
+  var bottomSheet = document.getElementById('bottomSheet');
+  if (!preview || !bottomSheet) return;
+  
+  // Click to expand
+  preview.addEventListener('click', function() {
+    if (sheetCollapsed) {
+      bottomSheet.removeAttribute('data-state');
+      sheetCollapsed = false;
+    }
+  });
+  
+  // Touch swipe up to expand
+  var touchStartY = 0;
+  preview.addEventListener('touchstart', function(e) {
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  preview.addEventListener('touchend', function(e) {
+    var dy = e.changedTouches[0].clientY - touchStartY;
+    if (dy < -20 && sheetCollapsed) {
+      bottomSheet.removeAttribute('data-state');
+      sheetCollapsed = false;
+    }
+  }, { passive: true});
+  
+  // Swipe down on sheet header to collapse (mobile only)
+  var handle = bottomSheet.querySelector('.sheet-handle');
+  if (handle) {
+    var handleStartY = 0;
+    handle.addEventListener('touchstart', function(e) {
+      handleStartY = e.touches[0].clientY;
+    }, { passive: true });
+    handle.addEventListener('touchend', function(e) {
+      var dy = e.changedTouches[0].clientY - handleStartY;
+      if (dy > 30 && isMobileSheet() && !sheetCollapsed) {
+        bottomSheet.setAttribute('data-state', 'collapsed');
+        sheetCollapsed = true;
+      }
+    }, { passive: true });
+  }
+})();
+
 function animate() {
   requestAnimationFrame(animate);
   if (document.hidden) return;
@@ -2214,6 +2535,11 @@ try {
   document.getElementById('loadingOverlay').classList.add('show');
 }
 updateStats();
+
+
+// === Isolation bar handlers ===
+document.getElementById("isolationExitBtn").addEventListener("click", exitIsolation);
+document.getElementById("isolationExplodeBtn").addEventListener("click", explodeIsolatedModule);
 
 // === Auth & Device Logic ===
 let currentUser = null;

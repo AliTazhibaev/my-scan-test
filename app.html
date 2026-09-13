@@ -125,6 +125,10 @@
 
 <!-- BOTTOM SHEET -->
 <div id="bottomSheet" class="bottom-sheet" role="dialog" aria-modal="false" aria-label="Информация о детали">
+  <div class="sheet-preview" id="sheetPreview">
+    <span class="sheet-preview-code" id="sheetPreviewCode">—</span>
+    <span class="sheet-preview-expand">▲</span>
+  </div>
   <div class="sheet-handle" aria-hidden="true"></div>
   <div class="sheet-header">
     <span class="sheet-title">ДЕТАЛЬ</span>
@@ -141,6 +145,14 @@
     <div class="spinner"></div>
     <div class="load-text">Загрузка...</div>
   </div>
+</div>
+
+<!-- ISOLATION BAR -->
+<div id="isolationBar" class="isolation-bar" style="display:none">
+  <span class="isolation-name">—</span>
+  <span class="isolation-count">0 деталей</span>
+  <button class="isolation-action" id="isolationExplodeBtn" title="Взрыв модуля">💥</button>
+  <button class="isolation-action" id="isolationExitBtn" title="Показать все">✕</button>
 </div>
 
 <!-- BOTTOM TOOLBAR -->
@@ -299,7 +311,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 </script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 <script>
 // Register Service Worker + auto-update
 if ('serviceWorker' in navigator) {
