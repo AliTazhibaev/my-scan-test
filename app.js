@@ -388,7 +388,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
       scene.background.setHex(0x141416);
-      edgeLineMap.forEach(e => { e.material.color.setHex(0x333338); });
+      edgeLineMap.forEach(e => { e.material.color.setHex(0x4a4a50); });
       if (floor) floor.material.color.setHex(0x3a3a3e);
       if (wall) wall.material.color.setHex(0x444448);
     }
@@ -400,7 +400,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
     if (scene) {
       scene.background.setHex(0xf0f0f2);
-      edgeLineMap.forEach(e => { e.material.color.setHex(0xbbbbc0); });
+      edgeLineMap.forEach(e => { e.material.color.setHex(0xaaaaaa); });
       if (floor) floor.material.color.setHex(0xc0c0c4);
       if (wall) wall.material.color.setHex(0xd0d0d4);
     }
@@ -723,8 +723,8 @@ function deselectPart() {
   }
   if (prevEdge) {
     prevEdge.visible = true;
-    prevEdge.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
-    prevEdge.material.opacity = 0.35;
+    prevEdge.material.color.setHex(isDarkTheme ? 0x4a4a50 : 0x999999);
+    prevEdge.material.opacity = 0.55;
   }
   selectedId = null;
   if (xrayActive) {
@@ -1303,7 +1303,7 @@ function buildScene() {
     // Wireframe edges
     var edgeThreshold = deviceQuality === 'low' ? 30 : 15;
     var edgeGeo = new THREE.EdgesGeometry(panelGeo, edgeThreshold);
-    var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x333338 : 0xbbbbc0, transparent: true, opacity: 0.35 });
+    var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x4a4a50 : 0x999999, transparent: true, opacity: 0.55 });
     var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
     edgeLineObj.quaternion.copy(panelMesh.quaternion);
     edgeLineObj.position.copy(panelMesh.position);
@@ -1394,8 +1394,8 @@ function selectModuleHighlight(moduleKey, clickedId) {
   edgeLineMap.forEach(function(e, id) {
     if (moduleIds.has(id)) {
       e.visible = true;
-      e.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
-      e.material.opacity = 0.35;
+      e.material.color.setHex(isDarkTheme ? 0x4a4a50 : 0x999999);
+      e.material.opacity = 0.55;
     } else {
       e.visible = false;
     }
@@ -1433,8 +1433,8 @@ function selectPart(partId) {
     }
     if (prevEdge) {
       prevEdge.visible = true;
-      prevEdge.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
-      prevEdge.material.opacity = 0.35;
+      prevEdge.material.color.setHex(isDarkTheme ? 0x4a4a50 : 0x999999);
+      prevEdge.material.opacity = 0.55;
       prevEdge.material.transparent = true;
     }
   }
@@ -1662,8 +1662,8 @@ function showAllParts() {
   });
   edgeLineMap.forEach(e => {
     e.visible = true;
-    e.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
-    e.material.opacity = 0.35;
+    e.material.color.setHex(isDarkTheme ? 0x4a4a50 : 0x999999);
+    e.material.opacity = 0.55;
   });
   detailMeshes.forEach(arr => {
     arr.forEach(obj => { obj.visible = true; });
@@ -1699,8 +1699,8 @@ function isolateModule(moduleKey) {
   edgeLineMap.forEach((e, id) => {
     if (moduleIds.has(id)) {
       e.visible = true;
-      e.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
-      e.material.opacity = 0.35;
+      e.material.color.setHex(isDarkTheme ? 0x4a4a50 : 0x999999);
+      e.material.opacity = 0.55;
     } else {
       e.visible = false;
     }
@@ -1733,8 +1733,8 @@ function exitIsolation() {
   });
   edgeLineMap.forEach(e => {
     e.visible = true;
-    e.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
-    e.material.opacity = 0.35;
+    e.material.color.setHex(isDarkTheme ? 0x4a4a50 : 0x999999);
+    e.material.opacity = 0.55;
   });
   detailMeshes.forEach(arr => {
     arr.forEach(obj => { obj.visible = true; });
@@ -1800,9 +1800,11 @@ function applyXray() {
     if (selectedId !== null && xrayId === selectedId) {
       xrayMesh.material.transparent = false;
       xrayMesh.material.opacity = 1;
+      xrayMesh.material.roughness = 0.55;
     } else {
       xrayMesh.material.transparent = true;
-      xrayMesh.material.opacity = 0.12;
+      xrayMesh.material.opacity = 0.28;
+      xrayMesh.material.roughness = 0.9;
     }
   });
 
@@ -1815,6 +1817,7 @@ function toggleXray() {
     meshMap.forEach(m => {
       m.material.transparent = false;
       m.material.opacity = 1;
+      m.material.roughness = 0.55;
     });
   } else {
     applyXray();
@@ -1942,7 +1945,7 @@ function updateAssemblyStep() {
       }
       if (prevAsmEdge) {
         prevAsmEdge.visible = true;
-        prevAsmEdge.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+        prevAsmEdge.material.color.setHex(isDarkTheme ? 0x4a4a50 : 0x999999);
         prevAsmEdge.material.opacity = 0.15;
       }
     }
@@ -1956,7 +1959,7 @@ function updateAssemblyStep() {
     });
     edgeLineMap.forEach(asmEdge => {
       asmEdge.visible = true;
-      asmEdge.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+      asmEdge.material.color.setHex(isDarkTheme ? 0x4a4a50 : 0x999999);
       asmEdge.material.opacity = 0.15;
     });
   }
