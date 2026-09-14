@@ -35,12 +35,28 @@ const CONFIG = {
   SCALE_FACTOR: 0.001,
 };
 
+
+// === Device Capability Detection ===
+var deviceQuality = 'high'; // 'low', 'medium', 'high'
+(function detectDevice() {
+  var cores = navigator.hardwareConcurrency || 2;
+  var mem = navigator.deviceMemory || 4;
+  var pixels = screen.width * screen.height * (window.devicePixelRatio || 1);
+  var ua = navigator.userAgent;
+  var isMobile = /Android|iPhone|iPad/i.test(ua);
+
+  if (cores <= 2 || mem <= 2) {
+    deviceQuality = 'low';
+  } else if (isMobile || cores <= 4 || mem <= 4 || pixels > 3000000) {
+    deviceQuality = 'medium';
+  }
+})();
 // === WOOD TEXTURE GENERATOR ===
 const woodTextureCache = new Map();
 function createWoodTexture(baseColor, scale) {
   const key = baseColor + '_' + (scale || 1);
   if (woodTextureCache.has(key)) return woodTextureCache.get(key);
-  const size = 256;
+  var size = deviceQuality === 'low' ? 64 : deviceQuality === 'medium' ? 128 : 256;
   const canvas2d = document.createElement('canvas');
   canvas2d.width = size; canvas2d.height = size;
   const ctx = canvas2d.getContext('2d');
@@ -53,8 +69,9 @@ function createWoodTexture(baseColor, scale) {
   const rgb = tmp.getImageData(0, 0, 1, 1).data;
   const r0 = rgb[0], g0 = rgb[1], b0 = rgb[2];
   // Wood grain lines
-  ctx.globalAlpha = 0.12;
-  for (let i = 0; i < 60; i++) {
+  ctx.globalAlpha = 0.08;
+  var grainCount = deviceQuality === 'low' ? 20 : deviceQuality === 'medium' ? 40 : 80;
+  for (let i = 0; i < grainCount; i++) {
     const y = Math.random() * size;
     const w = 1 + Math.random() * 3;
     const drift = Math.random() * 20 - 10;
@@ -73,7 +90,7 @@ function createWoodTexture(baseColor, scale) {
   // Noise overlay
   const imgData = ctx.getImageData(0, 0, size, size);
   for (let i = 0; i < imgData.data.length; i += 4) {
-    const n = (Math.random() - 0.5) * 14;
+    const n = (Math.random() - 0.5) * 8;
     imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + n));
     imgData.data[i + 1] = Math.max(0, Math.min(255, imgData.data[i + 1] + n));
     imgData.data[i + 2] = Math.max(0, Math.min(255, imgData.data[i + 2] + n));
@@ -243,6 +260,12 @@ function buildPanelShape(part) {
   return { shape: shape, depth: extrudeD, rotAxis: part._rotAxis || 'z' };
 }
 
+// Pre-allocated temp vectors for explode animation (avoids GC pressure per frame)
+const _tmpCenter = new THREE.Vector3();
+const _tmpDir = new THREE.Vector3();
+const _tmpNewPos = new THREE.Vector3();
+const _tmpDelta = new THREE.Vector3();
+
 let parts = [];
 let selectedId = null;
 let scannedSet = new Set();
@@ -258,6 +281,7 @@ let originalPositions = new Map();
 let moduleMap = new Map();
 let assemblyMode = false;
 let assemblyIndex = 0;
+let assemblyPrevIndex = -1;
 let assemblyOrder = [];
 let assemblyPlaying = false;
 let assemblyTimer = null;
@@ -265,8 +289,10 @@ let fastenerData = [];
 let csgEnabled = true;
 let fastenerMeshes = [];
 let isolatedModule = null;
+let blockMode = false;
 let explodeModuleKey = null;
 let wakeLock = null;
+let needsRender = true;
 let scene;
 let camera;
 let renderer;
@@ -362,6 +388,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
       scene.background.setHex(0x141416);
+      edgeLineMap.forEach(e => { e.material.color.setHex(0x333338); });
       if (floor) floor.material.color.setHex(0x3a3a3e);
       if (wall) wall.material.color.setHex(0x444448);
     }
@@ -373,6 +400,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
     if (scene) {
       scene.background.setHex(0xf0f0f2);
+      edgeLineMap.forEach(e => { e.material.color.setHex(0xbbbbc0); });
       if (floor) floor.material.color.setHex(0xc0c0c4);
       if (wall) wall.material.color.setHex(0xd0d0d4);
     }
@@ -391,22 +419,23 @@ function initThree() {
     alpha: false
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  var maxRatio = deviceQuality === 'low' ? 1 : deviceQuality === 'medium' ? 1.5 : 2;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxRatio));
+  renderer.shadowMap.enabled = deviceQuality !== 'low';
+  renderer.shadowMap.type = deviceQuality === 'low' ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+  renderer.toneMapping = deviceQuality === 'low' ? THREE.LinearToneMapping : THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
   renderer.outputEncoding = THREE.sRGBEncoding;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(isDarkTheme ? 0x141416 : 0xf0f0f2);
-  scene.fog = new THREE.FogExp2(isDarkTheme ? 0x141416 : 0xf0f0f2, 0.012);
+  scene.fog = new THREE.FogExp2(isDarkTheme ? 0x141416 : 0xf0f0f2, deviceQuality === 'low' ? 0.005 : 0.008);
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
   camera.position.set(3, 2.5, 3);
-  const ambientLight = new THREE.AmbientLight(0x666666, 1.8);
+  const ambientLight = new THREE.AmbientLight(0x8899aa, 0.6);
   scene.add(ambientLight);
-  const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
-  mainLight.position.set(10, 20, 10);
-  mainLight.castShadow = true;
+  const mainLight = new THREE.DirectionalLight(0xfff5e6, 1.4);
+  mainLight.position.set(8, 18, 12);
+  mainLight.castShadow = deviceQuality !== 'low';
   mainLight.shadow.mapSize.set(2048, 2048);
   mainLight.shadow.camera.left = -50;
   mainLight.shadow.camera.right = 50;
@@ -415,35 +444,40 @@ function initThree() {
   mainLight.shadow.bias = -0.001;
   mainLight.shadow.radius = 4;
   scene.add(mainLight);
-  const fillLight = new THREE.DirectionalLight(0x88aacc, 0.5);
-  fillLight.position.set(-5, 4, -8);
+  const fillLight = new THREE.DirectionalLight(0xaabbdd, 0.35);
+  fillLight.position.set(-6, 3, -8);
   scene.add(fillLight);
   // Rim light for edge definition on wood panels
-  const rimLight = new THREE.DirectionalLight(0x00D4AA, 0.25);
-  rimLight.position.set(-10, 8, 5);
-  scene.add(rimLight);
+  const rimLight = new THREE.DirectionalLight(0x00D4AA, 0.15);
+  rimLight.position.set(-8, 6, 4);
+  if (deviceQuality !== 'low') scene.add(rimLight);
+  // Hemisphere: sky blue top, warm ground
+  if (deviceQuality !== 'low') {
+    var hemiLight = new THREE.HemisphereLight(0x8899cc, 0x443322, 0.3);
+    scene.add(hemiLight);
+  }
   // Room — floor: 20m wide, 10m deep, one-sided (visible from above only)
   var floorGeo = new THREE.PlaneGeometry(20, 10);
   var floorMat = new THREE.MeshStandardMaterial({
-    color: isDarkTheme ? 0x3a3a3e : 0xc0c0c4,
-    roughness: 0.7,
-    metalness: 0.05,
+    color: isDarkTheme ? 0x2a2a2e : 0xd0d0d4,
+    roughness: 0.85,
+    metalness: 0,
     side: THREE.FrontSide,
     transparent: true,
-    opacity: 0.35
+    opacity: 0.3
   });
   floor = new THREE.Mesh(floorGeo, floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0, 0, 0);
-  floor.receiveShadow = true;
+  floor.receiveShadow = deviceQuality !== 'low';
   scene.add(floor);
 
   // Grid on the floor - subtle, not too harsh
   var gridHelper = new THREE.GridHelper(20, 40, 0x00d4aa, 0x00d4aa);
   gridHelper.material.transparent = true;
-  gridHelper.material.opacity = 0.06;
+  gridHelper.material.opacity = 0.04;
   gridHelper.position.y = 0.001;
-  scene.add(gridHelper);
+  if (deviceQuality !== 'low') scene.add(gridHelper);
 
   // Room — back wall: 20m wide, 5m tall, one-sided
   var wallGeo = new THREE.PlaneGeometry(20, 5);
@@ -457,8 +491,8 @@ function initThree() {
   });
   wall = new THREE.Mesh(wallGeo, wallMat);
   wall.position.set(0, 2.5, -5);
-  wall.receiveShadow = true;
-  scene.add(wall);
+  wall.receiveShadow = deviceQuality !== 'low';
+  if (deviceQuality !== 'low') scene.add(wall);
   setupControls();
   animate();
 }
@@ -637,6 +671,7 @@ function updateCamera() {
   camera.position.y = targetPosition.y + camDist * Math.cos(phi);
   camera.position.z = targetPosition.z + camDist * Math.sin(phi) * Math.cos(theta);
   camera.lookAt(targetPosition);
+  needsRender = true;
 }
 let zoomPartCenter = null;
 function startSmoothZoom(partId) {
@@ -678,20 +713,28 @@ function animateSmoothZoom() {
 let prevClickKey = null;
 function deselectPart() {
   if (selectedId === null) return;
+  var prevMesh = meshMap.get(selectedId);
+  var prevEdge = edgeLineMap.get(selectedId);
+  if (prevMesh) {
+    prevMesh.material.emissive.setHex(0);
+    prevMesh.material.emissiveIntensity = 0;
+    prevMesh.material.transparent = false;
+    prevMesh.material.opacity = 1;
+  }
+  if (prevEdge) {
+    prevEdge.visible = true;
+    prevEdge.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+    prevEdge.material.opacity = 0.35;
+  }
   selectedId = null;
-  meshMap.forEach(mesh => {
-    mesh.material.emissive.setHex(0);
-    mesh.material.emissiveIntensity = 0;
-  });
-  edgeLineMap.forEach(edgeLine => {
-    edgeLine.material.color.setHex(0x1a1a1a);
-  });
   if (xrayActive) {
     applyXray();
   }
   updateSheet(null);
   closeSheet();
   renderPartsList();
+
+  needsRender = true;
 }
 function handleRaycast(clickX, clickY, rect) {
   const mouse = new THREE.Vector2();
@@ -750,7 +793,18 @@ function handleRaycast(clickX, clickY, rect) {
   }
   prevClickKey = clickKey;
   if (!hiddenSet.has(bestId)) {
-    selectPart(bestId);
+    if (blockMode) {
+      // Highlight all parts in the same module
+      var partData = parts.find(function(p) { return p.id === bestId; });
+      if (partData) {
+        var partGroup = partData.group || getModuleKey(partData.code || "");
+        selectModuleHighlight(partGroup, bestId);
+      } else {
+        selectPart(bestId);
+      }
+    } else {
+      selectPart(bestId);
+    }
   }
 }
 let layoutMinY = 0;
@@ -813,27 +867,27 @@ function getColor(materialStr, partData) {
   const matLower = (materialStr || "").toLowerCase();
   const codeLower = (partData?.code || materialStr || "").toLowerCase();
   const colorMap = {
-    h3050: "#d4af8f",
-    h3051: "#b89062",
-    h3052: "#a67c52",
-    h3053: "#3b2a1c",
+    h3050: "#d9b896",
+    h3051: "#c09a6c",
+    h3052: "#b08660",
+    h3053: "#3d2e20",
     "la-oak-light": "#d4af8f",
     "la-oak-dark": "#b89062",
     "la-wenge": "#3b2a1c",
-    "la-white": "#ece7e0",
+    "la-white": "#f2ece4",
     "la-gray": "#5a5a60"
   };
   if (colorMap[codeLower]) {
     return colorMap[codeLower];
   }
   if (matLower.match(/гикори|рокфорд|walnut|hickory/)) {
-    return "#8b6f47";
+    return "#957850";
   }
   if (matLower.match(/каселла|casella|коричнев|brown/)) {
-    return "#7a5c3a";
+    return "#856542";
   }
   if (matLower.match(/ликольн|lincoln|орех|nut/)) {
-    return "#6b5340";
+    return "#75604a";
   }
   if (matLower.match(/белый|white|pearl|cream|ivory/)) {
     return "#ece7e0";
@@ -854,7 +908,7 @@ function getColor(materialStr, partData) {
     return "#d8dce6";
   }
   if (matLower.match(/мдф|MDF|ламинир/)) {
-    return "#a89878";
+    return "#b0a080";
   }
   if (matLower.match(/алюминий|aluminum|профиль/)) {
     return "#b8bcc8";
@@ -868,8 +922,8 @@ function buildPartDetails(partInfo, meshObj) {
   const detailArr = [];
   const grooves = partInfo.grooves || [];
   const holes2 = partInfo.holes || [];
-  const edges2 = partInfo.edges || [];
-  if (!grooves.length && !holes2.length && !edges2.length) {
+  const edges2 = []; // edges removed
+  if (!grooves.length && !holes2.length) {
     return detailArr;
   }
   const meshPos = meshObj.position;
@@ -931,34 +985,6 @@ function buildPartDetails(partInfo, meshObj) {
     detailArr.push(holeMesh, ringFront, ringBack);
   });
 
-  // --- Edge bands: thin colored strips ---
-  // Shape local coords start at (0,0), mesh position = shape corner, not center
-  edges2.forEach(function(edge) {
-    const edgeSide = (edge.side || "").toLowerCase();
-    const edgeLen = (edge.length || 0) * sc;
-    const edgeThick = 0.003;
-    var edgeW, edgeH, edgeD, edgeX, edgeY, edgeZ;
-    if (edgeSide.includes("w") || edgeSide.includes("длин")) {
-      edgeW = edgeLen || panelW; edgeH = edgeThick; edgeD = panelT;
-      edgeX = meshPos.x + panelW / 2; edgeY = meshPos.y + panelH; edgeZ = meshPos.z;
-    } else if (edgeSide.includes("h") || edgeSide.includes("выс")) {
-      edgeW = edgeThick; edgeH = edgeLen || panelH; edgeD = panelT;
-      edgeX = meshPos.x + panelW; edgeY = meshPos.y + panelH / 2; edgeZ = meshPos.z;
-    } else {
-      edgeW = panelW; edgeH = edgeThick; edgeD = panelT;
-      edgeX = meshPos.x + panelW / 2; edgeY = meshPos.y; edgeZ = meshPos.z;
-    }
-    var edgeGeo = new THREE.BoxGeometry(edgeW || 0.01, edgeH || 0.01, edgeD || 0.01);
-    var edgeMat = new THREE.MeshStandardMaterial({
-      color: 0x999999, roughness: 0.4, metalness: 0.2,
-      transparent: true, opacity: 0.8
-    });
-    var edgeMesh = new THREE.Mesh(edgeGeo, edgeMat);
-    edgeMesh.position.set(edgeX, edgeY, edgeZ);
-    edgeMesh.userData = { partId: partInfo.id, detailType: "edge" };
-    scene.add(edgeMesh);
-    detailArr.push(edgeMesh);
-  });
   return detailArr;
 }
 
@@ -1259,8 +1285,8 @@ function buildScene() {
     var panelMat = new THREE.MeshStandardMaterial({
       color: baseColor,
       map: createWoodTexture(baseColor, 4),
-      roughness: 0.6,
-      metalness: 0.05,
+      roughness: 0.55,
+      metalness: 0.02,
       emissive: new THREE.Color(0),
       emissiveIntensity: 0
     });
@@ -1271,12 +1297,13 @@ function buildScene() {
       panelMesh.quaternion.copy(part._quat);
     }
     panelMesh.userData = { partId: part.id };
-    panelMesh.castShadow = true;
-    panelMesh.receiveShadow = true;
+    panelMesh.castShadow = deviceQuality !== 'low';
+    panelMesh.receiveShadow = deviceQuality !== 'low';
     scene.add(panelMesh);
     // Wireframe edges
-    var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
-    var edgeMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a });
+    var edgeThreshold = deviceQuality === 'low' ? 30 : 15;
+    var edgeGeo = new THREE.EdgesGeometry(panelGeo, edgeThreshold);
+    var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x333338 : 0xbbbbc0, transparent: true, opacity: 0.35 });
     var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
     edgeLineObj.quaternion.copy(panelMesh.quaternion);
     edgeLineObj.position.copy(panelMesh.position);
@@ -1291,6 +1318,7 @@ function buildScene() {
     }
   });
   centerCamera();
+  needsRender = true;
   updateStats();
   buildModuleMap();
   renderPartsList();
@@ -1344,23 +1372,86 @@ function centerCamera() {
   camDist = Math.max(maxExtent * 1.5, 2);
   updateCamera();
 }
+
+function selectModuleHighlight(moduleKey, clickedId) {
+  selectedId = clickedId;
+  var moduleParts = moduleMap.get(moduleKey);
+  if (!moduleParts) { selectPart(clickedId); return; }
+  var moduleIds = new Set(moduleParts.map(function(p) { return p.id; }));
+  meshMap.forEach(function(mesh, id) {
+    if (moduleIds.has(id)) {
+      mesh.material.emissive.setHex(0x00D4AA);
+      mesh.material.emissiveIntensity = id === clickedId ? 0.25 : 0.12;
+      mesh.material.transparent = true;
+      mesh.material.opacity = id === clickedId ? 0.85 : 0.95;
+    } else {
+      mesh.material.emissive.setHex(0);
+      mesh.material.emissiveIntensity = 0;
+      mesh.material.transparent = false;
+      mesh.material.opacity = 1;
+    }
+  });
+  edgeLineMap.forEach(function(e, id) {
+    if (moduleIds.has(id)) {
+      e.visible = true;
+      e.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+      e.material.opacity = 0.35;
+    } else {
+      e.visible = false;
+    }
+  });
+  updateSheet(parts.find(function(p) { return p.id === clickedId; }));
+  // Add isolate button when in block mode
+  var sheetContent = document.getElementById("sheetContent");
+  if (sheetContent && moduleKey) {
+    var isolateBtn = document.createElement("div");
+    isolateBtn.className = "action-btn";
+    isolateBtn.style.marginTop = "8px";
+    isolateBtn.style.background = "rgba(0,212,170,0.12)";
+    isolateBtn.style.borderColor = "rgba(0,212,170,0.25)";
+    isolateBtn.textContent = "\u2299 \u0418золировать \u0431лок";
+    isolateBtn.onclick = function() { isolateModule(moduleKey); };
+    sheetContent.appendChild(isolateBtn);
+  }
+  renderPartsList();
+  openSheet();
+
+  needsRender = true;
+}
 function selectPart(partId) {
+  var prevId = selectedId;
   selectedId = partId;
-  meshMap.forEach(mesh => {
-    mesh.material.emissive.setHex(0);
-    mesh.material.emissiveIntensity = 0;
-  });
-  edgeLineMap.forEach(edgeLine => {
-    edgeLine.material.color.setHex(0x1a1a1a);
-  });
-  const selectedMesh = meshMap.get(partId);
-  const selectedEdge = edgeLineMap.get(partId);
+  // Only reset previous selected (not all meshes — saves O(N) per click)
+  if (prevId !== null && prevId !== partId) {
+    var prevMesh = meshMap.get(prevId);
+    var prevEdge = edgeLineMap.get(prevId);
+    if (prevMesh) {
+      prevMesh.material.emissive.setHex(0);
+      prevMesh.material.emissiveIntensity = 0;
+      prevMesh.material.transparent = false;
+      prevMesh.material.opacity = 1;
+    }
+    if (prevEdge) {
+      prevEdge.visible = true;
+      prevEdge.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+      prevEdge.material.opacity = 0.35;
+      prevEdge.material.transparent = true;
+    }
+  }
+  var selectedMesh = meshMap.get(partId);
+  var selectedEdge = edgeLineMap.get(partId);
   if (selectedMesh) {
     selectedMesh.material.emissive.setHex(0x00D4AA);
-    selectedMesh.material.emissiveIntensity = 0.5;
+    selectedMesh.material.emissiveIntensity = 0.25;
+    selectedMesh.material.transparent = true;
+    selectedMesh.material.opacity = 0.85;
   }
   if (selectedEdge) {
-    selectedEdge.material.color.setHex(0x2a2a2a);
+    selectedEdge.visible = true;
+    selectedEdge.material.color.setHex(0x00D4AA);
+    selectedEdge.material.opacity = 0.8;
+    selectedEdge.material.transparent = true;
+    selectedEdge.material.needsUpdate = true;
   }
   if (xrayActive) {
     applyXray();
@@ -1368,13 +1459,15 @@ function selectPart(partId) {
   updateSheet(parts.find(part => part.id === partId));
   renderPartsList();
   openSheet();
+
+  needsRender = true;
 }
 function renderProcessingInfo(partData) {
   const grooves = partData.grooves || [];
   const holes2 = partData.holes || [];
   const cutouts2 = partData.cutouts || [];
-  const edges2 = partData.edges || [];
-  const hasProcessing = grooves.length || holes2.length || cutouts2.length || edges2.length;
+  // edges removed from display
+  const hasProcessing = grooves.length || holes2.length || cutouts2.length;
   const relatedFasteners = fastenerData.filter(f => f.ownerCode && partData.code && f.ownerCode === partData.code);
   if (!hasProcessing && !relatedFasteners.length) {
     return "";
@@ -1398,13 +1491,7 @@ function renderProcessingInfo(partData) {
       html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (cutout.x || 0) + " y:" + (cutout.y || 0) + " " + (cutout.w || 0) + "×" + (cutout.h || 0) + " мм</div>";
     });
   }
-  if (edges2.length) {
-    html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Кромка (" + edges2.length + "):</div>";
-    edges2.forEach((edge, idx) => {
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + (edge.side || edge.type || "?") + " " + (edge.thickness || edge.length || "") + (edge.thickness || edge.length ? " мм" : "") + "</div>";
-    });
-  }
-  if (relatedFasteners.length) {
+    if (relatedFasteners.length) {
     html += "<div style=\"font-size:9px;color:#ff9800;margin-bottom:2px\">Фурнитура (" + relatedFasteners.length + "):</div>";
     relatedFasteners.forEach((f, idx) => {
       html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + (f.name || "?") + " [" + (f.type || "?") + "]</div>";
@@ -1452,7 +1539,8 @@ function updateSheet(part) {
   var modName = part.groupName || getModuleName(displayCode);
   var modColor = getModuleColor(displayCode);
   var neighbors = findNeighbors(part);
-  if (previewCodeEl) previewCodeEl.textContent = displayCode || '—';
+  if (previewCodeEl) var dims = (part.L || '?') + '×' + (part.W || '?') + '×' + (part.T || '?');
+  previewCodeEl.textContent = (displayCode || '—') + '  ' + dims + '  ' + (part.name || '');
   var html = '<div class="detail-card">';
   html += '<div style="font-size:18px;font-weight:700;color:var(--code-color);font-family:Monaco,Menlo,monospace;margin-bottom:4px">' + escapeHtml(displayCode || '—') + '</div>';
   if (displayCode2) {
@@ -1531,17 +1619,37 @@ function toggleVisibility(partId) {
     applyXray();
   }
   saveProgress();
+  needsRender = true;
   showToast((hiddenSet.has(partId) ? "🙈" : "👁") + " Деталь " + (hiddenSet.has(partId) ? "скрыта" : "показана"));
 }
 function toggleCSGVisibility() {
   csgEnabled = !csgEnabled;
   detailMeshes.forEach(function(arr) {
-    arr.forEach(function(obj) { obj.visible = csgEnabled; });
+    arr.forEach(function(obj) {
+      obj.visible = csgEnabled;
+      if (obj.material) {
+        obj.material.transparent = !csgEnabled;
+        obj.material.opacity = csgEnabled ? 1 : 0;
+      }
+    });
   });
-  fastenerMeshes.forEach(function(fm) { fm.visible = csgEnabled; });
+  fastenerMeshes.forEach(function(fm) {
+    fm.visible = csgEnabled;
+    if (fm.material) {
+      fm.material.transparent = !csgEnabled;
+      fm.material.opacity = csgEnabled ? 1 : 0;
+    }
+  });
+  holeMeshes.forEach(function(hm) {
+    hm.visible = csgEnabled;
+  });
+  pocketMeshes.forEach(function(pm) {
+    pm.visible = csgEnabled;
+  });
   const btn = document.getElementById("csgBtn");
   btn.classList.toggle("active", csgEnabled);
-  showToast(csgEnabled ? "Вырезы и фурнитура показаны" : "Вырезы и фурнитура скрыты");
+  needsRender = true;
+  showToast(csgEnabled ? "Фурнитура показана" : "Фурнитура скрыта");
 }
 function showAllParts() {
   hiddenSet.clear();
@@ -1554,8 +1662,8 @@ function showAllParts() {
   });
   edgeLineMap.forEach(e => {
     e.visible = true;
-    e.material.transparent = false;
-    e.material.opacity = 1;
+    e.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+    e.material.opacity = 0.35;
   });
   detailMeshes.forEach(arr => {
     arr.forEach(obj => { obj.visible = true; });
@@ -1569,6 +1677,8 @@ function showAllParts() {
   }
   document.getElementById("isolationBar").style.display = "none";
   showToast("Все модули показаны");
+
+  needsRender = true;
 }
 
 // === Module Isolation ===
@@ -1589,6 +1699,8 @@ function isolateModule(moduleKey) {
   edgeLineMap.forEach((e, id) => {
     if (moduleIds.has(id)) {
       e.visible = true;
+      e.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+      e.material.opacity = 0.35;
     } else {
       e.visible = false;
     }
@@ -1608,6 +1720,8 @@ function isolateModule(moduleKey) {
   centerCameraOnParts(moduleParts);
   renderPartsList();
   showToast("Изолирован: " + displayName);
+
+  needsRender = true;
 }
 function exitIsolation() {
   isolatedModule = null;
@@ -1619,8 +1733,8 @@ function exitIsolation() {
   });
   edgeLineMap.forEach(e => {
     e.visible = true;
-    e.material.transparent = false;
-    e.material.opacity = 1;
+    e.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+    e.material.opacity = 0.35;
   });
   detailMeshes.forEach(arr => {
     arr.forEach(obj => { obj.visible = true; });
@@ -1634,6 +1748,8 @@ function exitIsolation() {
   centerCamera();
   renderPartsList();
   showToast("Изоляция снята");
+
+  needsRender = true;
 }
 function centerCameraOnParts(partsArr) {
   if (!partsArr.length) return;
@@ -1657,15 +1773,26 @@ function centerCameraOnParts(partsArr) {
 function explodeIsolatedModule() {
   if (!isolatedModule) return;
   explodeModuleKey = isolatedModule;
-  if (!explodeActive) {
-    explodeActive = true;
-    document.getElementById("explodeBtn").classList.add("active");
-  }
+  explodeActive = true;
+  document.getElementById("explodeBtn").classList.add("active");
+  // Reset positions for non-module parts to original
+  parts.forEach(function(p) {
+    var pg = p.group || getModuleKey(p.code || "");
+    if (pg !== explodeModuleKey) {
+      var m = meshMap.get(p.id);
+      var e = edgeLineMap.get(p.id);
+      var orig = originalPositions.get(p.id);
+      if (m && orig) m.position.copy(orig);
+      if (e && orig) e.position.copy(orig);
+    }
+  });
+  explodeProgress = 0;
   animateExplodeTo(1);
 }
 function applyXray() {
   meshMap.forEach((xrayMesh, xrayId) => {
-    if (!xrayActive || !xrayMesh.visible) {
+    if (!xrayMesh.visible) return;
+    if (!xrayActive) {
       xrayMesh.material.transparent = false;
       xrayMesh.material.opacity = 1;
       return;
@@ -1678,6 +1805,8 @@ function applyXray() {
       xrayMesh.material.opacity = 0.12;
     }
   });
+
+  needsRender = true;
 }
 function toggleXray() {
   xrayActive = !xrayActive;
@@ -1712,6 +1841,7 @@ function animateExplodeTo(target) {
     const eased = progress < 0.5 ? progress * 2 * progress : 1 - Math.pow(progress * -2 + 2, 2) / 2;
     explodeProgress = startVal + (target - startVal) * eased;
     applyExplode();
+    needsRender = true;
     if (progress < 1) {
       requestAnimationFrame(step);
     }
@@ -1720,21 +1850,21 @@ function animateExplodeTo(target) {
 }
 function applyExplode() {
   if (!originalPositions.size) return;
-  var center = new THREE.Vector3();
+  _tmpCenter.set(0, 0, 0);
   var count = 0;
   if (explodeModuleKey && moduleMap.has(explodeModuleKey)) {
     var modParts = moduleMap.get(explodeModuleKey);
     modParts.forEach(p => {
       var pos = originalPositions.get(p.id);
-      if (pos) { center.add(pos); count++; }
+      if (pos) { _tmpCenter.add(pos); count++; }
     });
   } else {
     originalPositions.forEach(origCenter => {
-      center.add(origCenter);
+      _tmpCenter.add(origCenter);
       count++;
     });
   }
-  if (count > 0) center.divideScalar(count);
+  if (count > 0) _tmpCenter.divideScalar(count);
   parts.forEach(part => {
     if (explodeModuleKey) {
       var partGroup = part.group || getModuleKey(part.code || "");
@@ -1743,30 +1873,26 @@ function applyExplode() {
     const explodeMesh = meshMap.get(part.id);
     const explodeEdge = edgeLineMap.get(part.id);
     const origPos = originalPositions.get(part.id);
-    if (!explodeMesh || !origPos) {
-      return;
-    }
-    const dir = new THREE.Vector3().subVectors(origPos, center);
-    const dist = dir.length();
-    if (dist > 0.001) {
-      dir.normalize();
-    }
+    if (!explodeMesh || !origPos) return;
+    _tmpDir.subVectors(origPos, _tmpCenter);
+    const dist = _tmpDir.length();
+    if (dist > 0.001) _tmpDir.normalize();
     const offset = explodeProgress * dist * 0.8;
-    const newPos = origPos.clone().add(dir.multiplyScalar(offset));
-    const delta = new THREE.Vector3().subVectors(newPos, origPos);
-    explodeMesh.position.copy(newPos);
-    if (explodeEdge) {
-      explodeEdge.position.copy(newPos);
-    }
+    _tmpNewPos.copy(origPos).addScaledVector(_tmpDir, offset);
+    _tmpDelta.subVectors(_tmpNewPos, origPos);
+    explodeMesh.position.copy(_tmpNewPos);
+    if (explodeEdge) explodeEdge.position.copy(_tmpNewPos);
     const explDetails = detailMeshes.get(part.id);
     if (explDetails) {
       explDetails.forEach(detailObj => {
         if (detailObj.isMesh || detailObj.isLineSegments) {
-          detailObj.position.add(delta);
+          detailObj.position.add(_tmpDelta);
         }
       });
     }
   });
+
+  needsRender = true;
 }
 function toggleAssembly() {
   assemblyMode = !assemblyMode;
@@ -1775,6 +1901,7 @@ function toggleAssembly() {
   if (assemblyMode) {
     buildAssemblyOrder();
     assemblyIndex = 0;
+    assemblyPrevIndex = -1;
     updateAssemblyStep();
     autoRotate = false;
   } else {
@@ -1795,45 +1922,64 @@ function buildAssemblyOrder() {
   }
 }
 function updateAssemblyStep() {
-  if (assemblyOrder.length === 0) {
-    return;
-  }
+  if (assemblyOrder.length === 0) return;
   const currentPart = assemblyOrder[assemblyIndex];
-  if (!currentPart) {
-    return;
-  }
+  if (!currentPart) return;
   document.getElementById("assemblyStepLabel").textContent = "Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length;
   const partLabel = currentPart.position ? currentPart.code + " / " + currentPart.position : currentPart.code;
   document.getElementById("assemblyInfo").textContent = partLabel + " — " + (currentPart.name || "—");
-  meshMap.forEach((asmMesh, asmId) => {
-    asmMesh.material.emissive.setHex(0);
-    asmMesh.material.emissiveIntensity = 0;
-    asmMesh.material.transparent = false;
-    asmMesh.material.opacity = 0.15;
-  });
-  edgeLineMap.forEach(asmEdge => {
-    asmEdge.material.color.setHex(0x1a1a1a);
-    asmEdge.material.transparent = true;
-    asmEdge.material.opacity = 0.15;
-  });
+  // Only reset previous step (not all meshes — saves O(N) per step)
+  if (assemblyPrevIndex >= 0 && assemblyPrevIndex !== assemblyIndex) {
+    var prevPart = assemblyOrder[assemblyPrevIndex];
+    if (prevPart) {
+      var prevAsmMesh = meshMap.get(prevPart.id);
+      var prevAsmEdge = edgeLineMap.get(prevPart.id);
+      if (prevAsmMesh) {
+        prevAsmMesh.material.emissive.setHex(0);
+        prevAsmMesh.material.emissiveIntensity = 0;
+        prevAsmMesh.material.transparent = false;
+        prevAsmMesh.material.opacity = 0.15;
+      }
+      if (prevAsmEdge) {
+        prevAsmEdge.visible = true;
+        prevAsmEdge.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+        prevAsmEdge.material.opacity = 0.15;
+      }
+    }
+  } else if (assemblyPrevIndex === -1) {
+    // First step — dim all meshes once
+    meshMap.forEach((asmMesh) => {
+      asmMesh.material.emissive.setHex(0);
+      asmMesh.material.emissiveIntensity = 0;
+      asmMesh.material.transparent = false;
+      asmMesh.material.opacity = 0.15;
+    });
+    edgeLineMap.forEach(asmEdge => {
+      asmEdge.visible = true;
+      asmEdge.material.color.setHex(isDarkTheme ? 0x333338 : 0xbbbbc0);
+      asmEdge.material.opacity = 0.15;
+    });
+  }
+  assemblyPrevIndex = assemblyIndex;
   const highlightMesh = meshMap.get(currentPart.id);
   const highlightEdge = edgeLineMap.get(currentPart.id);
   if (highlightMesh) {
     highlightMesh.material.emissive.setHex(0x00D4AA);
-    highlightMesh.material.emissiveIntensity = 0.6;
+    highlightMesh.material.emissiveIntensity = 0.25;
     highlightMesh.material.transparent = false;
     highlightMesh.material.opacity = 1;
   }
   if (highlightEdge) {
-    highlightEdge.material.color.setHex(0x2a2a2a);
-    highlightEdge.material.transparent = false;
-    highlightEdge.material.opacity = 1;
+    highlightEdge.visible = true;
+    highlightEdge.material.color.setHex(0x00D4AA);
   }
   startSmoothZoom(currentPart.id);
   updateSheet(currentPart);
   openSheet();
   renderPartsList();
   showToast("🔧 Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length + ": " + (currentPart.name || currentPart.code));
+
+  needsRender = true;
 }
 function stopAssemblyPlay() {
   assemblyPlaying = false;
@@ -1902,28 +2048,24 @@ function updateStats() {
 }
 function renderPartsList() {
   const container = document.getElementById("partsList");
-  if (!container) {
-    return;
-  }
+  if (!container) return;
   const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
   if (parts.length === 0) {
-    container.innerHTML = "<div style=\"text-align:center;padding:20px;color:var(--text-secondary);font-size:11px\">📁 Загрузите JSON файл для начала</div>";
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:11px">📁 Загрузите JSON файл для начала</div>';
     return;
   }
-  let filteredParts = parts;
+  const fragment = document.createDocumentFragment();
   if (searchVal) {
-    filteredParts = parts.filter(p => (p.name || "").toLowerCase().includes(searchVal) || (p.code || "").toLowerCase().includes(searchVal) || (p.position || "").toLowerCase().includes(searchVal));
-  }
-  if (searchVal) {
-    container.innerHTML = "";
+    var filteredParts = parts.filter(p => (p.name || "").toLowerCase().includes(searchVal) || (p.code || "").toLowerCase().includes(searchVal) || (p.position || "").toLowerCase().includes(searchVal));
     if (filteredParts.length === 0) {
-      container.innerHTML = "<div style=\"text-align:center;padding:16px;color:var(--text-secondary);font-size:11px\">🔍 Ничего не найдено</div>";
+      container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:11px">🔍 Ничего не найдено</div>';
       return;
     }
-    filteredParts.forEach(part => container.appendChild(createPartItem(part)));
+    filteredParts.forEach(part => fragment.appendChild(createPartItem(part)));
+    container.innerHTML = "";
+    container.appendChild(fragment);
     return;
   }
-  container.innerHTML = "";
   const sortedModules = Array.from(moduleMap.keys()).sort((a, b) => {
     if (a === "HARDWARE") {
       return 1;
@@ -1978,8 +2120,10 @@ function renderPartsList() {
     headerEl.addEventListener("touchend", () => clearTimeout(pressTimer), { passive: true });
     headerEl.addEventListener("touchmove", () => clearTimeout(pressTimer), { passive: true });
     moduleParts.forEach(part => partsContainer.appendChild(createPartItem(part)));
-    container.appendChild(groupEl);
+    fragment.appendChild(groupEl);
   });
+  container.innerHTML = "";
+  container.appendChild(fragment);
 }
 function createPartItem(part) {
   const isHidden = hiddenSet.has(part.id);
@@ -2069,6 +2213,8 @@ function printSpecification() {
 }
 let scanInterval;
 let videoStream;
+let scanRAF = null;
+let scanLastTime = 0;
 function openScanner() {
   document.getElementById("scannerModal").classList.remove("hidden");
   navigator.mediaDevices.getUserMedia({
@@ -2091,25 +2237,37 @@ function closeScanner() {
   if (scanInterval) {
     clearInterval(scanInterval);
   }
+  if (scanRAF) {
+    cancelAnimationFrame(scanRAF);
+    scanRAF = null;
+  }
 }
 function startQRScan() {
   const videoEl = document.getElementById("video");
   const qrCanvas = document.getElementById("qrCanvas");
   const qrCtx = qrCanvas.getContext("2d");
-  scanInterval = setInterval(() => {
-    if (videoEl.readyState !== videoEl.HAVE_ENOUGH_DATA) {
+  scanLastTime = 0;
+  function scanFrame(now) {
+    if (now - scanLastTime < 180) {
+      scanRAF = requestAnimationFrame(scanFrame);
       return;
     }
-    qrCanvas.width = videoEl.videoWidth;
-    qrCanvas.height = videoEl.videoHeight;
-    qrCtx.drawImage(videoEl, 0, 0);
-    const imgData = qrCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
-    const qrResult = jsQR(imgData.data, imgData.width, imgData.height);
-    if (qrResult) {
-      handleScan(qrResult.data);
-      closeScanner();
+    scanLastTime = now;
+    if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+      qrCanvas.width = videoEl.videoWidth;
+      qrCanvas.height = videoEl.videoHeight;
+      qrCtx.drawImage(videoEl, 0, 0);
+      const imgData = qrCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+      const qrResult = jsQR(imgData.data, imgData.width, imgData.height);
+      if (qrResult) {
+        handleScan(qrResult.data);
+        closeScanner();
+        return;
+      }
     }
-  }, 200);
+    scanRAF = requestAnimationFrame(scanFrame);
+  }
+  scanRAF = requestAnimationFrame(scanFrame);
 }
 function handleManualCode() {
   const manualVal = document.getElementById("manualCode").value.trim();
@@ -2509,6 +2667,15 @@ document.addEventListener('keydown', function(e) {
   }
 })();
 
+
+// === Block Mode Toggle ===
+function toggleBlockMode() {
+  blockMode = !blockMode;
+  var btn = document.getElementById("blockModeBtn");
+  if (btn) btn.classList.toggle("active", blockMode);
+  showToast(blockMode ? "Режим блоков: ВКЛ" : "Режим блоков: ВЫКЛ");
+}
+
 function animate() {
   requestAnimationFrame(animate);
   if (document.hidden) return;
@@ -2518,8 +2685,12 @@ function animate() {
   }
   if (isSmoothZoom) {
     animateSmoothZoom();
+    needsRender = true;
   }
-  renderer.render(scene, camera);
+  if (needsRender) {
+    renderer.render(scene, camera);
+    needsRender = false;
+  }
 }
 window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -2540,6 +2711,11 @@ updateStats();
 // === Isolation bar handlers ===
 document.getElementById("isolationExitBtn").addEventListener("click", exitIsolation);
 document.getElementById("isolationExplodeBtn").addEventListener("click", explodeIsolatedModule);
+
+
+// Block mode toggle
+var blockModeBtnEl = document.getElementById("blockModeBtn");
+if (blockModeBtnEl) blockModeBtnEl.addEventListener("click", toggleBlockMode);
 
 // === Auth & Device Logic ===
 let currentUser = null;

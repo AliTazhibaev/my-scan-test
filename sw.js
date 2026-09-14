@@ -1,5 +1,5 @@
 // Service Worker - force update
-const CACHE_NAME = 'aivo-scan-v6';
+const CACHE_NAME = 'aivo-scan-v7';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

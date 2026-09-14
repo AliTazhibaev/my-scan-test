@@ -923,6 +923,11 @@
       background: rgba(255, 255, 255, 0.08) !important;
       border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
+    .top-btn.active {
+      background: rgba(0, 212, 170, 0.2) !important;
+      border-color: rgba(0, 212, 170, 0.4) !important;
+      color: #00d4aa !important;
+    }
 
     /* Bottom sheet — transparent so 3D stays visible */
     .bottom-sheet {
