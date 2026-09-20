@@ -103,163 +103,6 @@ function createWoodTexture(baseColor, scale) {
   return tex;
 }
 
-// === PANEL SHAPE BUILDER ===
-function buildPanelShape(part) {
-  const sc_local = 0.001;
-  var useLW = part.placement && part.placement.origin;
-  var shapeW, shapeH, extrudeD;
-
-  if (useLW) {
-    // v4: локальные размеры + placement matrix
-    shapeW = Math.max(part.L || 100, 1) * sc_local;
-    shapeH = Math.max(part.W || 100, 1) * sc_local;
-    extrudeD = Math.max(part.T || 16, 1) * sc_local;
-  } else {
-    // v3: определяем ориентацию из gab vs LWT
-    var gw = part.gab ? part.gab.w : (part.L || 100);
-    var gh = part.gab ? part.gab.h : (part.W || 100);
-    var gd = part.gab ? part.gab.d : (part.T || 16);
-    var T = part.T || 16;
-    // gab.w ~ T => панель вертикальная (YZ плоскость), экструзия по X
-    // gab.h ~ T => панель горизонтальная (XZ плоскость), экструзия по Y
-    // gab.d ~ T => панель фронтальная (XY плоскость), экструзия по Z
-    if (Math.abs(gw - T) < 2) {
-      // Вертикальная панель: форма = gab.h x gab.d, экструзия = gab.w
-      shapeW = Math.max(gh, 1) * sc_local;
-      shapeH = Math.max(gd, 1) * sc_local;
-      extrudeD = Math.max(gw, 1) * sc_local;
-      part._rotAxis = 'x';
-    } else if (Math.abs(gh - T) < 2) {
-      // Горизонтальная панель: форма = gab.w x gab.d, экструзия = gab.h
-      shapeW = Math.max(gw, 1) * sc_local;
-      shapeH = Math.max(gd, 1) * sc_local;
-      extrudeD = Math.max(gh, 1) * sc_local;
-      part._rotAxis = 'y';
-    } else {
-      // Фронтальная панель: форма = gab.w x gab.h, экструзия = gab.d
-      shapeW = Math.max(gw, 1) * sc_local;
-      shapeH = Math.max(gh, 1) * sc_local;
-      extrudeD = Math.max(gd, 1) * sc_local;
-      part._rotAxis = 'z';
-    }
-  }
-  let shape;
-    if (part.poly && part.poly.length >= 3) {
-    shape = new THREE.Shape();
-    var started = false;
-    for (var ppi = 0; ppi < part.poly.length; ppi++) {
-      var ppt = part.poly[ppi];
-      if (ppt[0] === 'circle') {
-        var cpath = new THREE.Path();
-        cpath.absarc(ppt[1] * sc, ppt[2] * sc, ppt[3] * sc, 0, Math.PI * 2, false);
-        shape.holes.push(cpath);
-        continue;
-      }
-      if (!started) { shape.moveTo(ppt[0] * sc, ppt[1] * sc); started = true; }
-      else { shape.lineTo(ppt[0] * sc, ppt[1] * sc); }
-    }
-    if (started) shape.closePath();
-
-    var phArr = part.polyHoles || [];
-    for (var phi = 0; phi < phArr.length; phi++) {
-      var hlp = phArr[phi];
-      if (!hlp || hlp.length < 3) continue;
-      var hpath = new THREE.Path();
-      hpath.moveTo(hlp[0][0] * sc, hlp[0][1] * sc);
-      for (var hpj = 1; hpj < hlp.length; hpj++) {
-        hpath.lineTo(hlp[hpj][0] * sc, hlp[hpj][1] * sc);
-      }
-      hpath.closePath();
-      shape.holes.push(hpath);
-    }
-  } else if (part.contour && part.contour.length >= 2) {
-    // Новый формат: [{t:'line', x1, y1, x2, y2}, {t:'arc', ...}, {t:'circle', ...}]
-    if (part.contour[0].t) {
-      shape = new THREE.Shape();
-      var first = true;
-      var arcSteps = 16;
-      for (var ci = 0; ci < part.contour.length; ci++) {
-        var el = part.contour[ci];
-        if (el.t === 'line') {
-          if (first) { shape.moveTo(el.x1 * sc, el.y1 * sc); first = false; }
-          shape.lineTo(el.x2 * sc, el.y2 * sc);
-        } else if (el.t === 'arc') {
-          var cx = el.cx * sc, cy = el.cy * sc;
-          var r = Math.sqrt((el.x1 - el.cx) * (el.x1 - el.cx) + (el.y1 - el.cy) * (el.y1 - el.cy)) * sc;
-          var a1 = Math.atan2(el.y1 - el.cy, el.x1 - el.cx);
-          var a2 = Math.atan2(el.y2 - el.cy, el.x2 - el.cx);
-          var da = a2 - a1;
-          if (da > Math.PI) da -= 2 * Math.PI;
-          if (da < -Math.PI) da += 2 * Math.PI;
-          var steps = Math.max(4, Math.floor(Math.abs(da) / 0.15) + 1);
-          for (var ai = 0; ai <= steps; ai++) {
-            var angle = a1 + da * ai / steps;
-            var px = cx + r * Math.cos(angle);
-            var py = cy + r * Math.sin(angle);
-            if (first) { shape.moveTo(px, py); first = false; }
-            else shape.lineTo(px, py);
-          }
-        } else if (el.t === 'circle') {
-          // Круглое отверстие — добавляем как hole
-          var holePath = new THREE.Path();
-          var holeR = el.r * sc;
-          holePath.absarc(el.cx * sc, el.cy * sc, holeR, 0, Math.PI * 2, false);
-          shape.holes.push(holePath);
-        }
-      }
-      if (!first) shape.closePath();
-    } else {
-      // Старый формат: [{x, y}...]
-      shape = new THREE.Shape();
-      shape.moveTo(part.contour[0].x * sc, part.contour[0].y * sc);
-      for (let i = 1; i < part.contour.length; i++) {
-        shape.lineTo(part.contour[i].x * sc, part.contour[i].y * sc);
-      }
-      shape.closePath();
-    }
-  } else {
-    // Default rectangular panel
-    shape = new THREE.Shape();
-        if (useLW) {
-      shape.moveTo(0, 0);
-      shape.lineTo(shapeW, 0);
-      shape.lineTo(shapeW, shapeH);
-      shape.lineTo(0, shapeH);
-    } else {
-      shape.moveTo(-shapeW / 2, -shapeH / 2);
-      shape.lineTo(shapeW / 2, -shapeH / 2);
-      shape.lineTo(shapeW / 2, shapeH / 2);
-      shape.lineTo(-shapeW / 2, shapeH / 2);
-    }
-    shape.closePath();
-  }
-  // Add cutouts as holes in the shape
-  const cutouts = part.cutouts || [];
-  const panelW = shapeW;
-  const panelH = shapeH;
-  cutouts.forEach(function(cutout) {
-    var cw = (cutout.w || 30) * sc;
-    var ch = (cutout.h || 30) * sc;
-    // Convert world-space cutout position to shape-local 2D coords
-    var localX = ((cutout.x || 0) * sc) - (panelW / 2) + (shapeW / 2);
-    var localY = ((cutout.y || 0) * sc) - (panelH / 2) + (shapeH / 2);
-    var hw = cw / 2, hh = ch / 2;
-    var minX = Math.max(-shapeW / 2, localX - hw);
-    var maxX = Math.min(shapeW / 2, localX + hw);
-    var minY = Math.max(-shapeH / 2, localY - hh);
-    var maxY = Math.min(shapeH / 2, localY + hh);
-    if (maxX - minX < 0.001 || maxY - minY < 0.001) return;
-    var holePath = new THREE.Path();
-    holePath.moveTo(minX, minY);
-    holePath.lineTo(maxX, minY);
-    holePath.lineTo(maxX, maxY);
-    holePath.lineTo(minX, maxY);
-    holePath.closePath();
-    shape.holes.push(holePath);
-  });
-  return { shape: shape, depth: extrudeD, rotAxis: part._rotAxis || 'z' };
-}
-
 // Pre-allocated temp vectors for explode animation (avoids GC pressure per frame)
 const _tmpCenter = new THREE.Vector3();
 const _tmpDir = new THREE.Vector3();
@@ -924,66 +767,73 @@ function buildPartDetails(partInfo, meshObj) {
   const detailArr = [];
   const grooves = partInfo.grooves || [];
   const holes2 = partInfo.holes || [];
-  const edges2 = []; // edges removed
   if (!grooves.length && !holes2.length) {
     return detailArr;
   }
-  const meshPos = meshObj.position;
-  const panelW = (partInfo.L || 100) * sc;
-  const panelH = (partInfo.W || 100) * sc;
   const panelT = (partInfo.T || 16) * sc;
 
-  // --- Grooves: dark recessed lines on panel surface ---
+  // --- Grooves: recessed lines on panel surface ---
   grooves.forEach(function(groove) {
     const grooveW = (groove.width || groove.w || 20) * sc;
     const grooveH = (groove.length || groove.h || 20) * sc;
     const grooveD = (groove.depth || groove.d || 4) * sc;
     const grooveGeo = new THREE.BoxGeometry(grooveW, grooveH, grooveD);
     const grooveMat = new THREE.MeshStandardMaterial({
-      color: 0x111111, roughness: 0.95, metalness: 0
+      color: 0x2a1a0a, roughness: 0.9, metalness: 0,
+      emissive: 0x1a0a00, emissiveIntensity: 0.15
     });
     const grooveMesh = new THREE.Mesh(grooveGeo, grooveMat);
     grooveMesh.position.set(
-      meshPos.x + (groove.x || 0) * sc,
-      meshPos.y + (groove.y || 0) * sc,
-      meshPos.z + (groove.z || 0) * sc
+      (groove.x || 0) * sc,
+      (groove.y || 0) * sc,
+      (groove.z || 0) * sc
     );
     grooveMesh.userData = { partId: partInfo.id, detailType: "groove" };
-    scene.add(grooveMesh);
+    grooveMesh.castShadow = false;
+    grooveMesh.receiveShadow = false;
+    meshObj.add(grooveMesh);
     var grooveEdgeGeo = new THREE.EdgesGeometry(grooveGeo, 15);
-    var grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({ color: 0x333333 }));
+    var grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({ color: 0x00D4AA, transparent: true, opacity: 0.6 }));
     grooveEdgeLine.position.copy(grooveMesh.position);
-    scene.add(grooveEdgeLine);
+    meshObj.add(grooveEdgeLine);
     detailArr.push(grooveMesh, grooveEdgeLine);
   });
 
-  // --- Holes: dark cylinders with ring markers ---
+  // --- Holes: cylinders with ring markers ---
   holes2.forEach(function(hole) {
     const holeRadius = (hole.diameter || hole.d || hole.r || 8) / 2 * sc;
     const holeDepth = (hole.depth || panelT) * sc;
     const holeGeo = new THREE.CylinderGeometry(holeRadius, holeRadius, holeDepth, 16);
     const holeMat = new THREE.MeshStandardMaterial({
-      color: 0x444444, roughness: 0.7, metalness: 0.3
+      color: 0x333333, roughness: 0.6, metalness: 0.4,
+      emissive: 0x111111, emissiveIntensity: 0.1
     });
     const holeMesh = new THREE.Mesh(holeGeo, holeMat);
     holeMesh.position.set(
-      meshPos.x + (hole.x || 0) * sc,
-      meshPos.y + (hole.y || 0) * sc,
-      meshPos.z + (hole.z || 0) * sc
+      (hole.x || 0) * sc,
+      (hole.y || 0) * sc,
+      (hole.z || 0) * sc
     );
     if (hole.angleX) holeMesh.rotation.x = hole.angleX * Math.PI / 180;
     if (hole.angleZ) holeMesh.rotation.z = hole.angleZ * Math.PI / 180;
     holeMesh.userData = { partId: partInfo.id, detailType: "hole" };
-    scene.add(holeMesh);
-    var ringGeo = new THREE.RingGeometry(holeRadius * 0.85, holeRadius, 24);
-    var ringMat = new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide });
+    meshObj.add(holeMesh);
+    var ringGeo = new THREE.RingGeometry(holeRadius * 0.8, holeRadius, 24);
+    var ringMat = new THREE.MeshBasicMaterial({ color: 0x00D4AA, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
     var ringFront = new THREE.Mesh(ringGeo, ringMat);
-    ringFront.position.copy(holeMesh.position);
-    ringFront.position.z += panelT / 2 + 0.0001;
-    scene.add(ringFront);
-    var ringBack = ringFront.clone();
-    ringBack.position.z = holeMesh.position.z - panelT / 2 - 0.0001;
-    scene.add(ringBack);
+    ringFront.position.set(
+      (hole.x || 0) * sc,
+      (hole.y || 0) * sc,
+      (hole.z || 0) * sc + panelT / 2 + 0.0002
+    );
+    meshObj.add(ringFront);
+    var ringBack = new THREE.Mesh(ringGeo.clone(), ringMat.clone());
+    ringBack.position.set(
+      (hole.x || 0) * sc,
+      (hole.y || 0) * sc,
+      (hole.z || 0) * sc - panelT / 2 - 0.0002
+    );
+    meshObj.add(ringBack);
     detailArr.push(holeMesh, ringFront, ringBack);
   });
 
@@ -1902,14 +1752,7 @@ function applyExplode() {
     _tmpDelta.subVectors(_tmpNewPos, origPos);
     explodeMesh.position.copy(_tmpNewPos);
     if (explodeEdge) explodeEdge.position.copy(_tmpNewPos);
-    const explDetails = detailMeshes.get(part.id);
-    if (explDetails) {
-      explDetails.forEach(detailObj => {
-        if (detailObj.isMesh || detailObj.isLineSegments) {
-          detailObj.position.add(_tmpDelta);
-        }
-      });
-    }
+    // Detail meshes are children of panel mesh — they move automatically
   });
 
   needsRender = true;
@@ -2071,7 +1914,14 @@ function updateStats() {
     fastenerInfo.textContent = fastenerData.length ? "🔧 " + fastenerData.length : "";
   }
 }
+let _renderPartsScheduled = false;
 function renderPartsList() {
+  if (_renderPartsScheduled) return;
+  _renderPartsScheduled = true;
+  requestAnimationFrame(_doRenderPartsList);
+}
+function _doRenderPartsList() {
+  _renderPartsScheduled = false;
   const container = document.getElementById("partsList");
   if (!container) return;
   const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
@@ -2717,10 +2567,15 @@ function animate() {
     needsRender = false;
   }
 }
+let _resizeTimer = null;
 window.addEventListener("resize", () => {
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    needsRender = true;
+  }, 100);
 });
 initTheme();
 try {
