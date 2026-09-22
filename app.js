@@ -68,8 +68,8 @@ function createWoodTexture(baseColor, scale) {
   tmp.fillStyle = baseColor; tmp.fillRect(0, 0, 1, 1);
   const rgb = tmp.getImageData(0, 0, 1, 1).data;
   const r0 = rgb[0], g0 = rgb[1], b0 = rgb[2];
-  // Wood grain lines
-  ctx.globalAlpha = 0.08;
+  // Wood grain lines — more visible (0.25 alpha instead of 0.08)
+  ctx.globalAlpha = 0.25;
   var grainCount = deviceQuality === 'low' ? 20 : deviceQuality === 'medium' ? 40 : 80;
   for (let i = 0; i < grainCount; i++) {
     const y = Math.random() * size;
@@ -395,6 +395,39 @@ var MATERIAL_KEYWORDS = [
 // Cache for loaded textures
 var _realTexCache = new Map();
 
+// Маппинг кодов других производителей → Egger текстуры
+// G-серия (Ультрадекор/Sonae), K-серия, Kronospan и др.
+var MANUFACTURER_MAP = {
+  // Ультрадекор / Sonae — дуб
+  'G711': 'H1145',   // Дуб Тенор → Дуб Бардолино натуральный
+  'G712': 'H1146',   // → Дуб Бардолино серый
+  'G713': 'H1151',   // → Дуб Аризона коричневый
+  'G714': 'H1150',   // → Дуб Аризона серый
+  'G715': 'H1180',   // → Дуб Галифакс натуральный
+  'G716': 'H1181',   // → Дуб Галифакс табак
+  'G717': 'H1176',   // → Дуб Галифакс белый
+  'G718': 'H1334',   // → Дуб Сорано натуральный светлый
+  'G719': 'H1385',   // → Дуб Каселла натуральный
+  'G720': 'H1386',   // → Дуб Каселла коричневый
+  'G721': 'H3303',   // → Дуб Гамильтон натуральный
+  'G722': 'H3395',   // → Дуб Корбридж натуральный
+  'G723': 'H3170',   // → Дуб Кендал натуральный
+  'G724': 'H3157',   // → Дуб Винченца
+  'G725': 'H3331',   // → Дуб Небраска натуральный
+  // Kronospan
+  'K358': 'H1385',   // Дуб Каселла натуральный
+  'K359': 'H1386',   // Дуб Каселла коричневый
+  'K370': 'H1180',   // Дуб Галифакс натуральный
+  'K526': 'H1145',   // Дуб Бардолино
+  // SWISS KRONO
+  'K001': 'W1000',   // Белый
+  'K002': 'U961',    // Чёрный графит
+  'K003': 'U702',    // Кашемир серый
+  // EGGER G-codes (sometimes exported without H prefix)
+  'G071': 'H3326',   // Дуб Гладстоун серо-бежевый
+  'G072': 'H3309',   // Дуб Гладстоун песочный
+};
+
 // Классификация материала по имени
 function classifyMaterial(matName) {
   if (!matName) return { cat: 'unknown', tex: null, color: '#8a7f76' };
@@ -408,6 +441,17 @@ function classifyMaterial(matName) {
       var entry = EGGER_DB[code];
       var url = entry.file ? (TEX_BASE + '/' + entry.dir + '/' + encodeURIComponent(entry.file)) : null;
       return { cat: entry.cat, tex: url, color: entry.color || guessColor(name) };
+    }
+  }
+
+  // 1b. Коды других производителей (G711, K358, etc.)
+  var mfgMatch = name.match(/\b([GK]\d{3})\b/i);
+  if (mfgMatch) {
+    var mfgCode = mfgMatch[1].toUpperCase();
+    if (MANUFACTURER_MAP[mfgCode] && EGGER_DB[MANUFACTURER_MAP[mfgCode]]) {
+      var mappedEntry = EGGER_DB[MANUFACTURER_MAP[mfgCode]];
+      var mappedUrl = mappedEntry.file ? (TEX_BASE + '/' + mappedEntry.dir + '/' + encodeURIComponent(mappedEntry.file)) : null;
+      return { cat: mappedEntry.cat, tex: mappedUrl, color: mappedEntry.color || guessColor(name) };
     }
   }
 
@@ -521,23 +565,24 @@ function createPartMaterial(partData) {
   };
 
   // Если есть реальная текстура — загружаем асинхронно
+  var mat = new THREE.MeshStandardMaterial(matProps);
   if (info.tex) {
     // Сначала ставим процедурную текстуру как fallback
     if (info.cat === 'wood') {
-      matProps.map = createWoodTexture(baseColor, 4);
+      mat.map = createWoodTexture(baseColor, 4);
     }
-    // Асинхронно загружаем реальную
+    // Асинхронно загружаем реальную — обновляем САМ материал
     loadRealTexture(info.tex).then(function(realTex) {
       if (realTex) {
-        matProps.map = realTex;
-        matProps.needsUpdate = true;
+        mat.map = realTex;
+        mat.needsUpdate = true;
       }
     });
   } else if (info.cat === 'wood') {
-    matProps.map = createWoodTexture(baseColor, 4);
+    mat.map = createWoodTexture(baseColor, 4);
   }
 
-  return new THREE.MeshStandardMaterial(matProps);
+  return mat;
 }
 
 // Pre-allocated temp vectors for explode animation (avoids GC pressure per frame)
