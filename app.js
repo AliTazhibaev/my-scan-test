@@ -564,17 +564,17 @@ function createPartMaterial(partData) {
     emissiveIntensity: 0
   };
 
-  // EGGER текстуры имеют вертикальные волокна (V-ось, совпадает с shape Y = W панели).
+  // EGGER текстуры: изображение с вертикальными волокнами (V-ось = shape Y = W).
   // ExtrudeGeometry UV: U → shape X (=L), V → shape Y (=W).
-  // grain: 1=по X (L), 2=по Y (W), 0=не указано.
+  // Текстура идёт по длине листа (2800мм). Направление задаётся grain из БАЗИС:
+  //   grain=1 → по X (L) → поворот 90° чтобы сместить волокна с V(Y) на U(X)
+  //   grain=2 → по Y (W) → волокна уже на V(Y), поворот не нужен
+  //   grain=0 → не указано → определяем по L/W: длинная сторона = направление текстуры
   var grainAngle = 0;
   var grain = partData.grain || 0;
   if (grain === 1) {
-    // Волокна по X (L) — поворачиваем на 90°, чтобы сместить с V(Y) на U(X)
     grainAngle = Math.PI / 2;
   } else if (grain === 0) {
-    // Не указано — определяем по соотношению L/W
-    // Если L > W — волокна идут по длинной стороне = по X → поворачиваем
     if ((partData.L || 0) > (partData.W || 0)) {
       grainAngle = Math.PI / 2;
     }
