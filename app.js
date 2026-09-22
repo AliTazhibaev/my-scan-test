@@ -103,6 +103,443 @@ function createWoodTexture(baseColor, scale) {
   return tex;
 }
 
+// ============================================================
+// MATERIAL CLASSIFICATION & REALISTIC TEXTURE SYSTEM
+// ============================================================
+// Текстуры Egger размещаются в /textures/ рядом с приложением.
+// Для разработки можно использовать абсолютный URL.
+var TEX_BASE = '/textures';
+
+// Egger код → путь к текстуре + метаданные
+// Категории: 'wood' (древесный), 'solid' (одноцветный), 'material' (камень/металл/бетон)
+var EGGER_DB = {};
+
+// --- Древесные декоры (H-серия) ---
+(function() {
+  var wood = {
+    'H110':  'H110 ST9 Сосна Силэнд.jpg',
+    'H1101': 'H1101 ST12 Макассар мокка.jpg',
+    'H1107': 'H1107 ST9 Металлик древесина антрацит.jpg',
+    'H111':  'H111 ST12 Клён сердцевинный.jpg',
+    'H1113': 'H1113 ST10 Дуб Канзас коричневый.jpg',
+    'H1114': 'H1114 ST9 Орех Рибера.jpg',
+    'H1115': 'H1115 ST12 Баменда серо-бежевый.jpg',
+    'H1116': 'H1116 ST12 Баменда венге тёмный.jpg',
+    'H1122': 'H1122 ST22 Древесина белая.jpg',
+    'H1123': 'H1123 ST22 Древесина графит.jpg',
+    'H1133': 'H1133 ST9 Дуб Гамильтон натуральный горизонтальный.jpg',
+    'H1137': 'H1137 ST12 Дуб Сорано чёрно-коричневый.jpg',
+    'H1145': 'H1145 ST10 Дуб Бардолино натуральный.jpg',
+    'H1146': 'H1146 ST10 Дуб Бардолино серый.jpg',
+    'H1150': 'H1150 ST10 Дуб Аризона серый.jpg',
+    'H1151': 'H1151 ST10 Дуб Аризона коричневый.jpg',
+    'H1163': 'H1163 ST86 Дуб Бардолино натуральный горизонтальный.jpg',
+    'H1176': 'H1176 ST37 Дуб Галифакс белый.jpg',
+    'H1180': 'H1180 ST37 Дуб Галифакс натуральный.jpg',
+    'H1181': 'H1181 ST37 Дуб Галифакс табак.jpg',
+    'H1199': 'H1199 ST12 Дуб термо чёрно-коричневый.jpg',
+    'H1210': 'H1210 ST33 Вяз Тоссини серо-бежевый.jpg',
+    'H1212': 'H1212 ST33 Вяз Тоссини коричневый.jpg',
+    'H1213': 'H1213 ST33 Вяз Тоссини натуральный.jpg',
+    'H1250': 'H1250 ST36 Ясень Наварра.jpg',
+    'H1277': 'H1277 ST9 Акация Лэйклэнд светлая.jpg',
+    'H1298': 'H1298 ST22 Ясень Лион песочно-бежевый.jpg',
+    'H1334': 'H1334 ST9 Дуб Сорано натуральный светлый.jpg',
+    'H1369': 'H1369 ST40 Дуб Каселла каштановый.jpg',
+    'H1377': 'H1377 ST36 Дуб Орлеанский песочно-бежевый.jpg',
+    'H1379': 'H1379 ST36 Дуб Орлеанский коричневый.jpg',
+    'H1385': 'H1385 ST40 Дуб Каселла натуральный.png',
+    'H1386': 'Дуб Каселла коричневый H1386.png',
+    'H1387': 'H1387 ST10 Дуб Денвер графит.jpg',
+    'H1399': 'H1399 ST10 Дуб Денвер трюфель.jpg',
+    'H1400': 'H1400 ST36 Древесина Аттик.jpg',
+    'H1401': 'H1401 ST22 Сосна Касцина.jpg',
+    'H1424': 'H1424 ST22 Файнлайн крем.jpg',
+    'H1444': 'H1444 ST9 Сосна Альпийская.jpg',
+    'H1486': 'H1486 ST36 Сосна Пасадена.jpg',
+    'H1487': 'H1487 ST22 Пихта Брамберг.jpg',
+    'H151':  'H151 ST9 Древесина бронзовая.jpg',
+    'H1511': 'H1511 ST15 Бук Бавария.jpg',
+    'H1518': 'H1518 ST15 Бук натуральный.jpg',
+    'H1582': 'H1582 ST15 Бук Эльмау.jpg',
+    'H1615': 'H1615 ST9 Вишня Верона.jpg',
+    'H1636': 'H1636 ST12 Вишня Локарно.jpg',
+    'H1733': 'H1733 ST9 Берёза Майнау.jpg',
+    'H1734': 'H1734 ST9 Орех Интарсио горизонтальный.jpg',
+    'H1887': 'H1887 ST9 Клён Штарнберг натуральный.jpg',
+    'H3001': 'H3001 ST15 Ясень Одесса.jpg',
+    'H3006': 'H3006 ST22 Зебрано песочно-бежевый.jpg',
+    'H3012': 'H3012 ST22 Кокоболо натуральный.jpg',
+    'H3025': 'H3025 HG Макассар.jpg',
+    'H3047': 'H3047 ST10 Борнео трюфель.jpg',
+    'H3048': 'H3048 ST10 Борнео коричневый антик.jpg',
+    'H3050': 'H3050.jpg',
+    'H3051': 'H3051.jpg',
+    'H3052': 'H3052.jpg',
+    'H3053': 'H3053.jpg',
+    'H3058': 'H3058 ST22 Венге Мали.jpg',
+    'H3080': 'H3080 ST15 Махагон.jpg',
+    'H3081': 'H3081 ST22 Сосна Гаванна чёрная.jpg',
+    'H3090': 'H3090 ST22 Древесина Шорвуд.jpg',
+    'H3113': 'H3113 ST15 Груша Линдау.jpg',
+    'H3114': 'H3114 ST9 Груша Тирано.jpg',
+    'H3131': 'H3131 ST12 Дуб Давос натуральный.jpg',
+    'H3133': 'H3133 ST12 Дуб Давос трюфель.jpg',
+    'H3154': 'H3154 ST36 Дуб Чарльстон тёмно-коричневый.jpg',
+    'H3155': 'H3155 ST10 Дуб Чарльстон табак.jpg',
+    'H3156': 'H3156 ST12 Дуб Корбридж серый.jpg',
+    'H3157': 'H3157 ST12 Дуб Винченца.jpg',
+    'H3170': 'H3170 ST12 Дуб Кендал натуральный.jpg',
+    'H3171': 'H3171 ST12 Дуб Кендал промасленный.jpg',
+    'H3303': 'H3303 ST10 Дуб Гамильтон натуральный.jpg',
+    'H3309': 'H3309 ST28 Дуб Гладстоун песочный.jpg',
+    'H3325': 'H3325 ST28 Дуб Гладстоун табак.jpg',
+    'H3326': 'H3326 ST28 Дуб Гладстоун серо-бежевый.jpg',
+    'H3331': 'H3331 ST10 Дуб Небраска натуральный.jpg',
+    'H3332': 'H3332 ST10 Дуб Небраска серый.jpg',
+    'H3335': 'H3335 ST28 Дуб Гладстоун белый.jpg',
+    'H3342': 'H3342 ST28 Дуб Гладстоун сепия.jpg',
+    'H3344': 'H3344 ST36 Дуб Файнлайн натуральный.jpg',
+    'H3368': 'H3368 ST9 Дуб Ланкастер натуральный.jpg',
+    'H3395': 'H3395 ST12 Дуб Корбридж натуральный.jpg',
+    'H3398': 'H3398 ST12 Дуб Кендал коньяк.jpg',
+    'H3403': 'H3403 ST38 Лиственница горная белая.jpg',
+    'H3404': 'H3404 ST38 Лиственница горная коричневая.jpg',
+    'H3406': 'H3406 ST38 Лиственница горная антрацит.jpg',
+    'H3420': 'H3420 ST36 Сосна термо.jpg',
+    'H3430': 'H3430 ST22 Сосна Аланд белая.jpg',
+    'H3433': 'H3433 ST22 Сосна Аланд полярная.jpg',
+    'H3450': 'H3450 ST22 Флитвуд белый.jpg',
+    'H3451': 'H3451 ST22 Флитвуд шампань.jpg',
+    'H3453': 'H3453 ST22 Флитвуд серая лава.jpg',
+    'H3470': 'H3470 ST22 Пихта сучковатая натуральная.jpg',
+    'H3700': 'H3700 ST10 Орех Пацифик натуральный.jpg',
+    'H3702': 'H3702 ST10 Орех Пацифик табак.jpg',
+    'H3704': 'H3704 ST15 Орех Аида табак.jpg',
+    'H3710': 'H3710 ST9 Орех Карини натуральный.jpg',
+    'H3711': 'H3711 ST9 Орех Карини табак.jpg',
+    'H3730': 'H3730 ST10 Гикори натуральный.jpg',
+    'H3732': 'H3732 ST10 Гикори коричневый.jpg',
+    'H3734': 'H3734 ST9 Орех Дижон натуральный.jpg',
+    'H3760': 'H3760 ST29 Вяз Капский белый.jpg',
+    'H3766': 'H3766 ST29 Вяз Капский тёмно-коричневый.jpg',
+    'H3773': 'H3773 ST9 Орех Карини белёный.jpg',
+    'H3840': 'H3840 ST9 Клён Мандал натуральный.jpg',
+    'H3860': 'H3860 ST9 Клён сахарный шампань.jpg',
+    'H3991': 'H3991 ST10 Бук Кантри натуральный.jpg',
+    'H430':  'H430 ST86 Сосна Аланд белая горизонтальная.jpg',
+    'H433':  'H433 ST86 Сосна Аланд полярная горизонтальная.jpg',
+    'H815':  'H815 ST9 Вишня Верона горизонтальная.jpg',
+    'H834':  'H834 ST9 Дуб Сорано натуральный светлый горизонтальный.jpg',
+    'H853':  'H853 ST86 Флитвуд горизонтальный лава серая.jpg',
+    'H877':  'H877 ST86 Флитвуд горизонтальный лава серая.jpg'
+  };
+  for (var k in wood) EGGER_DB[k] = { file: wood[k], cat: 'wood', dir: 'Древесные декоры' };
+})();
+
+// --- Одноцветные декори (U/W-серия) ---
+(function() {
+  var solid = {
+    'W1000': '#f2f0eb', 'W1100': '#f5f3ee', 'W1200': '#f0ede8', 'W1300': '#f8f6f2',
+    'W908': '#e8e4dc', 'W911': '#ede8df', 'W980': '#f0ece5',
+    'U104': '#f0ece4', 'U107': '#e8d88c', 'U108': '#f0e0a0', 'U113': '#d8ccb4',
+    'U114': '#e8d440', 'U131': '#d4d440', 'U140': '#d4a830', 'U146': '#c8a830',
+    'U156': '#c8b898', 'U163': '#c49428', 'U200': '#c0b090', 'U201': '#a09888',
+    'U204': '#a88060', 'U216': '#c0a878', 'U222': '#e0d8c0', 'U224': '#e8e4dc',
+    'U310': '#d86830', 'U311': '#882828', 'U313': '#e0d0c8', 'U321': '#c02020',
+    'U323': '#d82828', 'U328': '#c85050', 'U330': '#582848', 'U332': '#d87020',
+    'U334': '#b88060', 'U337': '#c84878', 'U340': '#d88038', 'U350': '#c07028',
+    'U353': '#c8a0a0', 'U363': '#d89898', 'U380': '#c83020', 'U390': '#881818',
+    'U400': '#b098b8', 'U404': '#8860a0', 'U414': '#583870', 'U420': '#8868a0',
+    'U430': '#7050a0', 'U500': '#80c0c8', 'U504': '#78a8b8', 'U507': '#88a0b8',
+    'U515': '#6090c0', 'U522': '#70a8d0', 'U525': '#5088b8', 'U533': '#a0c8e0',
+    'U540': '#4870a0', 'U550': '#305888', 'U560': '#203868', 'U570': '#182848',
+    'U599': '#202850', 'U606': '#286030', 'U608': '#a0c878', 'U617': '#88a870',
+    'U619': '#707838', 'U626': '#78b040', 'U630': '#90c840', 'U636': '#307058',
+    'U646': '#508878', 'U650': '#306830', 'U655': '#208850', 'U660': '#286828',
+    'U702': '#b0a898', 'U707': '#a09898', 'U708': '#c0b8b0', 'U717': '#908880',
+    'U727': '#988878', 'U732': '#a09890', 'U741': '#706860', 'U748': '#685848',
+    'U750': '#888078', 'U763': '#b0a8a8', 'U767': '#908880', 'U773': '#c8c0b8',
+    'U775': '#d0c8c0', 'U788': '#d8d4d0', 'U795': '#907858', 'U807': '#785838',
+    'U818': '#503828', 'U899': '#383030', 'U960': '#606060', 'U961': '#303030',
+    'U963': '#505050', 'U989': '#382820', 'U999': '#1a1a1a'
+  };
+  for (var k in solid) {
+    EGGER_DB[k] = { file: null, cat: 'solid', dir: null, color: solid[k] };
+  }
+  // Add file paths for solid colors that have images
+  var solidFiles = {
+    'W1000': 'W1000 ST9 Белый Премиум.jpg', 'W1100': 'W1100 ST9 Белый Альпийский.jpg',
+    'W1200': 'W1200 ST9 Фарфор белый.jpg', 'W1300': 'W1300 ST9 Белый полярный.jpg',
+    'W908': 'W908 ST2 Белый базовый.jpg', 'W911': 'W911 ST2 Белый кремовый.jpg',
+    'W980': 'W980 ST2 Белый платиновый.jpg',
+    'U702': 'U702 ST9 Кашемир серый.jpg', 'U708': 'U708 ST9 Светло-серый.jpg',
+    'U732': 'U732 ST9 Серый пыльный.jpg', 'U763': 'U763 ST9 Серый перламутровый.jpg',
+    'U788': 'U788 ST9 Арктика серый.jpg', 'U960': 'U960 ST9 Оникс серый.jpg',
+    'U961': 'U961 ST2 Чёрный графит.jpg', 'U999': 'U999 ST12 Чёрный.jpg',
+    'U104': 'U104 ST9 Алебастр белый.jpg', 'U113': 'U113 ST9 Коттон бежевый.jpg',
+    'U200': 'U200 ST9 Бежевый.jpg', 'U201': 'U201 ST9 Серая галька.jpg',
+    'U323': 'U323 ST9 Ярко-красный.jpg', 'U560': 'U560 ST9 Синяя глубина.jpg',
+    'U606': 'U606 ST9 Зелёный лес.jpg', 'U818': 'U818 ST9 Тёмно-коричневый.jpg'
+  };
+  for (var sk in solidFiles) {
+    if (EGGER_DB[sk]) EGGER_DB[sk].file = solidFiles[sk];
+  }
+})();
+
+// --- Камень/металл/бетон (F-серия) ---
+(function() {
+  var mats = {
+    'F028': 'F028 ST89 Гранит Верчелли антрацит.jpg',
+    'F029': 'F029 ST89 Гранит Верчелли серый.jpg',
+    'F041': 'F041 ST15 Камень Сонора белый.jpg',
+    'F059': 'F059 ST89 Гранит Карнак серый.jpg',
+    'F061': 'F061 ST89 Гранит Карнак коричневый.jpg',
+    'F066': 'F066 ST76 Гранит Сульяна бежевый.jpg',
+    'F067': 'F067 ST76 Гранит Сульяна серый.jpg',
+    'F093': 'F093 ST15 Мрамор Чиполлино серый.jpg',
+    'F094': 'F094 ST15 Мрамор Чиполлино чёрная медь.jpg',
+    'F105': 'F105 ST15 Мрамор Торано.jpg',
+    'F148': 'F148 ST82 Гранит мелкий коричневый.jpg',
+    'F160': 'F160 ST9 Мрамор Мармара.jpg',
+    'F166': 'F166 ST9 Мрамор Пелаго белый.jpg',
+    'F186': 'F186 ST9 Бетон Чикаго светло-серый.jpg',
+    'F187': 'F187 ST9 Бетон Чикаго тёмно-серый.jpg',
+    'F221': 'F221 ST87 Керамика Тессина крем.jpg',
+    'F222': 'F222 ST87 Керамика Тессина терра.jpg',
+    'F236': 'F236 ST15 Террацо серый.jpg',
+    'F238': 'F238 ST15 Террацо чёрный.jpg',
+    'F256': 'F256 ST87 Шифер пёстрый.jpg',
+    'F274': 'F274 ST9 Бетон светлый.jpg',
+    'F275': 'F275 ST9 Бетон тёмный.jpg',
+    'F283': 'F283 ST22 Бетон Бостон.jpg',
+    'F300': 'F300 ST87 Ферро ржавчина.jpg',
+    'F302': 'F302 ST87 Ферро бронза.jpg',
+    'F303': 'F303 ST87 Ферро титан серый.jpg',
+    'F310': 'F310 ST87 Керамика ржавчина.jpg',
+    'F311': 'F311 ST87 Керамика антрацит.jpg',
+    'F365': 'F365 ST16 Амарна золотой.jpg',
+    'F371': 'F371 ST82 Гранит Галиция серо-бежевый.jpg',
+    'F404': 'F404 ST76 Кожа коньяк.jpg',
+    'F424': 'F424 ST10 Лён терра.jpg',
+    'F425': 'F425 ST10 Лён бежевый.jpg',
+    'F426': 'F426 ST10 Лён серый.jpg',
+    'F433': 'F433 ST10 Лён антрацит.jpg',
+    'F447': 'F447 ST2 Металлик серая лава.jpg',
+    'F477': 'F477 ST9 Металлик серо-голубой.jpg',
+    'F478': 'F478 ST9 Металлик кубанит серый.jpg',
+    'F501': 'F501 ST2 Алюминий матированный.jpg',
+    'F503': 'F503 ST2 Металлик антрацит.jpg',
+    'F509': 'F509 ST2 Алюминий.jpg',
+    'F547': 'F547 ST9 Металл блоки.jpg',
+    'F549': 'F549 ST9 Металл кракелюр.jpg',
+    'F570': 'F570 ST2 Металлик медь.jpg',
+    'F571': 'F571 ST2 Металлик золото.jpg',
+    'F633': 'F633 ST87 Металл винтаж серо-коричневый.jpg',
+    'F638': 'F638 ST16 Хромикс серебро.jpg',
+    'F641': 'F641 ST16 Хромикс антрацит.jpg',
+    'F649': 'F649 ST16 Аргиллит белый.jpg',
+    'F651': 'F651 ST16 Аргиллит серый.jpg',
+    'F672': 'F672 ST16 Камень Калабрия золотой.jpg',
+    'F673': 'F673 ST16 Камень Калабрия серый титан.jpg',
+    'F784': 'F784 ST2 Медь матированная.jpg',
+    'F870': 'F870 ST76 Шифер Леон.jpg'
+  };
+  for (var k in mats) EGGER_DB[k] = { file: mats[k], cat: 'material', dir: 'Материалы' };
+})();
+
+// Ключевые слова для классификации неизвестных материалов
+var WOOD_KEYWORDS = [
+  'дуб', ' oak', 'орех', 'walnut', 'nut', 'ясень', 'ash', 'бук', 'beech',
+  'сосна', 'pine', 'берёза', 'birch', 'клён', 'maple', 'вишня', 'cherry',
+  'каштан', 'chestnut', 'махагон', 'mahogany', 'венге', 'wenge', 'тик', 'teak',
+  'лиственница', 'larch', 'клен', 'береза', 'груша', 'pear', 'липа', 'linden',
+  'гикори', 'hickory', 'бамбук', 'bamboo', 'акация', 'acacia', 'пихта', 'fir',
+  'вяз', 'elm', 'каселла', 'casella', 'ликольн', 'lincoln', 'сонома', 'sonoma',
+  'макассар', 'macassar', 'канзас', 'kansas', 'бардолино', 'bardolino',
+  'галифакс', 'halifax', 'сорано', 'sorano', 'аризона', 'arizona',
+  'денвер', 'denver', 'кендал', 'kendal', 'гладстоун', 'gladstone',
+  'небраска', 'nebraska', 'орлеанский', 'orleans', 'чарльстон', 'charleston',
+  'винченца', 'vincenza', 'ланкастер', 'lancaster', 'корбридж', 'corbridge',
+  'pacифик', 'pacific', 'карини', 'karini', 'дижон', 'dijon',
+  'мардал', 'mandal', 'сахарный', 'sugar', 'кантри', 'country',
+  'термо', 'thermo', 'натуральн', 'natural', 'белен', 'bleach',
+  'горизонт', 'horizontal', 'крем', 'cream', 'табак', 'tobacco',
+  'трюфель', 'truffle', 'коньяк', 'cognac', 'промасл', 'oiled',
+  'сепия', 'sepia', 'мокка', 'mocha', 'песочн', 'sand',
+  'ЛДСП', 'лдсп', 'ЛМДФ', 'лмдф', 'ДСП', 'дсп', 'мдф', 'МДФ',
+  'фанера', 'plywood', 'шпон', 'veneer', 'древес', 'wood', 'timber',
+  'каштанов', 'коричнев', 'brown'
+];
+var SOLID_KEYWORDS = [
+  'белый', 'white', 'чёрный', 'черный', 'black', 'серый', 'grey', 'gray',
+  'бежевый', 'beige', 'кремовый', 'cream', 'крем', 'слоновая кость', 'ivory',
+  'графит', 'graphite', 'антрацит', 'anthracite', 'перламутр', 'pearl',
+  'пыльн', 'dusty', 'кашемир', 'cashmere', 'шёлк', 'silk', 'льнян', 'linen',
+  'альпийск', 'alpine', 'полярн', 'polar', 'арктик', 'arctic',
+  'базов', 'basic', 'премиум', 'premium', 'платинов', 'platinum',
+  'красный', 'red', 'синий', 'blue', 'голубой', 'light blue', 'зелёный', 'green',
+  'жёлтый', 'yellow', 'оранжевый', 'orange', 'розовый', 'pink',
+  'фиолетов', 'violet', 'purple', 'бордов', 'burgundy'
+];
+var MATERIAL_KEYWORDS = [
+  'гранит', 'granite', 'мрамор', 'marble', 'камень', 'stone',
+  'бетон', 'concrete', 'керамик', 'ceramic', 'терраццо', 'terrazzo',
+  'шифер', 'slate', 'алюминий', 'aluminum', 'металлик', 'metallic',
+  'металл', 'metal', 'хром', 'chrome', 'медь', 'copper', 'золото', 'gold',
+  'серебр', 'silver', 'бронза', 'bronze', 'железо', 'iron', 'сталь', 'steel',
+  'кожа', 'leather', 'лён', 'linen', 'ткань', 'fabric', 'текстиль', 'textile',
+  'бетон', ' concrete', 'ферро', 'ferro'
+];
+
+// Cache for loaded textures
+var _realTexCache = new Map();
+
+// Классификация материала по имени
+function classifyMaterial(matName) {
+  if (!matName) return { cat: 'unknown', tex: null, color: '#8a7f76' };
+  var name = matName.toLowerCase();
+
+  // 1. Egger код (H1386, W1000, F028, U702...)
+  var eggerMatch = name.match(/\b([HWFU]\d{3,4})\b/i);
+  if (eggerMatch) {
+    var code = eggerMatch[1].toUpperCase();
+    if (EGGER_DB[code]) {
+      var entry = EGGER_DB[code];
+      var url = entry.file ? (TEX_BASE + '/' + entry.dir + '/' + encodeURIComponent(entry.file)) : null;
+      return { cat: entry.cat, tex: url, color: entry.color || guessColor(name) };
+    }
+  }
+
+  // 2. Ключевые слова
+  for (var w = 0; w < WOOD_KEYWORDS.length; w++) {
+    if (name.indexOf(WOOD_KEYWORDS[w]) >= 0) {
+      return { cat: 'wood', tex: findBestWoodTexture(name), color: guessColor(name) };
+    }
+  }
+  for (var s = 0; s < SOLID_KEYWORDS.length; s++) {
+    if (name.indexOf(SOLID_KEYWORDS[s]) >= 0) {
+      return { cat: 'solid', tex: null, color: guessColor(name) };
+    }
+  }
+  for (var m = 0; m < MATERIAL_KEYWORDS.length; m++) {
+    if (name.indexOf(MATERIAL_KEYWORDS[m]) >= 0) {
+      return { cat: 'material', tex: null, color: guessColor(name) };
+    }
+  }
+  return { cat: 'unknown', tex: null, color: guessColor(name) };
+}
+
+// Поиск наиболее подходящей древесной текстуры по имени
+function findBestWoodTexture(name) {
+  var bestCode = null, bestScore = 0;
+  for (var code in EGGER_DB) {
+    var e = EGGER_DB[code];
+    if (e.cat !== 'wood' || !e.file) continue;
+    var fname = e.file.toLowerCase();
+    var score = 0;
+    // Проверяем совпадение слов из имени материала с именем файла
+    var words = name.split(/[\s,;.]+/);
+    for (var w = 0; w < words.length; w++) {
+      if (words[w].length >= 3 && fname.indexOf(words[w]) >= 0) score++;
+    }
+    if (score > bestScore) { bestScore = score; bestCode = code; }
+  }
+  if (bestCode && EGGER_DB[bestCode]) {
+    var e = EGGER_DB[bestCode];
+    return TEX_BASE + '/' + e.dir + '/' + encodeURIComponent(e.file);
+  }
+  return null;
+}
+
+// Guess color from material name (fallback)
+function guessColor(name) {
+  if (!name) return '#8a7f76';
+  var n = name.toLowerCase();
+  if (n.match(/белый|white|cream|крем|ivory/)) return '#ece7e0';
+  if (n.match(/чёрный|черный|black/)) return '#2a2a30';
+  if (n.match(/серый|grey|gray|графит|graphite/)) return '#8a8a96';
+  if (n.match(/венге|wenge/)) return '#3b2a1c';
+  if (n.match(/белен|bleach|светл|light/)) return '#d8c8a8';
+  if (n.match(/коричн|brown|табак|tobacco/)) return '#7a5830';
+  if (n.match(/орех|walnut|nut/)) return '#6a5040';
+  if (n.match(/дуб|oak/)) return '#b09070';
+  if (n.match(/красн|red/)) return '#a83030';
+  if (n.match(/синий|blue/)) return '#304880';
+  if (n.match(/зелён|green/)) return '#306838';
+  if (n.match(/жёлт|yellow/)) return '#d0b840';
+  if (n.match(/оранж|orange/)) return '#c86828';
+  if (n.match(/розов|pink/)) return '#c88088';
+  if (n.match(/фиолет|violet|purple/)) return '#683888';
+  if (n.match(/бежев|beige|песочн|sand/)) return '#c8b898';
+  if (n.match(/антрацит|anthracite/)) return '#3a3a40';
+  if (n.match(/бетон|concrete/)) return '#a09890';
+  if (n.match(/металл|metal|алюмин|aluminum|хром|chrome/)) return '#b0b0b8';
+  if (n.match(/кожа|leather/)) return '#704828';
+  if (n.match(/ХДФ|HDF/)) return '#d8dce6';
+  if (n.match(/МДФ|MDF|ламинир/)) return '#b0a080';
+  return '#8a7f76';
+}
+
+// Загрузка реальной текстуры (с кешем)
+function loadRealTexture(url) {
+  return new Promise(function(resolve) {
+    if (_realTexCache.has(url)) { resolve(_realTexCache.get(url)); return; }
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+      var tex = new THREE.Texture(img);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.needsUpdate = true;
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      if (renderer) tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      _realTexCache.set(url, tex);
+      resolve(tex);
+    };
+    img.onerror = function() {
+      _realTexCache.set(url, null);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
+// Создание материала для детали (с учётом типа)
+function createPartMaterial(partData) {
+  var matName = partData.material || '';
+  var info = classifyMaterial(matName);
+  var baseColor = info.color;
+
+  var matProps = {
+    color: baseColor,
+    roughness: info.cat === 'material' ? 0.6 : 0.78,
+    metalness: info.cat === 'material' ? 0.15 : 0.02,
+    emissive: new THREE.Color(0),
+    emissiveIntensity: 0
+  };
+
+  // Если есть реальная текстура — загружаем асинхронно
+  if (info.tex) {
+    // Сначала ставим процедурную текстуру как fallback
+    if (info.cat === 'wood') {
+      matProps.map = createWoodTexture(baseColor, 4);
+    }
+    // Асинхронно загружаем реальную
+    loadRealTexture(info.tex).then(function(realTex) {
+      if (realTex) {
+        matProps.map = realTex;
+        matProps.needsUpdate = true;
+      }
+    });
+  } else if (info.cat === 'wood') {
+    matProps.map = createWoodTexture(baseColor, 4);
+  }
+
+  return new THREE.MeshStandardMaterial(matProps);
+}
+
 // Pre-allocated temp vectors for explode animation (avoids GC pressure per frame)
 const _tmpCenter = new THREE.Vector3();
 const _tmpDir = new THREE.Vector3();
@@ -129,6 +566,9 @@ let assemblyOrder = [];
 let assemblyPlaying = false;
 let assemblyTimer = null;
 let fastenerData = [];
+let dimsData = [];
+let dimGroup = null;
+let dimsVisible = false;
 let csgEnabled = true;
 let fastenerMeshes = [];
 let isolatedModule = null;
@@ -709,59 +1149,8 @@ function getColor(materialStr, partData) {
   if (partData?.color) {
     return partData.color;
   }
-  const matLower = (materialStr || "").toLowerCase();
-  const codeLower = (partData?.code || materialStr || "").toLowerCase();
-  const colorMap = {
-    h3050: "#d9b896",
-    h3051: "#c09a6c",
-    h3052: "#b08660",
-    h3053: "#3d2e20",
-    "la-oak-light": "#d4af8f",
-    "la-oak-dark": "#b89062",
-    "la-wenge": "#3b2a1c",
-    "la-white": "#f2ece4",
-    "la-gray": "#5a5a60"
-  };
-  if (colorMap[codeLower]) {
-    return colorMap[codeLower];
-  }
-  if (matLower.match(/гикори|рокфорд|walnut|hickory/)) {
-    return "#957850";
-  }
-  if (matLower.match(/каселла|casella|коричнев|brown/)) {
-    return "#856542";
-  }
-  if (matLower.match(/ликольн|lincoln|орех|nut/)) {
-    return "#75604a";
-  }
-  if (matLower.match(/белый|white|pearl|cream|ivory/)) {
-    return "#ece7e0";
-  }
-  if (matLower.match(/сонома|sonoma/)) {
-    return "#d4af8f";
-  }
-  if (matLower.match(/венге|wenge/)) {
-    return "#3b2a1c";
-  }
-  if (matLower.match(/черный|black|graphite|графит/)) {
-    return "#3a3a44";
-  }
-  if (matLower.match(/серый|grey|gray|кашемир|cashmere/)) {
-    return "#8a8a96";
-  }
-  if (matLower.match(/хдф|HDF/)) {
-    return "#d8dce6";
-  }
-  if (matLower.match(/мдф|MDF|ламинир/)) {
-    return "#b0a080";
-  }
-  if (matLower.match(/алюминий|aluminum|профиль/)) {
-    return "#b8bcc8";
-  }
-  if (matLower.match(/черновой|rough/)) {
-    return "#7a7060";
-  }
-  return "#8a7f76";
+  var info = classifyMaterial(materialStr);
+  return info.color;
 }
 function buildPartDetails(partInfo, meshObj) {
   const detailArr = [];
@@ -967,6 +1356,8 @@ function clearHoles() {
 }
 
 // --- Визуализация карманов/пазов (pockets) как decals на поверхности ---
+// Following DetalQR approach: pockets are added as children of the panel mesh,
+// using local panel coordinates. Face 'A' = front (Z=0 side), 'B' = back (Z=panelT side).
 var pocketMeshes = [];
 function buildPockets(partsArr) {
   partsArr.forEach(function(part) {
@@ -987,23 +1378,143 @@ function buildPockets(partsArr) {
       }
       if (!sh) return;
       var geo = new THREE.ShapeGeometry(sh);
-      var offset = pk.face === 'B' ? panelT / 2 + 0.0002 : -panelT / 2 - 0.0002;
-      geo.translate(0, 0, offset);
-      var mat = new THREE.MeshBasicMaterial({
-        color: 0x222222, transparent: true, opacity: 0.35,
-        side: THREE.DoubleSide, depthWrite: false
+      // DetalQR: face A => Z = -0.2mm (front), face B => Z = panelT +0.2mm (back)
+      var isBack = pk.face === 'B';
+      geo.translate(0, 0, isBack ? panelT + 0.0002 : -0.0002);
+      var mat = new THREE.MeshStandardMaterial({
+        color: 0x2b2f35, roughness: 0.95, metalness: 0.05,
+        transparent: true, opacity: 0.85, side: THREE.DoubleSide,
+        depthWrite: false, polygonOffset: true,
+        polygonOffsetFactor: -2, polygonOffsetUnits: -2
       });
       var mesh = new THREE.Mesh(geo, mat);
-      mesh.position.copy(parentMesh.position);
-      mesh.quaternion.copy(parentMesh.quaternion);
-      scene.add(mesh);
+      mesh.renderOrder = 1;
+      mesh.userData = { partId: part.id, pocket: true };
+      parentMesh.add(mesh);
       pocketMeshes.push(mesh);
     });
   });
 }
 function clearPockets() {
-  pocketMeshes.forEach(function(m) { m.geometry.dispose(); m.material.dispose(); scene.remove(m); });
+  pocketMeshes.forEach(function(m) {
+    if (m.parent) m.parent.remove(m);
+    m.geometry.dispose();
+    m.material.dispose();
+  });
   pocketMeshes.length = 0;
+}
+
+// --- Размерные линии (dims) — по образцу DetalQR ---
+// Рисует линейные размеры из БАЗИС в 3D: выноски, стрелки, цифры.
+function buildDimLines() {
+  if (!dimsData || !dimsData.length) return;
+  dimGroup = new THREE.Group();
+  var HL = 0.03;   // длина стрелки (м)
+  var HW = 0.008;  // полудлина наконечника (м)
+  var DIM_MIN_OFF = 0.12; // минимальное смещение от детали (м)
+  var V = function(p) { return new THREE.Vector3(p[0] * sc, p[1] * sc, p[2] * sc); };
+  var defaultMat = new THREE.LineBasicMaterial({ color: 0x111111 });
+  var dimMatCache = {};
+  function dimMat(col) {
+    if (!col) return defaultMat;
+    if (!dimMatCache[col]) {
+      var c = new THREE.Color(col);
+      var lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+      dimMatCache[col] = (lum > 0.86) ? defaultMat : new THREE.LineBasicMaterial({ color: c });
+    }
+    return dimMatCache[col];
+  }
+  // Центр модели для определения направления выноса
+  var cx = 0, cy = 0, cz = 0;
+  if (parts.length) {
+    parts.forEach(function(p) { if (p._pos) { cx += p._pos.x; cy += p._pos.y; cz += p._pos.z; } });
+    cx /= parts.length; cy /= parts.length; cz /= parts.length;
+  }
+  var ctr = new THREE.Vector3(cx, cy, cz);
+
+  for (var di = 0; di < dimsData.length; di++) {
+    var d = dimsData[di];
+    var dg = new THREE.Group();
+    var a = V(d.a), b = V(d.b);
+    var ea = V(d.ea), eb = V(d.eb);
+
+    // Минимальное смещение: если размер слишком близко к детали — отодвигаем
+    var off = new THREE.Vector3().subVectors(a, ea);
+    var ol = off.length();
+    if (ol < DIM_MIN_OFF) {
+      var od;
+      if (ol > 0.0005) {
+        od = off.clone().normalize();
+      } else {
+        var dd = new THREE.Vector3().subVectors(eb, ea);
+        if (dd.lengthSq() < 1e-10) od = new THREE.Vector3(0, 1, 0);
+        else {
+          var u = Math.abs(dd.clone().normalize().y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+          od = new THREE.Vector3().crossVectors(dd, u).normalize();
+          var m = ea.clone().add(eb).multiplyScalar(0.5);
+          if (m.clone().add(od).distanceTo(ctr) < m.clone().sub(od).distanceTo(ctr)) od.negate();
+        }
+      }
+      var add = od.multiplyScalar(DIM_MIN_OFF - ol);
+      a = a.clone().add(add);
+      b = b.clone().add(add);
+    }
+
+    var dm = dimMat(d.col);
+    // Линии: размерная + две выноски
+    var g = new THREE.BufferGeometry().setFromPoints([a, b, ea, a, eb, b]);
+    dg.add(new THREE.LineSegments(g, dm));
+    // Стрелки
+    var dir = new THREE.Vector3().subVectors(b, a).normalize();
+    var upV = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    var perp = new THREE.Vector3().crossVectors(dir, upV).normalize();
+    var diV = dir.clone().multiplyScalar(HL), pe = perp.clone().multiplyScalar(HW);
+    var ar = new THREE.BufferGeometry().setFromPoints([
+      a, a.clone().add(diV).add(pe), a, a.clone().add(diV).sub(pe),
+      b, b.clone().sub(diV).add(pe), b, b.clone().sub(diV).sub(pe)
+    ]);
+    dg.add(new THREE.LineSegments(ar, dm));
+    // Цифра — спрайт посередине размерной линии
+    var mid = a.clone().add(b).multiplyScalar(0.5);
+    var nud = new THREE.Vector3().subVectors(a, ea);
+    if (nud.lengthSq() < 0.0001) nud.copy(perp);
+    nud.normalize().multiplyScalar(0.026);
+    var label = makeDimLabel(String(Math.round(d.value)), 0.032);
+    label.position.copy(mid).add(nud);
+    dg.add(label);
+    dimGroup.add(dg);
+  }
+  scene.add(dimGroup);
+  needsRender = true;
+}
+
+function makeDimLabel(text, worldSize) {
+  var cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 128;
+  var ctx = cv.getContext('2d');
+  ctx.font = '500 60px system-ui, -apple-system, Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillText(text, 128, 64);
+  var tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter;
+  var sh = worldSize * 128 / 46;
+  var spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, depthTest: true, depthWrite: false, transparent: true
+  }));
+  spr.scale.set(sh * 2, sh, 1);
+  return spr;
+}
+
+function toggleDims() {
+  dimsVisible = !dimsVisible;
+  if (dimsVisible && !dimGroup) buildDimLines();
+  if (dimGroup) dimGroup.visible = dimsVisible;
+  var btn = document.getElementById("dimsBtn");
+  if (btn) btn.classList.toggle("active", dimsVisible);
+  showToast(dimsVisible ? "📐 Размеры показаны" : "📐 Размеры скрыты");
+  needsRender = true;
 }
 
 function buildContourShape(contour, sc) {
@@ -1060,6 +1571,15 @@ function buildScene() {
   fastenerMeshes.length = 0;
   clearHoles();
   clearPockets();
+  if (dimGroup) {
+    scene.remove(dimGroup);
+    dimGroup.traverse(function(obj) {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) { if (obj.material.map) obj.material.map.dispose(); obj.material.dispose(); }
+    });
+    dimGroup = null;
+    dimsVisible = false;
+  }
   meshMap.clear();
   edgeLineMap.clear();
   detailMeshes.clear();
@@ -1133,15 +1653,7 @@ function buildScene() {
     });
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
     var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    var baseColor = getColor(part.material, part);
-    var panelMat = new THREE.MeshStandardMaterial({
-      color: baseColor,
-      map: createWoodTexture(baseColor, 4),
-      roughness: 0.78,
-      metalness: 0.02,
-      emissive: new THREE.Color(0),
-      emissiveIntensity: 0
-    });
+    var panelMat = createPartMaterial(part);
     var panelMesh = new THREE.Mesh(panelGeo, panelMat);
     // Позиция + поворот (DetalQR: pos + quat)
     panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
@@ -1322,13 +1834,21 @@ function renderProcessingInfo(partData) {
   const grooves = partData.grooves || [];
   const holes2 = partData.holes || [];
   const cutouts2 = partData.cutouts || [];
+  const pockets = partData.pockets || [];
   // edges removed from display
-  const hasProcessing = grooves.length || holes2.length || cutouts2.length;
+  const hasProcessing = grooves.length || holes2.length || cutouts2.length || pockets.length;
   const relatedFasteners = fastenerData.filter(f => f.ownerCode && partData.code && f.ownerCode === partData.code);
   if (!hasProcessing && !relatedFasteners.length) {
     return "";
   }
   let html = "<div style=\"margin-top:4px;border-top:1px solid var(--border);padding-top:4px\">";
+  if (pockets.length) {
+    html += "<div style=\"font-size:9px;color:#7a4de8;margin-bottom:2px\">Пазы/карманы (" + pockets.length + "):</div>";
+    pockets.forEach(function(pk, idx) {
+      var shape = pk.t === 'circle' ? ('⌀' + ((pk.r || 0) * 2).toFixed(0)) : ('poly ' + (pk.pts ? pk.pts.length : 0) + ' вершин');
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + shape + " гл." + (pk.depth || 0) + " мм " + (pk.face === 'B' ? 'тыл' : 'лицо') + "</div>";
+    });
+  }
   if (grooves.length) {
     html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Пазы (" + grooves.length + "):</div>";
     grooves.forEach((groove, idx) => {
@@ -2258,6 +2778,7 @@ document.getElementById("fileInput").addEventListener("change", changeEvent => {
       const jsonData = JSON.parse(loadEvent.target.result);
       parts = jsonData.parts || jsonData;
       fastenerData = jsonData.fasteners || [];
+      dimsData = jsonData.dims || [];
       var loadedHoles = jsonData.holes || [];
       window._loadedHoles = loadedHoles;
       parts.forEach((part, index) => {
@@ -2273,7 +2794,9 @@ document.getElementById("fileInput").addEventListener("change", changeEvent => {
       closeDrawer();
       updateStats();
       showToast("✅ Загружено " + parts.length + " деталей");
-      document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
+      if (dimsData.length) {
+        showToast("📐 " + dimsData.length + " размеров из БАЗИС");
+      }      document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
       saveProgress();
     } catch (err) {
       showToast("❌ Ошибка файла: " + err.message);
@@ -2315,6 +2838,7 @@ document.getElementById("resetProgressBtn").addEventListener("click", resetProgr
 document.getElementById("printBtn").addEventListener("click", printSpecification);
 document.getElementById("statsBtn").addEventListener("click", showStats);
 document.getElementById("csgBtn").addEventListener("click", toggleCSGVisibility);
+document.getElementById("dimsBtn").addEventListener("click", toggleDims);
 document.getElementById("closeScannerBtn").addEventListener("click", closeScanner);
 document.getElementById("scannerModal").addEventListener("click", function(e) { if (e.target === this) closeScanner(); });
 document.getElementById("statsModal").addEventListener("click", function(e) { if (e.target === this) this.classList.add("hidden"); });
@@ -2384,6 +2908,7 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
         const data = JSON.parse(ev.target.result);
         parts = data.parts || data;
         fastenerData = data.fasteners || [];
+        dimsData = data.dims || [];
         var loadedHoles = data.holes || [];
         window._loadedHoles = loadedHoles;
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
@@ -2395,7 +2920,9 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
         closeDrawer();
         updateStats();
         showToast('✅ Загружено ' + parts.length + ' деталей');
-        requestWakeLock();
+        if (dimsData.length) {
+          showToast('📐 ' + dimsData.length + ' размеров из БАЗИС');
+        }        requestWakeLock();
         document.getElementById('projectTitle').textContent = file.name.replace('.json', '');
         saveProgress();
       } catch (err) {
@@ -2444,6 +2971,10 @@ document.addEventListener('keydown', function(e) {
         if (selectedId !== null) { startSmoothZoom(selectedId); }
         else { showToast('Сначала выберите деталь'); }
       }
+      break;
+    case 'd':
+    case 'D':
+      if (!e.ctrlKey && !e.metaKey) toggleDims();
       break;
     case 'ArrowLeft':
       if (assemblyMode && assemblyOrder.length > 0) {
