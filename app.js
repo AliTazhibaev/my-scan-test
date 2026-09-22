@@ -550,7 +550,7 @@ function loadRealTexture(url) {
   });
 }
 
-// Создание материала для детали (с учётом типа)
+// Создание материала для детали (с учётом типа и направления текстуры)
 function createPartMaterial(partData) {
   var matName = partData.material || '';
   var info = classifyMaterial(matName);
@@ -564,22 +564,50 @@ function createPartMaterial(partData) {
     emissiveIntensity: 0
   };
 
+  // Определяем угол поворота текстуры по направлению волокон
+  // grain: 1=по X (горизонтально), 2=по Y (вертикально), 0=не указано
+  var grainAngle = 0;
+  var grain = partData.grain || 0;
+  if (grain === 2) {
+    // Вертикальное направление — поворачиваем на90°
+    grainAngle = Math.PI / 2;
+  } else if (grain === 0) {
+    // Не указано — определяем по соотношению L/W
+    // Если W > L — вертикальное направление (текстура идёт по длинной стороне)
+    if ((partData.W || 0) > (partData.L || 0)) {
+      grainAngle = Math.PI / 2;
+    }
+  }
+  // grain === 1 (по X) — не поворачиваем (0)
+
   // Если есть реальная текстура — загружаем асинхронно
   var mat = new THREE.MeshStandardMaterial(matProps);
+  var applyTexRotation = function(tex) {
+    if (grainAngle !== 0) {
+      tex.rotation = grainAngle;
+      tex.center = new THREE.Vector2(0.5, 0.5);
+    }
+  };
+
   if (info.tex) {
     // Сначала ставим процедурную текстуру как fallback
     if (info.cat === 'wood') {
-      mat.map = createWoodTexture(baseColor, 4);
+      var wt = createWoodTexture(baseColor, 4);
+      applyTexRotation(wt);
+      mat.map = wt;
     }
     // Асинхронно загружаем реальную — обновляем САМ материал
     loadRealTexture(info.tex).then(function(realTex) {
       if (realTex) {
+        applyTexRotation(realTex);
         mat.map = realTex;
         mat.needsUpdate = true;
       }
     });
   } else if (info.cat === 'wood') {
-    mat.map = createWoodTexture(baseColor, 4);
+    var pt = createWoodTexture(baseColor, 4);
+    applyTexRotation(pt);
+    mat.map = pt;
   }
 
   return mat;
