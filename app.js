@@ -2948,20 +2948,26 @@ document.getElementById("fileInput").addEventListener("change", changeEvent => {
         }
       });
       autoLayout(parts);
-      buildScene();
-      selectedId = null;
-      loadProgress();
-      centerCamera();
-      closeDrawer();
-      updateStats();
-      showToast("✅ Загружено " + parts.length + " деталей");
-      if (dimsData.length) {
-        showToast("📐 " + dimsData.length + " размеров из БАЗИС");
-      }      document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
-      saveProgress();
+      // Yield to browser so loading overlay paints before heavy work
+      var loadText = document.querySelector('#loadingOverlay .load-text');
+      if (loadText) loadText.textContent = 'Построение 3D (' + parts.length + ' деталей)...';
+      setTimeout(function() {
+        buildScene();
+        selectedId = null;
+        loadProgress();
+        centerCamera();
+        closeDrawer();
+        updateStats();
+        showToast("✅ Загружено " + parts.length + " деталей");
+        if (dimsData.length) {
+          showToast("📐 " + dimsData.length + " размеров из БАЗИС");
+        }
+        document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
+        saveProgress();
+        document.getElementById("loadingOverlay").classList.remove("show");
+      }, 30);
     } catch (err) {
       showToast("❌ Ошибка файла: " + err.message);
-    } finally {
       document.getElementById("loadingOverlay").classList.remove("show");
     }
   };
@@ -3074,21 +3080,24 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
         window._loadedHoles = loadedHoles;
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
-        buildScene();
-        selectedId = null;
-        loadProgress();
-        centerCamera();
-        closeDrawer();
-        updateStats();
-        showToast('✅ Загружено ' + parts.length + ' деталей');
-        if (dimsData.length) {
-          showToast('📐 ' + dimsData.length + ' размеров из БАЗИС');
-        }        requestWakeLock();
-        document.getElementById('projectTitle').textContent = file.name.replace('.json', '');
-        saveProgress();
+        var loadText = document.querySelector('#loadingOverlay .load-text');
+        if (loadText) loadText.textContent = 'Построение 3D (' + parts.length + ' деталей)...';
+        setTimeout(function() {
+          buildScene();
+          selectedId = null;
+          loadProgress();
+          centerCamera();
+          closeDrawer();
+          updateStats();
+          showToast('✅ Загружено ' + parts.length + ' деталей');
+          if (dimsData.length) showToast('📐 ' + dimsData.length + ' размеров из БАЗИС');
+          requestWakeLock();
+          document.getElementById('projectTitle').textContent = file.name.replace('.json', '');
+          saveProgress();
+          document.getElementById('loadingOverlay').classList.remove('show');
+        }, 30);
       } catch (err) {
         showToast('❌ Ошибка файла: ' + err.message);
-      } finally {
         document.getElementById('loadingOverlay').classList.remove('show');
       }
     };
