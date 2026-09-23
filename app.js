@@ -15,6 +15,20 @@ import {
   loadRealTexture,
   createPartMaterial
 } from './src/materials.js';
+import { handleLogin, initAuth } from './src/auth.js';
+import { initQR, wireQRListeners } from './src/qr.js';
+import {
+  initCamera, setupCameraControls, updateCamera,
+  startSmoothZoom, animateSmoothZoom,
+  deselectPart, handleRaycast as cameraHandleRaycast
+} from './src/camera.js';
+import { initAssembly, toggleAssembly, toggleAssemblyPlay, stopAssemblyPlay, updateAssemblyStep } from './src/assembly.js';
+import {
+  initUI, showToast, escapeHtml, updateStats, updateSummary,
+  renderPartsList, renderPartsListDeferred, openSheet, closeSheet,
+  openDrawer, closeDrawer, isMobileSheet
+} from './src/ui.js';
+import { initEvents } from './src/events.js';
 
 // === Wake Lock ===
 async function requestWakeLock() {
@@ -1567,276 +1581,11 @@ function applyExplode() {
 
   needsRender = true;
 }
-function toggleAssembly() {
-  assemblyMode = !assemblyMode;
-  document.getElementById("assembleBtn").classList.toggle("active", assemblyMode);
-  document.getElementById("assemblyOverlay").classList.toggle("active", assemblyMode);
-  if (assemblyMode) {
-    buildAssemblyOrder();
-    assemblyIndex = 0;
-    assemblyPrevIndex = -1;
-    updateAssemblyStep();
-    autoRotate = false;
-  } else {
-    stopAssemblyPlay();
-  }
-}
-function buildAssemblyOrder() {
-  const sortedKeys = Array.from(moduleMap.keys()).sort();
-  assemblyOrder = [];
-  sortedKeys.forEach(key => {
-    const moduleParts = moduleMap.get(key);
-    if (moduleParts) {
-      moduleParts.forEach(part => assemblyOrder.push(part));
-    }
-  });
-  if (assemblyOrder.length === 0) {
-    assemblyOrder = [...parts];
-  }
-}
-function updateAssemblyStep() {
-  if (assemblyOrder.length === 0) return;
-  const currentPart = assemblyOrder[assemblyIndex];
-  if (!currentPart) return;
-  document.getElementById("assemblyStepLabel").textContent = "Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length;
-  const partLabel = currentPart.position ? currentPart.code + " / " + currentPart.position : currentPart.code;
-  document.getElementById("assemblyInfo").textContent = partLabel + " — " + (currentPart.name || "—");
-  // Only reset previous step (not all meshes — saves O(N) per step)
-  if (assemblyPrevIndex >= 0 && assemblyPrevIndex !== assemblyIndex) {
-    var prevPart = assemblyOrder[assemblyPrevIndex];
-    if (prevPart) {
-      var prevAsmMesh = meshMap.get(prevPart.id);
-      var prevAsmEdge = edgeLineMap.get(prevPart.id);
-      if (prevAsmMesh) {
-        prevAsmMesh.material.emissive.setHex(0);
-        prevAsmMesh.material.emissiveIntensity = 0;
-        prevAsmMesh.material.transparent = false;
-        prevAsmMesh.material.opacity = 0.15;
-        prevAsmMesh.material.needsUpdate = true;
-      }
-      if (prevAsmEdge) {
-        prevAsmEdge.visible = true;
-        prevAsmEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-        prevAsmEdge.material.opacity = 0.15;
-        prevAsmEdge.material.needsUpdate = true;
-      }
-    }
-  } else if (assemblyPrevIndex === -1) {
-    // First step — dim all meshes once
-    meshMap.forEach((asmMesh) => {
-      asmMesh.material.emissive.setHex(0);
-      asmMesh.material.emissiveIntensity = 0;
-      asmMesh.material.transparent = false;
-      asmMesh.material.opacity = 0.15;
-      asmMesh.material.needsUpdate = true;
-    });
-    edgeLineMap.forEach(asmEdge => {
-      asmEdge.visible = true;
-      asmEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-      asmEdge.material.opacity = 0.15;
-      asmEdge.material.needsUpdate = true;
-    });
-  }
-  assemblyPrevIndex = assemblyIndex;
-  const highlightMesh = meshMap.get(currentPart.id);
-  const highlightEdge = edgeLineMap.get(currentPart.id);
-  if (highlightMesh) {
-    highlightMesh.material.emissive.setHex(0x00D4AA);
-    highlightMesh.material.emissiveIntensity = 0.25;
-    highlightMesh.material.transparent = false;
-    highlightMesh.material.opacity = 1;
-    highlightMesh.material.needsUpdate = true;
-  }
-  if (highlightEdge) {
-    highlightEdge.visible = true;
-    highlightEdge.material.color.setHex(0x00D4AA);
-  }
-  startSmoothZoom(currentPart.id);
-  updateSheet(currentPart);
-  openSheet();
-  renderPartsListDeferred();
-  showToast("🔧 Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length + ": " + (currentPart.name || currentPart.code));
-
-  needsRender = true;
-}
-function stopAssemblyPlay() {
-  assemblyPlaying = false;
-  if (assemblyTimer) {
-    clearInterval(assemblyTimer);
-  }
-  assemblyTimer = null;
-  document.getElementById("asmPlay").innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
-}
-function toggleAssemblyPlay() {
-  if (assemblyPlaying) {
-    stopAssemblyPlay();
-  } else {
-    assemblyPlaying = true;
-    document.getElementById("asmPlay").innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-    assemblyTimer = setInterval(() => {
-      assemblyIndex = (assemblyIndex + 1) % assemblyOrder.length;
-      updateAssemblyStep();
-    }, 1500);
-  }
-}
-function updateSummary() {
-  if (parts.length === 0) {
-    document.getElementById("materialSummary").style.display = "none";
-    return;
-  }
-  document.getElementById("materialSummary").style.display = "block";
-  const materialStats = {};
-  let totalMass = 0;
-  parts.forEach(part => {
-    const matName = part.material || "Неизвестно";
-    if (!materialStats[matName]) {
-      materialStats[matName] = {
-        count: 0,
-        totalArea: 0
-      };
-    }
-    materialStats[matName].count++;
-    if (part.L && part.W) {
-      materialStats[matName].totalArea += part.L * part.W / 1000000;
-    }
-    if (part.L && part.W && part.T) {
-      totalMass += part.L * part.W * part.T / 1000 * 6.5e-7;
-    }
-  });
-  const moduleCount = moduleMap.size;
-  let summaryHtml = "\n      <div class=\"summary-row\"><span class=\"summary-label\">Всего деталей:</span><span class=\"summary-val\">" + parts.length + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Модулей:</span><span class=\"summary-val\">" + moduleCount + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Собрано:</span><span class=\"summary-val\" style=\"color:var(--success)\">" + scannedSet.size + " / " + parts.length + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Масса:</span><span class=\"summary-val\">≈ " + totalMass.toFixed(1) + " кг</span></div>\n      <div style=\"margin-top:4px;border-top:1px solid var(--border);padding-top:4px\">\n    ";
-  const sortedMats = Object.entries(materialStats).sort((a, b) => b[1].count - a[1].count);
-  sortedMats.slice(0, 6).forEach(([mat, stats]) => {
-    summaryHtml += "<div class=\"summary-row\"><span class=\"summary-label\" style=\"font-size:8px\">" + escapeHtml(mat.substring(0, 30)) + "</span><span class=\"summary-val\" style=\"font-size:9px\">" + stats.count + " шт</span></div>";
-  });
-  summaryHtml += "</div>";
-  document.getElementById("summaryContent").innerHTML = summaryHtml;
-}
-function updateStats() {
-  const total = parts.length;
-  const scanned = scannedSet.size;
-  const percent = total > 0 ? Math.round(scanned / total * 100) : 0;
-  document.getElementById("totalCount").textContent = total;
-  document.getElementById("scannedCount").textContent = scanned;
-  document.getElementById("progressFill").style.width = percent + "%";
-  const fastenerInfo = document.getElementById("fastenerCount");
-  if (fastenerInfo) {
-    fastenerInfo.textContent = fastenerData.length ? "🔧 " + fastenerData.length : "";
-  }
-}
-let _renderPartsScheduled = false;
-function renderPartsList() {
-  if (_renderPartsScheduled) return;
-  _renderPartsScheduled = true;
-  requestAnimationFrame(_doRenderPartsList);
-}
-// Debounced version for rapid-fire updates (assembly playback)
-let _deferredPartsTimer = null;
-function renderPartsListDeferred() {
-  if (_deferredPartsTimer) clearTimeout(_deferredPartsTimer);
-  _deferredPartsTimer = setTimeout(renderPartsList, 80);
-}
-function _doRenderPartsList() {
-  _renderPartsScheduled = false;
-  const container = document.getElementById("partsList");
-  if (!container) return;
-  const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
-  if (parts.length === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:11px">📁 Загрузите JSON файл для начала</div>';
-    return;
-  }
-  const fragment = document.createDocumentFragment();
-  if (searchVal) {
-    var filteredParts = parts.filter(p => (p.name || "").toLowerCase().includes(searchVal) || (p.code || "").toLowerCase().includes(searchVal) || (p.position || "").toLowerCase().includes(searchVal));
-    if (filteredParts.length === 0) {
-      container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:11px">🔍 Ничего не найдено</div>';
-      return;
-    }
-    filteredParts.forEach(part => fragment.appendChild(createPartItem(part)));
-    container.innerHTML = "";
-    container.appendChild(fragment);
-    return;
-  }
-  const sortedModules = Array.from(moduleMap.keys()).sort((a, b) => {
-    if (a === "HARDWARE") return 1;
-    if (b === "HARDWARE") return -1;
-    const aPrefix = a.replace(/_\d+$/, "");
-    const bPrefix = b.replace(/_\d+$/, "");
-    if (aPrefix !== bPrefix) return aPrefix.localeCompare(bPrefix);
-    return parseInt(a.match(/\d+$/)?.[0] || "0") - parseInt(b.match(/\d+$/)?.[0] || "0");
-  });
-  // Track which modules are expanded (preserve state across re-renders)
-  if (!_expandedModules) _expandedModules = new Set();
-  sortedModules.forEach(moduleKey => {
-    const moduleParts = moduleMap.get(moduleKey);
-    if (!moduleParts) return;
-    const displayName = (moduleParts[0] && moduleParts[0].groupName) ? moduleParts[0].groupName : getModuleName(moduleKey === "HARDWARE" ? "D-000" : moduleKey + "_00");
-    const dotColor = moduleKey === "HARDWARE" ? "#94a3b8" : getModuleColor(moduleKey + "_00");
-    const scannedCount = moduleParts.filter(p => scannedSet.has(p.id)).length;
-    const isExpanded = _expandedModules.has(moduleKey);
-    const groupEl = document.createElement("div");
-    groupEl.className = "module-group";
-    groupEl.innerHTML = '<div class="module-header" data-module="' + moduleKey + '">' +
-      '<div class="module-dot" style="background:' + dotColor + '"></div>' +
-      '<span class="module-name">' + escapeHtml(displayName) + '</span>' +
-      '<span class="module-count">' + scannedCount + '/' + moduleParts.length + '</span>' +
-      '<span class="module-arrow' + (isExpanded ? ' open' : '') + '">▶</span>' +
-      '</div>' +
-      '<div class="module-parts' + (isExpanded ? '' : ' collapsed') + '" data-module-parts="' + moduleKey + '"></div>';
-    const headerEl = groupEl.querySelector(".module-header");
-    var isolateBtn = document.createElement("button");
-    isolateBtn.className = "module-isolate-btn";
-    isolateBtn.textContent = "\u2299";
-    isolateBtn.title = "Изолировать модуль";
-    isolateBtn.addEventListener("click", function(e) {
-      e.stopPropagation();
-      isolateModule(moduleKey);
-    });
-    var arrowEl = headerEl.querySelector(".module-arrow");
-    if (arrowEl) headerEl.insertBefore(isolateBtn, arrowEl);
-    const partsContainer = groupEl.querySelector(".module-parts");
-    headerEl.addEventListener("click", (e) => {
-      if (e.target.closest(".module-isolate-btn")) return;
-      const nowExpanded = !partsContainer.classList.contains("collapsed") ? false : true;
-      partsContainer.classList.toggle("collapsed");
-      headerEl.querySelector(".module-arrow").classList.toggle("open");
-      // Lazy render: only build part items on first expand
-      if (nowExpanded && !partsContainer.hasChildNodes()) {
-        const frag = document.createDocumentFragment();
-        moduleParts.forEach(part => frag.appendChild(createPartItem(part)));
-        partsContainer.appendChild(frag);
-      }
-      if (nowExpanded) _expandedModules.add(moduleKey);
-      else _expandedModules.delete(moduleKey);
-    });
-    var pressTimer = null;
-    headerEl.addEventListener("touchstart", () => {
-      pressTimer = setTimeout(() => isolateModule(moduleKey), 500);
-    }, { passive: true });
-    headerEl.addEventListener("touchend", () => clearTimeout(pressTimer), { passive: true });
-    headerEl.addEventListener("touchmove", () => clearTimeout(pressTimer), { passive: true });
-    // Only render parts for expanded modules
-    if (isExpanded) {
-      moduleParts.forEach(part => partsContainer.appendChild(createPartItem(part)));
-    }
-    fragment.appendChild(groupEl);
-  });
-  container.innerHTML = "";
-  container.appendChild(fragment);
-}
-var _expandedModules = null;
-function createPartItem(part) {
-  const isHidden = hiddenSet.has(part.id);
-  const isScanned = scannedSet.has(part.id);
-  const itemEl = document.createElement("div");
-  itemEl.className = "part-item " + (selectedId === part.id ? "active" : "");
-  itemEl.style.opacity = isHidden ? "0.4" : "1";
-  const displayId = idMode === "position" ? part.position || part.code || "—" : part.code || "—";
-  const moduleColor = getModuleColor(idMode === "position" ? part.position || part.code || "" : part.code || "");
-  itemEl.innerHTML = "\n      <div class=\"part-swatch\" style=\"background:" + getColor(part.material, part) + ";border-left:3px solid " + moduleColor + "\"></div>\n      <div class=\"part-info\">\n        <div class=\"part-name\">" + escapeHtml(part.name || "—") + "</div>\n        <div class=\"part-code\">" + escapeHtml(displayId) + "</div>\n        <div class=\"part-dims\">" + (part.gab ? part.gab.w + "×" + part.gab.h + "×" + part.gab.d + " мм" : "") + "</div>\n      </div>\n      <div class=\"check " + (isScanned ? "done" : "") + "\">" + (isScanned ? "✅" : "○") + "</div>\n    ";
-  itemEl.addEventListener("click", () => selectPart(part.id));
-  return itemEl;
-}
+// Assembly mode handled by src/assembly.js
+// updateSummary handled by src/ui.js
+// updateStats handled by src/ui.js
+// renderPartsList, renderPartsListDeferred handled by src/ui.js
+// _doRenderPartsList, createPartItem handled by src/ui.js
 function showStats() {
   if (parts.length === 0) {
     showToast("📁 Сначала загрузите JSON");
@@ -1968,95 +1717,7 @@ function resetProgress() {
     showToast("🔄 Прогресс сброшен");
   }
 }
-function openDrawer() {
-  document.getElementById("drawer").classList.add("open");
-  document.getElementById("drawerBackdrop").style.display = "block";
-}
-function closeDrawer() {
-  document.getElementById("drawer").classList.remove("open");
-  document.getElementById("drawerBackdrop").style.display = "none";
-}
-function openSheet() {
-  document.getElementById("bottomSheet").classList.add("open");
-}
-function closeSheet() {
-  var bs = document.getElementById("bottomSheet");
-  bs.classList.remove("open");
-  bs.removeAttribute("data-state");
-  sheetCollapsed = false;
-}
-function escapeHtml(str) {
-  return (str || "").replace(/[&<>]/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;"
-  })[char]);
-}
-function showToast(message) {
-  let toastEl = document.getElementById("customToast");
-  if (!toastEl) {
-    toastEl = document.createElement("div");
-    toastEl.id = "customToast";
-    toastEl.className = "toast";
-    document.body.appendChild(toastEl);
-  }
-  toastEl.textContent = message;
-  toastEl.classList.add("show");
-  clearTimeout(toastEl._timer);
-  toastEl._timer = setTimeout(() => toastEl.classList.remove("show"), 2000);
-}
-document.getElementById("themeToggle").addEventListener("click", toggleTheme);
-document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("fileInput").click());
-document.getElementById("fileInput").addEventListener("change", changeEvent => {
-  const file = changeEvent.target.files[0];
-  if (!file) {
-    return;
-  }
-  document.getElementById("loadingOverlay").classList.add("show");
-  const reader = new FileReader();
-  reader.onload = loadEvent => {
-    try {
-      const jsonData = JSON.parse(loadEvent.target.result);
-      parts = jsonData.parts || jsonData;
-      fastenerData = jsonData.fasteners || [];
-      dimsData = jsonData.dims || [];
-      var loadedHoles = jsonData.holes || [];
-      window._loadedHoles = loadedHoles;
-      parts.forEach((part, index) => {
-        if (part.id === undefined) {
-          part.id = index;
-        }
-      });
-      autoLayout(parts);
-      // Yield to browser so loading overlay paints before heavy work
-      var loadText = document.querySelector('#loadingOverlay .load-text');
-      if (loadText) loadText.textContent = 'Построение 3D (' + parts.length + ' деталей)...';
-      setTimeout(function() {
-        buildScene();
-        selectedId = null;
-        loadProgress();
-        centerCamera();
-        closeDrawer();
-        updateStats();
-        showToast("✅ Загружено " + parts.length + " деталей");
-        if (dimsData.length) {
-          showToast("📐 " + dimsData.length + " размеров из БАЗИС");
-        }
-        document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
-        saveProgress();
-        document.getElementById("loadingOverlay").classList.remove("show");
-      }, 30);
-    } catch (err) {
-      showToast("❌ Ошибка файла: " + err.message);
-      document.getElementById("loadingOverlay").classList.remove("show");
-    }
-  };
-  reader.readAsText(file, "UTF-8");
-});
-document.getElementById("menuBtn").addEventListener("click", openDrawer);
-document.getElementById("drawerBackdrop").addEventListener("click", closeDrawer);
-document.getElementById("closeDrawerBtn").addEventListener("click", closeDrawer);
-document.getElementById("closeSheetBtn").addEventListener("click", closeSheet);
+// UI functions handled by src/ui.js
 
 // Event wiring handled by src/events.js
 initEvents({
@@ -2074,8 +1735,8 @@ initEvents({
         window._loadedHoles = data.holes || [];
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
-        var loadText = document.querySelector('#loadingOverlay .load-text');
-        if (loadText) loadText.textContent = 'Построение 3D (' + parts.length + ' деталей)...';
+        var loadText = document.querySelector("#loadingOverlay .load-text");
+        if (loadText) loadText.textContent = "Построение 3D (" + parts.length + " деталей)...";
         setTimeout(function() {
           buildScene();
           selectedId = null;
@@ -2083,16 +1744,15 @@ initEvents({
           centerCamera();
           closeDrawer();
           updateStats();
-          showToast('✅ Загружено ' + parts.length + ' деталей');
-          if (dimsData.length) showToast('📐 ' + dimsData.length + ' размеров из БАЗИС');
-          requestWakeLock();
-          document.getElementById('projectTitle').textContent = file.name.replace('.json', '');
+          showToast("✅ Загружено " + parts.length + " деталей");
+          if (dimsData.length) showToast("📐 " + dimsData.length + " размеров из БАЗИС");
+          document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
           saveProgress();
-          document.getElementById('loadingOverlay').classList.remove('show');
+          document.getElementById("loadingOverlay").classList.remove("show");
         }, 30);
-      } catch (err) {
-        showToast('❌ Ошибка файла: ' + err.message);
-        document.getElementById('loadingOverlay').classList.remove('show');
+      } catch(err) {
+        showToast("❌ Ошибка файла: " + err.message);
+        document.getElementById("loadingOverlay").classList.remove("show");
       }
     };
     reader.readAsText(file, "UTF-8");
@@ -2161,124 +1821,13 @@ initCamera({
         } else { selectPart(bestId); }
       } else { selectPart(bestId); }
     }
-  }
-  if (/Windows/.test(ua)) {
-    return "Windows PC";
-  }
-  if (/Mac/.test(ua)) {
-    return "Mac";
-  }
-  if (/Linux/.test(ua)) {
-    return "Linux PC";
-  }
-  return "Unknown Device";
-}
-async function checkDeviceLimit(user) {
-  const fingerprint = await getDeviceFingerprint();
-  const deviceName = getDeviceName();
-  const devicesRef = db.collection("users").doc(user.uid).collection("devices");
-  const deviceDoc = await devicesRef.doc(fingerprint).get();
-  if (deviceDoc.exists) {
-    await devicesRef.doc(fingerprint).update({
-      lastAccess: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    return {
-      allowed: true
-    };
-  }
-  const devicesSnap = await devicesRef.get();
-  const deviceCount = devicesSnap.size;
-  const userDoc = await db.collection("users").doc(user.uid).get();
-  const limit = userDoc.data()?.deviceLimit || 5;
-  userDeviceLimit = limit;
-  if (deviceCount >= limit) {
-    return {
-      allowed: false,
-      deviceCount: deviceCount,
-      deviceLimit: limit,
-      message: "Лимит устройств исчерпан (" + deviceCount + "/" + limit + ")"
-    };
-  }
-  await devicesRef.doc(fingerprint).set({
-    name: deviceName,
-    fingerprint: fingerprint,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    lastAccess: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  return {
-    allowed: true,
-    deviceCount: deviceCount + 1,
-    deviceLimit: limit
-  };
-}
-async function handleLogin() {
-  const email = document.getElementById("authEmail").value.trim();
-  const password = document.getElementById("authPassword").value;
-  const errorEl = document.getElementById("loginError");
-  const loginBtn = document.getElementById("loginBtn");
-  if (!email || !password) {
-    errorEl.textContent = "Введите email и пароль";
-    errorEl.classList.add("show");
-    return;
-  }
-  loginBtn.disabled = true;
-  loginBtn.textContent = "Вход...";
-  errorEl.classList.remove("show");
-  try {
-    const cred = await auth.signInWithEmailAndPassword(email, password);
-    const authUser = cred.user;
-    const deviceResult = await checkDeviceLimit(authUser);
-    if (!deviceResult.allowed) {
-      await auth.signOut();
-      throw new Error(deviceResult.message);
-    }
-    currentUser = authUser;
-    document.getElementById("deviceCountInfo").textContent = deviceResult.deviceCount;
-    document.getElementById("deviceLimitInfo").textContent = deviceResult.deviceLimit;
-    showMainApp();
-  } catch (authErr) {
-    let errMsg = "Ошибка авторизации";
-    if (authErr.code === "auth/user-not-found") {
-      errMsg = "Пользователь не найден";
-    } else if (authErr.code === "auth/wrong-password") {
-      errMsg = "Неверный пароль";
-    } else if (authErr.code === "auth/invalid-email") {
-      errMsg = "Некорректный email";
-    } else if (authErr.code === "auth/too-many-requests") {
-      errMsg = "Слишком много попыток. Подождите";
-    } else {
-      errMsg = authErr.message;
-    }
-    errorEl.textContent = errMsg;
-    errorEl.classList.add("show");
-  } finally {
-    loginBtn.disabled = false;
-    loginBtn.textContent = "Войти";
-  }
-}
-window.handleLogin = handleLogin;
-function showLoginPage() {
-  document.getElementById("loginPage").classList.add("active");
-  document.getElementById("mainApp").style.display = "none";
-}
-function showMainApp() {
-  document.getElementById("loginPage").classList.remove("active");
-  document.getElementById("mainApp").style.display = "block";
-}
-async function checkAccountDeadline(uid) {
-  try {
-    var doc = await db.collection('users').doc(uid).get();
-    var data = doc.data();
-    if (data && data.expiresAt) {
-      var exp = data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt);
-      if (new Date() > exp) {
-        var days = Math.ceil((new Date() - exp) / 86400000);
-        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0c12;color:#fff;font-family:sans-serif;text-align:center;padding:20px"><div><div style="font-size:48px;margin-bottom:16px">&#x1f512;</div><div style="font-size:20px;font-weight:700;margin-bottom:8px">&#x410;&#x43a;&#x43a;&#x430;&#x443;&#x43d;&#x442; &#x437;&#x430;&#x431;&#x43b;&#x43e;&#x43a;&#x438;&#x440;&#x43e;&#x432;&#x430;&#x43d;</div><div style="font-size:14px;color:#94a3b8;margin-bottom:16px">&#x421;&#x440;&#x43e;&#x43a; &#x434;&#x435;&#x439;&#x441;&#x442;&#x432;&#x438;&#x44f; &#x438;&#x441;&#x442;&#x451;&#x43a; ' + exp.toLocaleDateString('ru-RU') + ' (' + days + ' &#x434;&#x43d;.)</div><div style="font-size:12px;color:#64748b">&#x421;&#x432;&#x44f;&#x436;&#x438;&#x442;&#x435;&#x441;&#x44c; &#x441; &#x430;&#x434;&#x43c;&#x438;&#x43d;&#x438;&#x441;&#x442;&#x440;&#x430;&#x442;&#x43e;&#x440;&#x43e;&#x43c; &#x434;&#x43b;&#x44f; &#x43f;&#x440;&#x43e;&#x434;&#x43b;&#x435;&#x43d;&#x438;&#x44f;</div></div></div>';
-        auth.signOut();
-      }
-    }
-  } catch(e) { console.error("Account deadline check failed:", e); }
-}
+  },
+  updateSheet: updateSheet,
+  closeSheet: closeSheet,
+  renderPartsList: renderPartsList,
+  applyXray: applyXray,
+  canvas: document.getElementById('canvas3d')
+});
 
 // Assembly mode — wire dependencies
 initAssembly({
@@ -2288,50 +1837,7 @@ initAssembly({
   renderPartsListDeferred: renderPartsListDeferred,
   showToast: showToast
 });
-document.getElementById("authPassword").addEventListener("keypress", e => {
-  if (e.key === "Enter") {
-    handleLogin();
-  }
-});
-document.getElementById("authEmail").addEventListener("keypress", e => {
-  if (e.key === "Enter") {
-    document.getElementById("authPassword").focus();
-  }
-});
-let onboardStep = 0;
-const onboardSteps = document.querySelectorAll(".onboard-step");
-const onboardDots = document.querySelectorAll(".onboard-dot");
-const onboardBtn = document.getElementById("onboardNext");
-function showOnboarding() {
-  const onboarded = localStorage.getItem("aivoOnboarded");
-  if (onboarded) {
-    return;
-  }
-  document.getElementById("onboardingModal").classList.remove("hidden");
-}
-function updateOnboardStep() {
-  onboardSteps.forEach((step, idx) => step.style.display = idx === onboardStep ? "block" : "none");
-  onboardDots.forEach((dot, idx) => {
-    dot.style.background = idx === onboardStep ? "var(--accent)" : "var(--bg-tertiary)";
-    dot.style.width = idx === onboardStep ? "20px" : "8px";
-  });
-  onboardBtn.textContent = onboardStep === onboardSteps.length - 1 ? "Начать!" : "Далее";
-}
-onboardBtn.addEventListener("click", () => {
-  onboardStep++;
-  if (onboardStep >= onboardSteps.length) {
-    localStorage.setItem("aivoOnboarded", "1");
-    document.getElementById("onboardingModal").classList.add("hidden");
-    onboardStep = 0;
-  } else {
-    updateOnboardStep();
-  }
-});
-const origShowMainApp = showMainApp;
-showMainApp = function () {
-  origShowMainApp();
-  setTimeout(showOnboarding, 500);
-};
 
-// Expose functions for inline HTML event handlers (ES module scope)
-window.handleLogin = handleLogin;
+// QR scanner handled by src/qr.js
+initQR(handleScan, showToast);
+wireQRListeners();

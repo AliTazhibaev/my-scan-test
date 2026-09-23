@@ -120,20 +120,29 @@ export var WOOD_KEYWORDS = [
   'горизонт', 'horizontal', 'крем', 'cream', 'табак', 'tobacco',
   'трюфель', 'truffle', 'коньяк', 'cognac', 'промасл', 'oiled',
   'сепия', 'sepia', 'мокка', 'mocha', 'песочн', 'sand',
-  'ЛДСП', 'лдсп', 'ЛМДФ', 'лмдф', 'ДСП', 'дсп', 'мдф', 'МДФ',
   'фанера', 'plywood', 'шпон', 'veneer', 'древес', 'wood', 'timber',
   'каштанов', 'коричн', 'brown'
 ];
 export var SOLID_KEYWORDS = [
-  'белый', 'white', 'чёрный', 'черный', 'black', 'серый', 'grey', 'gray',
-  'бежевый', 'beige', 'кремовый', 'cream', 'крем', 'слоновая кость', 'ivory',
-  'графит', 'graphite', 'антрацит', 'anthracite', 'перламутр', 'pearl',
+  'белый', 'white', 'альпийск', 'полярн', 'арктик', 'фарфор', 'снежн',
+  'крем', 'cream', 'ivory', 'молоч', 'ванил', 'vanilla',
+  'чёрный', 'черный', 'black', 'обсидиан',
+  'серый', 'grey', 'gray', 'графит', 'graphite', 'антрацит', 'anthracite',
+  'пепельн', 'дымчат', 'светло.сер', 'тёмно.сер',
+  'бежев', 'beige', 'песочн', 'sand', 'кэмел', 'камел', 'латт', 'капучин', 'шампань',
+  'красн', 'red', 'коралл', 'бордо', 'марoon', 'розов', 'pink', 'пурпурн',
+  'синий', 'blue', 'голуб', 'бирюз', 'индиго',
+  'зелён', 'green', 'мятн', 'оливк', 'хвоин', 'изумруд',
+  'жёлт', 'yellow', 'оранж', 'orange', 'золот', 'gold', 'горчичн',
+  'фиолет', 'violet', 'purple', 'лаванд', 'слив',
+  'слоновая кость', 'ивory',
   'пыльн', 'dusty', 'кашемир', 'cashmere', 'шёлк', 'silk', 'льнян', 'linen',
   'альпийск', 'alpine', 'полярн', 'polar', 'арктик', 'arctic',
   'базов', 'basic', 'премиум', 'premium', 'платинов', 'platinum',
-  'красный', 'red', 'синий', 'blue', 'голубой', 'light blue', 'зелёный', 'green',
-  'жёлтый', 'yellow', 'оранжевый', 'orange', 'розовый', 'pink',
-  'фиолетов', 'violet', 'purple', 'бордов', 'burgundy'
+  // ЛДСП / МДФ / HDF / пластик — гладкие, без текстуры
+  'ЛДСП', 'лдсп', 'ЛМДФ', 'лмдф', 'ДСП', 'дсп', 'мдф', 'МДФ',
+  'HDF', 'hdf', 'ХДФ', 'хдф', 'ламинир', 'laminate', 'пластик', 'plastic',
+  'акрил', 'acrylic'
 ];
 export var MATERIAL_KEYWORDS = [
   'гранит', 'granite', 'мрамор', 'marble', 'камень', 'stone',
@@ -159,8 +168,9 @@ export var MANUFACTURER_MAP = {
 
 // Классификация материала по имени
 export function classifyMaterial(matName) {
-  if (!matName) return { cat: 'unknown', tex: null, color: '#8a7f76' };
+  if (!matName) return { cat: 'unknown', tex: null, color: '#8a7f76', smooth: false };
   var name = matName.toLowerCase();
+  var ci = guessColorInfo(name);
 
   // 1. Egger код (H1386, W1000, F028, U702...)
   var eggerMatch = name.match(/\b([HWFU]\d{3,4})\b/i);
@@ -169,7 +179,7 @@ export function classifyMaterial(matName) {
     if (EGGER_DB[code]) {
       var entry = EGGER_DB[code];
       var url = entry.file ? (TEX_BASE + '/' + entry.dir + '/' + encodeURIComponent(entry.file)) : null;
-      return { cat: entry.cat, tex: url, color: entry.color || guessColor(name) };
+      return { cat: entry.cat, tex: url, color: entry.color || ci.color, smooth: false };
     }
   }
 
@@ -180,27 +190,27 @@ export function classifyMaterial(matName) {
     if (MANUFACTURER_MAP[mfgCode] && EGGER_DB[MANUFACTURER_MAP[mfgCode]]) {
       var mappedEntry = EGGER_DB[MANUFACTURER_MAP[mfgCode]];
       var mappedUrl = mappedEntry.file ? (TEX_BASE + '/' + mappedEntry.dir + '/' + encodeURIComponent(mappedEntry.file)) : null;
-      return { cat: mappedEntry.cat, tex: mappedUrl, color: mappedEntry.color || guessColor(name) };
+      return { cat: mappedEntry.cat, tex: mappedUrl, color: mappedEntry.color || ci.color, smooth: false };
     }
   }
 
   // 2. Ключевые слова
   for (var w = 0; w < WOOD_KEYWORDS.length; w++) {
     if (name.indexOf(WOOD_KEYWORDS[w]) >= 0) {
-      return { cat: 'wood', tex: findBestWoodTexture(name), color: guessColor(name) };
+      return { cat: 'wood', tex: findBestWoodTexture(name), color: ci.color, smooth: false };
     }
   }
   for (var s = 0; s < SOLID_KEYWORDS.length; s++) {
     if (name.indexOf(SOLID_KEYWORDS[s]) >= 0) {
-      return { cat: 'solid', tex: null, color: guessColor(name) };
+      return { cat: 'solid', tex: null, color: ci.color, smooth: ci.smooth };
     }
   }
   for (var m = 0; m < MATERIAL_KEYWORDS.length; m++) {
     if (name.indexOf(MATERIAL_KEYWORDS[m]) >= 0) {
-      return { cat: 'material', tex: null, color: guessColor(name) };
+      return { cat: 'material', tex: null, color: ci.color, smooth: false };
     }
   }
-  return { cat: 'unknown', tex: null, color: guessColor(name) };
+  return { cat: 'unknown', tex: null, color: ci.color, smooth: ci.smooth };
 }
 
 // Поиск наиболее подходящей древесной текстуры по имени
@@ -226,32 +236,134 @@ export function findBestWoodTexture(name) {
 }
 
 // Guess color from material name (fallback)
-export function guessColor(name) {
-  if (!name) return '#8a7f76';
+// Returns { color, smooth } — smooth=true means no texture needed (ЛДСП, МДФ, HDF, белый, серый...)
+export function guessColorInfo(name) {
+  if (!name) return { color: '#8a7f76', smooth: false };
   var n = name.toLowerCase();
-  if (n.match(/белый|white|cream|крем|ivory/)) return '#ece7e0';
-  if (n.match(/чёрный|черный|black/)) return '#2a2a30';
-  if (n.match(/серый|grey|gray|графит|graphite/)) return '#8a8a96';
-  if (n.match(/венге|wenge/)) return '#3b2a1c';
-  if (n.match(/белен|bleach|светл|light/)) return '#d8c8a8';
-  if (n.match(/коричн|brown|табак|tobacco/)) return '#7a5830';
-  if (n.match(/орех|walnut|nut/)) return '#6a5040';
-  if (n.match(/дуб|oak/)) return '#b09070';
-  if (n.match(/красн|red/)) return '#a83030';
-  if (n.match(/синий|blue/)) return '#304880';
-  if (n.match(/зелён|green/)) return '#306838';
-  if (n.match(/жёлт|yellow/)) return '#d0b840';
-  if (n.match(/оранж|orange/)) return '#c86828';
-  if (n.match(/розов|pink/)) return '#c88088';
-  if (n.match(/фиолет|violet|purple/)) return '#683888';
-  if (n.match(/бежев|beige|песочн|sand/)) return '#c8b898';
-  if (n.match(/антрацит|anthracite/)) return '#3a3a40';
-  if (n.match(/бетон|concrete/)) return '#a09890';
-  if (n.match(/металл|metal|алюмин|aluminum|хром|chrome/)) return '#b0b0b8';
-  if (n.match(/кожа|leather/)) return '#704828';
-  if (n.match(/ХДФ|HDF/)) return '#d8dce6';
-  if (n.match(/МДФ|MDF|ламинир/)) return '#b0a080';
-  return '#8a7f76';
+
+  // === ГЛАДКИЕ ПОВЕРХНОСТИ (ЛДСП, МДФ, HDF, пластик) — только цвет, без текстуры ===
+  // Белые
+  if (n.match(/белый|white|альпийск|alpine|полярн|polar|арктик|arctic|фарфор|porcelain|снежн|snow/)) return { color: '#f0ece4', smooth: true };
+  if (n.match(/крем|cream| ivory|слонов|vanilla|ванил/)) return { color: '#f0e8d8', smooth: true };
+  if (n.match(/молоч|milk|молочн/)) return { color: '#f5f0e8', smooth: true };
+
+  // Серые
+  if (n.match(/серый|grey|gray/)) return { color: '#9a9a9e', smooth: true };
+  if (n.match(/графит|graphite/)) return { color: '#5a5a60', smooth: true };
+  if (n.match(/антрацит|anthracite/)) return { color: '#3a3a40', smooth: true };
+  if (n.match(/пепельн|ash grey|дымчат|smoky/)) return { color: '#a8a0a0', smooth: true };
+  if (n.match(/светло.сер|light grey|седой/)) return { color: '#c0bfc4', smooth: true };
+  if (n.match(/тёмно.сер|dark grey/)) return { color: '#6a6a70', smooth: true };
+  if (n.match(/холодн.*сер|cool grey/)) return { color: '#8890a0', smooth: true };
+  if (n.match(/тёпл.*сер|warm grey/)) return { color: '#a09890', smooth: true };
+
+  // Чёрные
+  if (n.match(/чёрный|черный|black|обсидиан|obsidian/)) return { color: '#2a2a30', smooth: true };
+
+  // Бежевые / песочные
+  if (n.match(/бежев|beige/)) return { color: '#c8b898', smooth: true };
+  if (n.match(/песочн|sand|песок/)) return { color: '#d4c4a0', smooth: true };
+  if (n.match(/кэмел|camel|камел/)) return { color: '#c0a070', smooth: true };
+  if (n.match(/латт|latte|молоч.*кофе/)) return { color: '#d0c0a0', smooth: true };
+  if (n.match(/капучин|cappuccino/)) return { color: '#b8a080', smooth: true };
+  if (n.match(/шампань|champagne/)) return { color: '#f0e0c0', smooth: true };
+
+  // Красные / розовые
+  if (n.match(/красн|red/)) return { color: '#a83030', smooth: true };
+  if (n.match(/коралл|coral/)) return { color: '#d86850', smooth: true };
+  if (n.match(/бордо|burgundy|марoon/)) return { color: '#681828', smooth: true };
+  if (n.match(/розов|pink/)) return { color: '#d8a0a8', smooth: true };
+  if (n.match(/пурпурн|purple/)) return { color: '#783068', smooth: true };
+
+  // Синие / голубые
+  if (n.match(/синий|blue/) && !n.match(/голуб/)) return { color: '#304880', smooth: true };
+  if (n.match(/голуб|sky blue|небесн/)) return { color: '#70a8d0', smooth: true };
+  if (n.match(/бирюз|turquoise|teal/)) return { color: '#40a0a0', smooth: true };
+  if (n.match(/индиго|indigo/)) return { color: '#303080', smooth: true };
+
+  // Зелёные
+  if (n.match(/зелён|green/)) return { color: '#306838', smooth: true };
+  if (n.match(/мятн|mint/)) return { color: '#80c8b0', smooth: true };
+  if (n.match(/оливк|olive/)) return { color: '#687830', smooth: true };
+  if (n.match(/хвоин|pine green|изумруд|emerald/)) return { color: '#206848', smooth: true };
+
+  // Жёлтые / оранжевые
+  if (n.match(/жёлт|yellow/)) return { color: '#d8c040', smooth: true };
+  if (n.match(/оранж|orange/)) return { color: '#d87830', smooth: true };
+  if (n.match(/золот|gold/)) return { color: '#c8a030', smooth: true };
+  if (n.match(/горчичн|mustard/)) return { color: '#c0a020', smooth: true };
+
+  // Фиолетовые
+  if (n.match(/фиолет|violet|purple/)) return { color: '#683888', smooth: true };
+  if (n.match(/лаванд|lavender/)) return { color: '#a088c0', smooth: true };
+  if (n.match(/слив|plum/)) return { color: '#684868', smooth: true };
+
+  // Металлик / алюминий / хром
+  if (n.match(/металл|metal|алюмин|aluminum|хром|chrome|нержаве|stainless|сталь|steel|железо|iron/)) return { color: '#b0b0b8', smooth: true };
+  if (n.match(/медь|copper/)) return { color: '#b07040', smooth: true };
+  if (n.match(/бронз|bronze/)) return { color: '#8a7040', smooth: true };
+  if (n.match(/серебр|silver/)) return { color: '#c0c0c8', smooth: true };
+  if (n.match(/никел|nickel/)) return { color: '#a0a0a8', smooth: true };
+
+  // Кожа / ткань
+  if (n.match(/кожа|leather/)) return { color: '#704828', smooth: true };
+  if (n.match(/лён|linen|ткань|fabric|текстиль|textile/)) return { color: '#c0b8a0', smooth: true };
+
+  // Бетон / камень (материалы — не гладкие, но текстуры обычно нет)
+  if (n.match(/бетон|concrete/)) return { color: '#a09890', smooth: false };
+  if (n.match(/гранит|granite/)) return { color: '#707068', smooth: false };
+  if (n.match(/мрамор|marble/)) return { color: '#e0dcd8', smooth: false };
+  if (n.match(/камень|stone/)) return { color: '#908880', smooth: false };
+  if (n.match(/керамик|ceramic/)) return { color: '#d8d0c0', smooth: false };
+  if (n.match(/терраццо|terrazzo/)) return { color: '#b0a898', smooth: false };
+  if (n.match(/шифер|slate/)) return { color: '#606068', smooth: false };
+  if (n.match(/ферро|ferro|ржавч|rust/)) return { color: '#8a5830', smooth: false };
+
+  // === ЛДСП / МДФ / HDF — гладкие, по цвету ===
+  if (n.match(/ЛДСП|лдсп|ЛМДФ|лмдф|ДСП|дсп|мдф|МДФ|HDF|hdf|ламинир|laminate|пластик|plastic|акрил|acrylic/)) return { color: '#c0b090', smooth: true };
+
+  // === ДРЕВЕСНЫЕ — с текстурой ===
+  if (n.match(/венге|wenge/)) return { color: '#3b2a1c', smooth: false };
+  if (n.match(/белен|bleach/)) return { color: '#d8c8a8', smooth: false };
+  if (n.match(/табак|tobacco/)) return { color: '#6a4828', smooth: false };
+  if (n.match(/орех|walnut|nut/)) return { color: '#6a5040', smooth: false };
+  if (n.match(/дуб|oak/)) return { color: '#b09070', smooth: false };
+  if (n.match(/ясень|ash/)) return { color: '#c8b898', smooth: false };
+  if (n.match(/бук|beech/)) return { color: '#d0b888', smooth: false };
+  if (n.match(/сосна|pine/)) return { color: '#d8c8a0', smooth: false };
+  if (n.match(/берёза|береза|birch/)) return { color: '#e0d0b0', smooth: false };
+  if (n.match(/клён|клен|maple/)) return { color: '#e0c898', smooth: false };
+  if (n.match(/вишня|cherry/)) return { color: '#905040', smooth: false };
+  if (n.match(/махагон|mahogany/)) return { color: '#603020', smooth: false };
+  if (n.match(/груша|pear/)) return { color: '#c8a080', smooth: false };
+  if (n.match(/лиственниц|larch/)) return { color: '#c0a070', smooth: false };
+  if (n.match(/гикори|hickory/)) return { color: '#8a6840', smooth: false };
+  if (n.match(/акация|acacia/)) return { color: '#c8a060', smooth: false };
+  if (n.match(/пихта|fir/)) return { color: '#d8c8a0', smooth: false };
+  if (n.match(/вяз|elm/)) return { color: '#a08060', smooth: false };
+  if (n.match(/бамбук|bamboo/)) return { color: '#d0c080', smooth: false };
+  if (n.match(/каштан|chestnut/)) return { color: '#785838', smooth: false };
+  if (n.match(/липа|linden/)) return { color: '#e0d0b8', smooth: false };
+  if (n.match(/термо|thermo/)) return { color: '#4a3828', smooth: false };
+  if (n.match(/макассар|macassar/)) return { color: '#2a1a10', smooth: false };
+  if (n.match(/шпон|veneer|фанера|plywood/)) return { color: '#b09070', smooth: false };
+  if (n.match(/натуральн|natural/)) return { color: '#c0a878', smooth: false };
+  if (n.match(/светл|light/)) return { color: '#d8c8a8', smooth: false };
+  if (n.match(/тёмн|dark|темн/)) return { color: '#5a4030', smooth: false };
+  if (n.match(/серо.бежев|grey.beige/)) return { color: '#b0a898', smooth: false };
+  if (n.match(/коричн|brown/)) return { color: '#7a5830', smooth: false };
+  if (n.match(/мокка|mocha/)) return { color: '#6a5840', smooth: false };
+  if (n.match(/трюфель|truffle/)) return { color: '#5a4838', smooth: false };
+  if (n.match(/коньяк|cognac/)) return { color: '#906030', smooth: false };
+  if (n.match(/сепия|sepia/)) return { color: '#7a6048', smooth: false };
+  if (n.match(/пробк|cork/)) return { color: '#b09870', smooth: false };
+
+  return { color: '#8a7f76', smooth: false };
+}
+
+// Backwards-compatible wrapper
+export function guessColor(name) {
+  return guessColorInfo(name).color;
 }
 
 // Загрузка реальной текстуры (с кешем)
@@ -284,14 +396,21 @@ export function createPartMaterial(partData) {
   var matName = partData.material || '';
   var info = classifyMaterial(matName);
   var baseColor = info.color;
+  var isSmooth = info.smooth || false;
 
+  // Для гладких материалов (ЛДСП, МДФ, HDF, белый, серый, пластик) — без текстуры
   var matProps = {
     color: baseColor,
-    roughness: info.cat === 'material' ? 0.6 : 0.78,
-    metalness: info.cat === 'material' ? 0.15 : 0.02,
+    roughness: isSmooth ? 0.85 : (info.cat === 'material' ? 0.6 : 0.78),
+    metalness: isSmooth ? 0 : (info.cat === 'material' ? 0.15 : 0.02),
     emissive: new THREE.Color(0),
     emissiveIntensity: 0
   };
+
+  // Гладкие — сразу возвращаем без текстуры
+  if (isSmooth && !info.tex) {
+    return new THREE.MeshStandardMaterial(matProps);
+  }
 
   // EGGER текстуры: H1145 и аналоги имеют горизонтальные волокна (U-ось = shape X = L панели).
   // ExtrudeGeometry UV: U → shape X (=L), V → shape Y (=W).
