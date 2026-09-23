@@ -15,6 +15,8 @@ import {
   loadRealTexture,
   createPartMaterial
 } from './src/materials.js';
+import { handleLogin, initAuth } from './src/auth.js';
+import { initQR, wireQRListeners } from './src/qr.js';
 
 // === Wake Lock ===
 async function requestWakeLock() {
@@ -2225,71 +2227,7 @@ function printSpecification() {
   printWin.document.close();
   printWin.print();
 }
-let scanInterval;
-let videoStream;
-let scanRAF = null;
-let scanLastTime = 0;
-function openScanner() {
-  document.getElementById("scannerModal").classList.remove("hidden");
-  navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: "environment"
-    }
-  }).then(stream => {
-    videoStream = stream;
-    const videoEl2 = document.getElementById("video");
-    videoEl2.srcObject = stream;
-    videoEl2.play();
-    startQRScan();
-  }).catch(() => showToast("❌ Нет доступа к камере"));
-}
-function closeScanner() {
-  document.getElementById("scannerModal").classList.add("hidden");
-  if (videoStream) {
-    videoStream.getTracks().forEach(track => track.stop());
-  }
-  if (scanInterval) {
-    clearInterval(scanInterval);
-  }
-  if (scanRAF) {
-    cancelAnimationFrame(scanRAF);
-    scanRAF = null;
-  }
-}
-function startQRScan() {
-  const videoEl = document.getElementById("video");
-  const qrCanvas = document.getElementById("qrCanvas");
-  const qrCtx = qrCanvas.getContext("2d");
-  scanLastTime = 0;
-  function scanFrame(now) {
-    if (now - scanLastTime < 180) {
-      scanRAF = requestAnimationFrame(scanFrame);
-      return;
-    }
-    scanLastTime = now;
-    if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
-      qrCanvas.width = videoEl.videoWidth;
-      qrCanvas.height = videoEl.videoHeight;
-      qrCtx.drawImage(videoEl, 0, 0);
-      const imgData = qrCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
-      const qrResult = jsQR(imgData.data, imgData.width, imgData.height);
-      if (qrResult) {
-        handleScan(qrResult.data);
-        closeScanner();
-        return;
-      }
-    }
-    scanRAF = requestAnimationFrame(scanFrame);
-  }
-  scanRAF = requestAnimationFrame(scanFrame);
-}
-function handleManualCode() {
-  const manualVal = document.getElementById("manualCode").value.trim();
-  if (manualVal) {
-    handleScan(manualVal);
-    closeScanner();
-  }
-}
+// QR scanner handled by src/qr.js
 function handleScan(scanData) {
   let foundPart;
   if (idMode === "position") {
@@ -2436,8 +2374,7 @@ document.getElementById("drawerBackdrop").addEventListener("click", closeDrawer)
 document.getElementById("closeDrawerBtn").addEventListener("click", closeDrawer);
 document.getElementById("closeSheetBtn").addEventListener("click", closeSheet);
 
-document.getElementById("scanBtn").addEventListener("click", openScanner);
-document.getElementById("hideBtn").addEventListener("click", () => {
+// QR scanner wiring handled by src/qr.jsdocument.getElementById("hideBtn").addEventListener("click", () => {
   if (selectedId !== null) { toggleVisibility(selectedId); }
 });
 document.getElementById("showAllBtn").addEventListener("click", showAllParts);
@@ -2464,10 +2401,9 @@ document.getElementById("printBtn").addEventListener("click", printSpecification
 document.getElementById("statsBtn").addEventListener("click", showStats);
 document.getElementById("csgBtn").addEventListener("click", toggleCSGVisibility);
 document.getElementById("dimsBtn").addEventListener("click", toggleDims);
-document.getElementById("closeScannerBtn").addEventListener("click", closeScanner);
-document.getElementById("scannerModal").addEventListener("click", function(e) { if (e.target === this) closeScanner(); });
+// QR close handled by wireQRListeners()
 document.getElementById("statsModal").addEventListener("click", function(e) { if (e.target === this) this.classList.add("hidden"); });
-document.getElementById("manualSubmit").addEventListener("click", handleManualCode);
+// QR manual submit handled by wireQRListeners()
 document.getElementById("searchInput").addEventListener("input", renderPartsList);
 document.querySelectorAll(".id-mode-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -2757,216 +2693,9 @@ document.getElementById("isolationExplodeBtn").addEventListener("click", explode
 var blockModeBtnEl = document.getElementById("blockModeBtn");
 if (blockModeBtnEl) blockModeBtnEl.addEventListener("click", toggleBlockMode);
 
-// === Auth & Device Logic ===
-let currentUser = null;
-let userDeviceLimit = 5;
-async function getDeviceFingerprint() {
-  const components = [navigator.userAgent, navigator.language, screen.width + "x" + screen.height, screen.colorDepth, new Date().getTimezoneOffset(), navigator.hardwareConcurrency || "unknown"];
-  const fingerprintStr = components.join("|");
-  let hash = 0;
-  for (let i = 0; i < fingerprintStr.length; i++) {
-    const charCode = fingerprintStr.charCodeAt(i);
-    hash = (hash << 5) - hash + charCode;
-    hash = hash & hash;
-  }
-  return "fp_" + Math.abs(hash).toString(36);
-}
-function getDeviceName() {
-  const ua = navigator.userAgent;
-  if (/iPhone/.test(ua)) {
-    return "iPhone";
-  }
-  if (/iPad/.test(ua)) {
-    return "iPad";
-  }
-  if (/Android/.test(ua)) {
-    const uaMatch = ua.match(/;\s*([^;]+)\s*Build/);
-    if (uaMatch) {
-      return uaMatch[1].trim();
-    } else {
-      return "Android Device";
-    }
-  }
-  if (/Windows/.test(ua)) {
-    return "Windows PC";
-  }
-  if (/Mac/.test(ua)) {
-    return "Mac";
-  }
-  if (/Linux/.test(ua)) {
-    return "Linux PC";
-  }
-  return "Unknown Device";
-}
-async function checkDeviceLimit(user) {
-  const fingerprint = await getDeviceFingerprint();
-  const deviceName = getDeviceName();
-  const devicesRef = db.collection("users").doc(user.uid).collection("devices");
-  const deviceDoc = await devicesRef.doc(fingerprint).get();
-  if (deviceDoc.exists) {
-    await devicesRef.doc(fingerprint).update({
-      lastAccess: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    return {
-      allowed: true
-    };
-  }
-  const devicesSnap = await devicesRef.get();
-  const deviceCount = devicesSnap.size;
-  const userDoc = await db.collection("users").doc(user.uid).get();
-  const limit = userDoc.data()?.deviceLimit || 5;
-  userDeviceLimit = limit;
-  if (deviceCount >= limit) {
-    return {
-      allowed: false,
-      deviceCount: deviceCount,
-      deviceLimit: limit,
-      message: "Лимит устройств исчерпан (" + deviceCount + "/" + limit + ")"
-    };
-  }
-  await devicesRef.doc(fingerprint).set({
-    name: deviceName,
-    fingerprint: fingerprint,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    lastAccess: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  return {
-    allowed: true,
-    deviceCount: deviceCount + 1,
-    deviceLimit: limit
-  };
-}
-async function handleLogin() {
-  const email = document.getElementById("authEmail").value.trim();
-  const password = document.getElementById("authPassword").value;
-  const errorEl = document.getElementById("loginError");
-  const loginBtn = document.getElementById("loginBtn");
-  if (!email || !password) {
-    errorEl.textContent = "Введите email и пароль";
-    errorEl.classList.add("show");
-    return;
-  }
-  loginBtn.disabled = true;
-  loginBtn.textContent = "Вход...";
-  errorEl.classList.remove("show");
-  try {
-    const cred = await auth.signInWithEmailAndPassword(email, password);
-    const authUser = cred.user;
-    const deviceResult = await checkDeviceLimit(authUser);
-    if (!deviceResult.allowed) {
-      await auth.signOut();
-      throw new Error(deviceResult.message);
-    }
-    currentUser = authUser;
-    document.getElementById("deviceCountInfo").textContent = deviceResult.deviceCount;
-    document.getElementById("deviceLimitInfo").textContent = deviceResult.deviceLimit;
-    showMainApp();
-  } catch (authErr) {
-    let errMsg = "Ошибка авторизации";
-    if (authErr.code === "auth/user-not-found") {
-      errMsg = "Пользователь не найден";
-    } else if (authErr.code === "auth/wrong-password") {
-      errMsg = "Неверный пароль";
-    } else if (authErr.code === "auth/invalid-email") {
-      errMsg = "Некорректный email";
-    } else if (authErr.code === "auth/too-many-requests") {
-      errMsg = "Слишком много попыток. Подождите";
-    } else {
-      errMsg = authErr.message;
-    }
-    errorEl.textContent = errMsg;
-    errorEl.classList.add("show");
-  } finally {
-    loginBtn.disabled = false;
-    loginBtn.textContent = "Войти";
-  }
-}
-window.handleLogin = handleLogin;
-function showLoginPage() {
-  document.getElementById("loginPage").classList.add("active");
-  document.getElementById("mainApp").style.display = "none";
-}
-function showMainApp() {
-  document.getElementById("loginPage").classList.remove("active");
-  document.getElementById("mainApp").style.display = "block";
-}
-async function checkAccountDeadline(uid) {
-  try {
-    var doc = await db.collection('users').doc(uid).get();
-    var data = doc.data();
-    if (data && data.expiresAt) {
-      var exp = data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt);
-      if (new Date() > exp) {
-        var days = Math.ceil((new Date() - exp) / 86400000);
-        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0c12;color:#fff;font-family:sans-serif;text-align:center;padding:20px"><div><div style="font-size:48px;margin-bottom:16px">&#x1f512;</div><div style="font-size:20px;font-weight:700;margin-bottom:8px">&#x410;&#x43a;&#x43a;&#x430;&#x443;&#x43d;&#x442; &#x437;&#x430;&#x431;&#x43b;&#x43e;&#x43a;&#x438;&#x440;&#x43e;&#x432;&#x430;&#x43d;</div><div style="font-size:14px;color:#94a3b8;margin-bottom:16px">&#x421;&#x440;&#x43e;&#x43a; &#x434;&#x435;&#x439;&#x441;&#x442;&#x432;&#x438;&#x44f; &#x438;&#x441;&#x442;&#x451;&#x43a; ' + exp.toLocaleDateString('ru-RU') + ' (' + days + ' &#x434;&#x43d;.)</div><div style="font-size:12px;color:#64748b">&#x421;&#x432;&#x44f;&#x436;&#x438;&#x442;&#x435;&#x441;&#x44c; &#x441; &#x430;&#x434;&#x43c;&#x438;&#x43d;&#x438;&#x441;&#x442;&#x440;&#x430;&#x442;&#x43e;&#x440;&#x43e;&#x43c; &#x434;&#x43b;&#x44f; &#x43f;&#x440;&#x43e;&#x434;&#x43b;&#x435;&#x43d;&#x438;&#x44f;</div></div></div>';
-        auth.signOut();
-      }
-    }
-  } catch(e) { console.error("Account deadline check failed:", e); }
-}
+// Auth & onboarding handled by src/auth.js
+initAuth();
 
-auth.onAuthStateChanged(authUser => {
-  if (authUser) {
-    currentUser = authUser;
-    checkDeviceLimit(authUser).then(result => {
-      if (result.allowed) {
-        document.getElementById("deviceCountInfo").textContent = result.deviceCount;
-        document.getElementById("deviceLimitInfo").textContent = result.deviceLimit;
-        showMainApp();
-        checkAccountDeadline(authUser.uid);
-      } else {
-        showLoginPage();
-      }
-    });
-  } else {
-    currentUser = null;
-    showLoginPage();
-  }
-});
-document.getElementById("authPassword").addEventListener("keypress", e => {
-  if (e.key === "Enter") {
-    handleLogin();
-  }
-});
-document.getElementById("authEmail").addEventListener("keypress", e => {
-  if (e.key === "Enter") {
-    document.getElementById("authPassword").focus();
-  }
-});
-let onboardStep = 0;
-const onboardSteps = document.querySelectorAll(".onboard-step");
-const onboardDots = document.querySelectorAll(".onboard-dot");
-const onboardBtn = document.getElementById("onboardNext");
-function showOnboarding() {
-  const onboarded = localStorage.getItem("aivoOnboarded");
-  if (onboarded) {
-    return;
-  }
-  document.getElementById("onboardingModal").classList.remove("hidden");
-}
-function updateOnboardStep() {
-  onboardSteps.forEach((step, idx) => step.style.display = idx === onboardStep ? "block" : "none");
-  onboardDots.forEach((dot, idx) => {
-    dot.style.background = idx === onboardStep ? "var(--accent)" : "var(--bg-tertiary)";
-    dot.style.width = idx === onboardStep ? "20px" : "8px";
-  });
-  onboardBtn.textContent = onboardStep === onboardSteps.length - 1 ? "Начать!" : "Далее";
-}
-onboardBtn.addEventListener("click", () => {
-  onboardStep++;
-  if (onboardStep >= onboardSteps.length) {
-    localStorage.setItem("aivoOnboarded", "1");
-    document.getElementById("onboardingModal").classList.add("hidden");
-    onboardStep = 0;
-  } else {
-    updateOnboardStep();
-  }
-});
-const origShowMainApp = showMainApp;
-showMainApp = function () {
-  origShowMainApp();
-  setTimeout(showOnboarding, 500);
-};
-
-// Expose functions for inline HTML event handlers (ES module scope)
-window.handleLogin = handleLogin;
+// QR scanner handled by src/qr.js
+initQR(handleScan, showToast);
+wireQRListeners();
