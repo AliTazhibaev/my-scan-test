@@ -1,0 +1,19 @@
+{
+  "name": "aivo-scan",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "jsqr": "^1.4.0",
+    "playwright": "^1.62.1",
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
+  }
+}

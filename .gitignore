@@ -1,24 +1,11 @@
 node_modules/
-dist/
+package.json
+package-lock.json
 service-account.json
-*.swp
-*.tmp
-*.log
-
-# Build artifacts
-.cache/
-.parcel-cache/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Editor files
-.vscode/
-.idea/
-
-# Old/temp files
 admin.js
+dist/
+
+# Deobfuscation temp files
 _decode*.js
 _resolved_map.json
 decode*.mjs
