@@ -1200,9 +1200,6 @@ function navigateToNeighbor(code) {
   var found = parts.find(function(p) { return p.code === code; });
   if (found) { selectPart(found.id); startSmoothZoom(found.id); }
 }
-function isMobileSheet() {
-  return window.innerWidth <= 600;
-}
 var sheetCollapsed = false;
 function updateSheet(part) {
   var sheetEl = document.getElementById("sheetContent");

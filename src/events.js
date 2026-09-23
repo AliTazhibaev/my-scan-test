@@ -5,7 +5,7 @@ import {
   selectedId, setSelectedId, idMode, setIdMode,
   autoRotate, setAutoRotate, isSmoothZoom, setIsSmoothZoom,
   assemblyOrder, assemblyIndex, setAssemblyIndex,
-  hiddenSet, scannedSet, blockMode
+  hiddenSet, scannedSet, blockMode, setBlockMode
 } from './state.js';
 import { renderPartsList, showToast, closeDrawer, closeSheet, openDrawer } from './ui.js';
 import { startSmoothZoom, updateCamera } from './camera.js';
@@ -80,7 +80,7 @@ export function initEvents(deps) {
   // === Block Mode ===
   var blockModeBtnEl = document.getElementById('blockModeBtn');
   if (blockModeBtnEl) blockModeBtnEl.addEventListener('click', () => {
-    blockMode = !blockMode;
+    setBlockMode(!blockMode);
     blockModeBtnEl.classList.toggle('active', blockMode);
     showToast(blockMode ? 'Режим блоков: ВКЛ' : 'Режим блоков: ВЫКЛ');
   });
