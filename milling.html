@@ -9,137 +9,555 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <style>
     :root {
-      --bg: #0a0a0a;
-      --glass: rgba(255, 255, 255, 0.06);
-      --glass-border: rgba(255, 255, 255, 0.1);
-      --text: #ffffff;
-      --text2: rgba(255, 255, 255, 0.6);
-      --text3: rgba(255, 255, 255, 0.35);
-      --accent: #00D4AA;
-      --accent2: #00FFB0;
+      --bg: #0a0a0a; --bg2: #111; --bg3: #1a1a1e;
+      --glass: rgba(255,255,255,0.06); --glass-border: rgba(255,255,255,0.1);
+      --text: #f0f0f4; --text2: rgba(255,255,255,0.6); --text3: rgba(255,255,255,0.35);
+      --accent: #00D4AA; --accent2: #00FFB0;
       --ease: cubic-bezier(0.16, 1, 0.3, 1);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      -webkit-font-smoothing: antialiased;
-      position: relative;
-      overflow: hidden;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
     }
     .bg-layer {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
       background:
-        radial-gradient(ellipse 80% 60% at 10% 15%, rgba(0, 212, 170, 0.4) 0%, transparent 50%),
-        radial-gradient(ellipse 70% 80% at 90% 25%, rgba(0, 140, 220, 0.25) 0%, transparent 50%),
-        radial-gradient(ellipse 60% 70% at 75% 65%, rgba(100, 60, 220, 0.2) 0%, transparent 50%),
-        #0a0a0a;
+        radial-gradient(ellipse 80% 60% at 10% 15%, rgba(0,212,170,0.25) 0%, transparent 50%),
+        radial-gradient(ellipse 70% 80% at 90% 25%, rgba(0,140,220,0.15) 0%, transparent 50%),
+        var(--bg);
     }
-    .card {
-      position: relative; z-index: 1;
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(24px) saturate(1.4);
-      -webkit-backdrop-filter: blur(24px) saturate(1.4);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 28px;
-      padding: 48px 36px;
-      max-width: 440px;
-      width: 90%;
-      text-align: center;
-      animation: fadeUp 0.6s var(--ease) both;
+
+    /* NAV */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      height: 56px;
+      background: rgba(10,10,10,0.7);
+      backdrop-filter: blur(24px) saturate(1.3);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
     }
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
-    .icon-wrap {
-      width: 80px; height: 80px;
-      background: rgba(0, 212, 170, 0.1);
-      border-radius: 22px;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 24px;
-      box-shadow: 0 8px 32px rgba(0, 212, 170, 0.15);
-    }
-    .icon-wrap svg { width: 36px; height: 36px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.3px; }
-    h1 .em { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .sub { font-size: 15px; color: var(--text2); line-height: 1.6; margin-bottom: 32px; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: rgba(255, 193, 7, 0.08);
-      border: 1px solid rgba(255, 193, 7, 0.2);
-      border-radius: 100px;
-      padding: 8px 20px;
-      font-size: 13px; font-weight: 600; color: #FFB300;
-      margin-bottom: 28px;
-    }
-    .badge::before { content: ''; width: 6px; height: 6px; background: #FFB300; border-radius: 50%; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
-    .features { text-align: left; margin-bottom: 32px; }
-    .feature { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; }
-    .feature-icon { width: 32px; height: 32px; background: rgba(0, 212, 170, 0.08); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
-    .feature-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
-    .feature-text strong { color: var(--text); font-weight: 600; }
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 14px 28px; border-radius: 14px;
-      font-size: 15px; font-weight: 600;
-      text-decoration: none; border: none; cursor: pointer;
-      transition: all 0.3s var(--ease);
-    }
-    .btn-primary { background: var(--accent); color: #000; box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3); }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0, 212, 170, 0.3); }
-    .btn-glass { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); color: var(--text); }
-    .btn-glass:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
-    .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .nav-left { display: flex; align-items: center; gap: 12px; }
+    .nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); }
+    .nav-logo img { width: 28px; height: 28px; border-radius: 7px; }
+    .nav-logo span { font-size: 14px; font-weight: 600; }
+    .nav-title { font-size: 12px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
     .nav-back {
-      position: fixed; top: 20px; left: 20px; z-index: 10;
-      display: flex; align-items: center; gap: 8px;
-      color: var(--text2); text-decoration: none; font-size: 14px; font-weight: 500;
-      padding: 8px 16px; border-radius: 12px;
-      background: var(--glass); backdrop-filter: blur(20px);
-      border: 1px solid var(--glass-border);
+      color: var(--text2); text-decoration: none; font-size: 13px;
+      padding: 6px 12px; border-radius: 8px;
+      background: var(--glass); border: 1px solid var(--glass-border);
       transition: all 0.2s;
     }
-    .nav-back:hover { color: var(--text); background: rgba(255, 255, 255, 0.1); }
+    .nav-back:hover { color: var(--text); background: rgba(255,255,255,0.1); }
+
+    /* LAYOUT */
+    .app-layout {
+      position: relative; z-index: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      height: calc(100vh - 56px);
+    }
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      background: rgba(16,16,20,0.6);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255,255,255,0.06);
+      overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .sidebar-section {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 14px;
+    }
+    .section-title {
+      font-size: 10px; font-weight: 700; color: var(--accent);
+      letter-spacing: 1.2px; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    /* UPLOAD */
+    .upload-zone {
+      border: 2px dashed rgba(255,255,255,0.12);
+      border-radius: 12px; padding: 20px;
+      text-align: center; cursor: pointer;
+      transition: all 0.3s var(--ease);
+    }
+    .upload-zone:hover { border-color: var(--accent); background: rgba(0,212,170,0.05); }
+    .upload-zone.has-file { border-color: var(--accent); border-style: solid; }
+    .upload-icon { font-size: 28px; margin-bottom: 6px; }
+    .upload-text { font-size: 12px; color: var(--text2); }
+    .upload-name { font-size: 13px; font-weight: 600; color: var(--accent); margin-top: 4px; }
+
+    /* PARTS LIST */
+    .parts-list { max-height: 200px; overflow-y: auto; }
+    .part-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 8px;
+      cursor: pointer; transition: all 0.15s;
+      border: 1px solid transparent; margin-bottom: 2px;
+    }
+    .part-row:hover { background: rgba(255,255,255,0.04); }
+    .part-row.selected { background: rgba(0,212,170,0.08); border-color: rgba(0,212,170,0.2); }
+    .part-swatch { width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0; }
+    .part-label { flex: 1; min-width: 0; }
+    .part-code { font-size: 11px; font-weight: 600; color: var(--text); font-family: Monaco, Menlo, monospace; }
+    .part-dims { font-size: 10px; color: var(--text3); }
+    .part-check { font-size: 12px; color: var(--accent); }
+
+    /* PROFILE SELECTOR */
+    .profiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .profile-btn {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 10px 6px; text-align: center;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .profile-btn:hover { background: rgba(255,255,255,0.06); }
+    .profile-btn.active { background: rgba(0,212,170,0.1); border-color: rgba(0,212,170,0.3); }
+    .profile-icon { font-size: 22px; margin-bottom: 2px; }
+    .profile-name { font-size: 9px; color: var(--text2); font-weight: 600; letter-spacing: 0.3px; }
+
+    /* PARAMS */
+    .param-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .param-label { font-size: 11px; color: var(--text2); width: 80px; flex-shrink: 0; }
+    .param-slider { flex: 1; accent-color: var(--accent); }
+    .param-value {
+      font-size: 12px; font-weight: 700; color: var(--accent);
+      min-width: 40px; text-align: right; font-family: Monaco, Menlo, monospace;
+    }
+
+    /* ACTIONS */
+    .action-bar { display: flex; gap: 6px; }
+    .btn {
+      flex: 1; padding: 10px; border-radius: 10px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      border: none; transition: all 0.2s var(--ease);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { box-shadow: 0 4px 16px rgba(0,212,170,0.3); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-glass { background: var(--glass); border: 1px solid var(--glass-border); color: var(--text); }
+    .btn-glass:hover { background: rgba(255,255,255,0.08); }
+
+    /* CANVAS AREA */
+    .canvas-area {
+      position: relative; display: flex; align-items: center; justify-content: center;
+      background: var(--bg2); overflow: hidden;
+    }
+    #millingCanvas { display: block; }
+    .canvas-empty {
+      text-align: center; color: var(--text3);
+    }
+    .canvas-empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+    .canvas-empty-text { font-size: 14px; }
+    .canvas-info {
+      position: absolute; bottom: 12px; left: 12px;
+      background: rgba(10,10,12,0.8); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; padding: 8px 12px;
+      font-size: 11px; color: var(--text2);
+    }
+    .canvas-info strong { color: var(--text); }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
   </style>
 </head>
 <body>
-  <div class="bg-layer"></div>
-  <a href="/" class="nav-back">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    Назад
-  </a>
-  <div class="card">
-    <div class="icon-wrap">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+<div class="bg-layer"></div>
+
+<nav class="nav">
+  <div class="nav-left">
+    <a href="/" class="nav-logo"><img src="logo.svg" alt="Aivo"><span>Aivo Scan</span></a>
+    <span class="nav-title">Фрезировка</span>
+  </div>
+  <a href="/" class="nav-back">← Назад</a>
+</nav>
+
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <!-- Upload -->
+    <div class="sidebar-section">
+      <div class="section-title">Проект</div>
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">📂</div>
+        <div class="upload-text">Загрузите JSON из БАЗИС</div>
+        <div class="upload-name" id="uploadName" style="display:none"></div>
+      </div>
+      <input type="file" id="fileInput" accept=".json" hidden>
     </div>
-    <div class="badge">Скоро</div>
-    <h1>Подготовка <span class="em">фрезировки</span></h1>
-    <p class="sub">Инструмент для подготовки деталей фасадов к ЧПУ-обработке находится в разработке</p>
-    <div class="features">
-      <div class="feature">
-        <div class="feature-icon">📐</div>
-        <div class="feature-text"><strong>Выбор профиля фрезировки</strong> — прямой, скруглённый, фасонный</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">⚙️</div>
-        <div class="feature-text"><strong>Настройка параметров</strong> — глубина, радиус, допуски</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📁</div>
-        <div class="feature-text"><strong>Экспорт DXF</strong> — готовый файл для ЧПУ-станка</div>
+
+    <!-- Parts -->
+    <div class="sidebar-section" id="partsSection" style="display:none">
+      <div class="section-title">Детали фасадов</div>
+      <div class="parts-list" id="partsList"></div>
+    </div>
+
+    <!-- Profile -->
+    <div class="sidebar-section" id="profileSection" style="display:none">
+      <div class="section-title">Профиль фрезировки</div>
+      <div class="profiles">
+        <div class="profile-btn active" data-profile="straight">
+          <div class="profile-icon">▮</div>
+          <div class="profile-name">Прямой</div>
+        </div>
+        <div class="profile-btn" data-profile="round">
+          <div class="profile-icon">◗</div>
+          <div class="profile-name">Скруглённый</div>
+        </div>
+        <div class="profile-btn" data-profile="ogee">
+          <div class="profile-icon">𝒮</div>
+          <div class="profile-name">Фасонный</div>
+        </div>
       </div>
     </div>
-    <div class="actions">
-      <a href="app.html" class="btn btn-primary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Открыть 3D сканер
-      </a>
+
+    <!-- Parameters -->
+    <div class="sidebar-section" id="paramsSection" style="display:none">
+      <div class="section-title">Параметры</div>
+      <div class="param-row">
+        <span class="param-label">Глубина</span>
+        <input type="range" class="param-slider" id="paramDepth" min="1" max="12" value="4" step="0.5">
+        <span class="param-value" id="valDepth">4 мм</span>
+      </div>
+      <div class="param-row">
+        <span class="param-label">Радиус</span>
+        <input type="range" class="param-slider" id="paramRadius" min="1" max="20" value="6" step="0.5">
+        <span class="param-value" id="valRadius">6 мм</span>
+      </div>
+      <div class="param-row">
+        <span class="param-label">Отступ</span>
+        <input type="range" class="param-slider" id="paramOffset" min="0" max="30" value="10" step="1">
+        <span class="param-value" id="valOffset">10 мм</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="sidebar-section" id="actionsSection" style="display:none">
+      <div class="action-bar">
+        <button class="btn btn-primary" id="exportDxf" disabled>⬇ DXF</button>
+        <button class="btn btn-glass" id="exportAll">📦 Все фасады</button>
+      </div>
     </div>
   </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-area" id="canvasArea">
+    <canvas id="millingCanvas"></canvas>
+    <div class="canvas-empty" id="canvasEmpty">
+      <div class="canvas-empty-icon">⚙️</div>
+      <div class="canvas-empty-text">Загрузите JSON и выберите деталь</div>
+    </div>
+    <div class="canvas-info" id="canvasInfo" style="display:none">
+      <strong id="infoCode">—</strong> · <span id="infoDims">—</span> · <span id="infoProfile">Прямой</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// State
+var parts = [];
+var selectedPart = null;
+var profile = 'straight';
+var params = { depth: 4, radius: 6, offset: 10 };
+var canvas = document.getElementById('millingCanvas');
+var ctx = canvas.getContext('2d');
+
+// Upload
+var uploadZone = document.getElementById('uploadZone');
+var fileInput = document.getElementById('fileInput');
+uploadZone.addEventListener('click', function() { fileInput.click(); });
+fileInput.addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var data = JSON.parse(ev.target.result);
+      parts = (data.parts || data).map(function(p, i) { if (p.id === undefined) p.id = i; return p; });
+      document.getElementById('uploadName').textContent = file.name;
+      document.getElementById('uploadName').style.display = 'block';
+      uploadZone.classList.add('has-file');
+      renderPartsList();
+      showSection('partsSection');
+    } catch(err) { alert('Ошибка файла: ' + err.message); }
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+// Render parts list
+function renderPartsList() {
+  var container = document.getElementById('partsList');
+  container.innerHTML = '';
+  parts.forEach(function(part) {
+    var row = document.createElement('div');
+    row.className = 'part-row';
+    row.innerHTML =
+      '<div class="part-swatch" style="background:' + getColor(part.material) + '"></div>' +
+      '<div class="part-label">' +
+        '<div class="part-code">' + escapeHtml(part.code || part.position || '—') + '</div>' +
+        '<div class="part-dims">' + (part.L||'?') + '×' + (part.W||'?') + '×' + (part.T||'?') + ' мм</div>' +
+      '</div>';
+    row.addEventListener('click', function() { selectPart(part); });
+    container.appendChild(row);
+  });
+  showSection('partsSection');
+  showSection('profileSection');
+  showSection('paramsSection');
+  showSection('actionsSection');
+}
+
+function selectPart(part) {
+  selectedPart = part;
+  document.querySelectorAll('.part-row').forEach(function(r, i) {
+    r.classList.toggle('selected', parts[i].id === part.id);
+  });
+  document.getElementById('exportDxf').disabled = false;
+  document.getElementById('infoCode').textContent = part.code || part.position || '—';
+  document.getElementById('infoDims').textContent = (part.L||'?') + '×' + (part.W||'?') + ' мм';
+  drawPreview();
+}
+
+function showSection(id) { document.getElementById(id).style.display = 'block'; }
+
+// Profile selection
+document.querySelectorAll('.profile-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.profile-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    profile = btn.dataset.profile;
+    document.getElementById('infoProfile').textContent =
+      profile === 'straight' ? 'Прямой' : profile === 'round' ? 'Скруглённый' : 'Фасонный';
+    if (selectedPart) drawPreview();
+  });
+});
+
+// Params
+['Depth','Radius','Offset'].forEach(function(key) {
+  var slider = document.getElementById('param' + key);
+  var val = document.getElementById('val' + key);
+  slider.addEventListener('input', function() {
+    params[key.toLowerCase()] = parseFloat(slider.value);
+    val.textContent = slider.value + ' мм';
+    if (selectedPart) drawPreview();
+  });
+});
+
+// Canvas draw
+function drawPreview() {
+  if (!selectedPart) return;
+  var L = selectedPart.L || 100;
+  var W = selectedPart.W || 100;
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+  document.getElementById('canvasEmpty').style.display = 'none';
+  document.getElementById('canvasInfo').style.display = 'block';
+
+  var scale = Math.min((canvas.width - 80) / L, (canvas.height - 80) / W) * 0.85;
+  var ox = (canvas.width - L * scale) / 2;
+  var oy = (canvas.height - W * scale) / 2;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Panel outline
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(ox, oy, L * scale, W * scale);
+  ctx.strokeRect(ox, oy, L * scale, W * scale);
+
+  // Dimensions
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(L + ' мм', ox + L * scale / 2, oy + W * scale + 18);
+  ctx.save();
+  ctx.translate(ox - 14, oy + W * scale / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(W + ' мм', 0, 0);
+  ctx.restore();
+
+  // Milling path
+  var off = params.offset;
+  var d = params.depth;
+  var r = params.radius;
+  var s = scale;
+
+  // Inner rectangle (milling boundary)
+  var ix = ox + off * s;
+  var iy = oy + off * s;
+  var iw = (L - 2 * off) * s;
+  var ih = (W - 2 * off) * s;
+
+  if (iw <= 0 || ih <= 0) {
+    ctx.fillStyle = 'rgba(255,100,100,0.3)';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Отступ больше размера детали!', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  ctx.save();
+  if (profile === 'straight') {
+    // Straight: sharp inner rectangle
+    ctx.strokeStyle = '#00D4AA';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 3]);
+    ctx.strokeRect(ix, iy, iw, ih);
+    ctx.setLineDash([]);
+    // Fill depth indication
+    ctx.fillStyle = 'rgba(0,212,170,0.08)';
+    ctx.fillRect(ix, iy, iw, ih);
+  } else if (profile === 'round') {
+    // Rounded corners
+    var cr = Math.min(r * s, iw / 2, ih / 2);
+    ctx.strokeStyle = '#00D4AA';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 3]);
+    ctx.beginPath();
+    ctx.moveTo(ix + cr, iy);
+    ctx.lineTo(ix + iw - cr, iy);
+    ctx.arcTo(ix + iw, iy, ix + iw, iy + cr, cr);
+    ctx.lineTo(ix + iw, iy + ih - cr);
+    ctx.arcTo(ix + iw, iy + ih, ix + iw - cr, iy + ih, cr);
+    ctx.lineTo(ix + cr, iy + ih);
+    ctx.arcTo(ix, iy + ih, ix, iy + ih - cr, cr);
+    ctx.lineTo(ix, iy + cr);
+    ctx.arcTo(ix, iy, ix + cr, iy, cr);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(0,212,170,0.08)';
+    ctx.fill();
+  } else {
+    // Ogee: decorative S-curve profile
+    ctx.strokeStyle = '#00D4AA';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 3]);
+    var inset = Math.min(r * s * 0.4, 8);
+    // Outer path
+    ctx.beginPath();
+    ctx.rect(ix, iy, iw, ih);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Inner decorative curve
+    ctx.strokeStyle = 'rgba(0,212,170,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.rect(ix + inset, iy + inset, iw - 2 * inset, ih - 2 * inset);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(0,212,170,0.06)';
+    ctx.fillRect(ix, iy, iw, ih);
+    // S-curve indicators at midpoints
+    ctx.strokeStyle = '#00D4AA';
+    ctx.lineWidth = 1;
+    var mx = ix + iw / 2;
+    var my = iy + ih / 2;
+    ctx.beginPath();
+    ctx.moveTo(mx - 15, iy); ctx.quadraticCurveTo(mx, iy + inset * 2, mx + 15, iy);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(mx - 15, iy + ih); ctx.quadraticCurveTo(mx, iy + ih - inset * 2, mx + 15, iy + ih);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Tool path visualization
+  ctx.strokeStyle = 'rgba(0,255,176,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 4]);
+  var toolR = r * s * 0.3;
+  ctx.beginPath();
+  ctx.arc(ix + toolR + 5, iy + toolR + 5, toolR, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Depth label
+  ctx.fillStyle = 'rgba(0,212,170,0.6)';
+  ctx.font = 'bold 10px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('гл. ' + d + ' мм', ix + iw / 2, iy + ih / 2 + 4);
+}
+
+// Resize
+window.addEventListener('resize', function() { if (selectedPart) drawPreview(); });
+
+// DXF Export
+document.getElementById('exportDxf').addEventListener('click', function() {
+  if (!selectedPart) return;
+  exportDxf([selectedPart]);
+});
+
+document.getElementById('exportAll').addEventListener('click', function() {
+  if (!parts.length) return;
+  exportDxf(parts);
+});
+
+function exportDxf(partsToExport) {
+  var dxf = '0\nSECTION\n2\nENTITIES\n';
+  partsToExport.forEach(function(part) {
+    var L = part.L || 100;
+    var W = part.W || 100;
+    var off = params.offset;
+    // Outer rectangle
+    dxf += dxfRect(0, 0, L, W, 'OUTER');
+    // Inner milling boundary
+    dxf += dxfRect(off, off, L - 2 * off, W - 2 * off, 'MILLING');
+    // Add part code as text
+    dxf += '0\nTEXT\n8\nLABEL\n10\n' + (L / 2) + '\n20\n' + (W + 5) + '\n40\n3\n1\n' + (part.code || '') + '\n';
+  });
+  dxf += '0\nENDSEC\n0\nEOF\n';
+  downloadFile('milling.dxf', dxf, 'application/dxf');
+}
+
+function dxfRect(x1, y1, x2, y2, layer) {
+  var s = '';
+  var pts = [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]];
+  for (var i = 0; i < pts.length - 1; i++) {
+    s += '0\nLINE\n8\n' + layer + '\n';
+    s += '10\n' + pts[i][0] + '\n20\n' + pts[i][1] + '\n';
+    s += '11\n' + pts[i+1][0] + '\n21\n' + pts[i+1][1] + '\n';
+  }
+  return s;
+}
+
+function downloadFile(name, content, mime) {
+  var blob = new Blob([content], { type: mime });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function getColor(mat) {
+  if (!mat) return '#8a7f76';
+  var n = mat.toLowerCase();
+  if (n.match(/белый|white/)) return '#ece7e0';
+  if (n.match(/чёрный|черный|black/)) return '#2a2a30';
+  if (n.match(/серый|grey|gray/)) return '#8a8a96';
+  if (n.match(/венге|wenge/)) return '#3b2a1c';
+  if (n.match(/коричн|brown/)) return '#7a5830';
+  if (n.match(/орех|walnut/)) return '#6a5040';
+  if (n.match(/дуб|oak/)) return '#b09070';
+  if (n.match(/красн|red/)) return '#a83030';
+  if (n.match(/синий|blue/)) return '#304880';
+  if (n.match(/зелён|green/)) return '#306838';
+  if (n.match(/бежев|beige/)) return '#c8b898';
+  return '#8a7f76';
+}
+
+function escapeHtml(s) { return (s||'').replace(/[&<>]/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+</script>
 </body>
 </html>

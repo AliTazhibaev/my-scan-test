@@ -100,6 +100,7 @@
     </div>
   </div>
   <div style="display:flex;gap:4px">
+    <button class="top-btn" id="dimsBtn" title="Размеры" aria-label="Показать размеры из БАЗИС"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3H3v7h18V3z"/><path d="M21 14H3v7h18v-7z"/><path d="M12 3v7"/><path d="M12 14v7"/></svg></button>
     <button class="top-btn active" id="csgBtn" title="Фурнитура" aria-label="Фурнитура"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></button>
     <button class="top-btn" id="blockModeBtn" title="Режим блоков" aria-label="Режим выделения блоков"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
     <button class="top-btn" id="menuBtn" title="Меню" aria-label="Открыть меню"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
@@ -169,9 +170,6 @@
   </button>
   <button class="toolbar-btn" id="focusBtn" title="Фокус" aria-label="Фокус на выбранной детали">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-  </button>
-  <button class="toolbar-btn" id="dimsBtn" title="Размеры" aria-label="Показать размеры из БАЗИС">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3H3v7h18V3z"/><path d="M21 14H3v7h18v-7z"/><path d="M12 3v7"/><path d="M12 14v7"/></svg>
   </button>
   <button class="toolbar-btn" id="resetViewBtn" title="Сброс вида" aria-label="Сбросить вид камеры">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -311,7 +309,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 </script>
-<script src="app.js?v=7"></script>
+<script type="module" src="app.js?v=8"></script>
 <script>
 // Register Service Worker + auto-update
 if ('serviceWorker' in navigator) {

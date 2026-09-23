@@ -3,6 +3,7 @@ package.json
 package-lock.json
 service-account.json
 admin.js
+dist/
 
 # Deobfuscation temp files
 _decode*.js
