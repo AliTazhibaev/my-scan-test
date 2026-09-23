@@ -127,13 +127,11 @@ var EGGER_DB = {};
     'H1116': 'H1116 ST12 Баменда венге тёмный.jpg',
     'H1122': 'H1122 ST22 Древесина белая.jpg',
     'H1123': 'H1123 ST22 Древесина графит.jpg',
-    'H1133': 'H1133 ST9 Дуб Гамильтон натуральный горизонтальный.jpg',
     'H1137': 'H1137 ST12 Дуб Сорано чёрно-коричневый.jpg',
     'H1145': 'H1145 ST10 Дуб Бардолино натуральный.jpg',
     'H1146': 'H1146 ST10 Дуб Бардолино серый.jpg',
     'H1150': 'H1150 ST10 Дуб Аризона серый.jpg',
     'H1151': 'H1151 ST10 Дуб Аризона коричневый.jpg',
-    'H1163': 'H1163 ST86 Дуб Бардолино натуральный горизонтальный.jpg',
     'H1176': 'H1176 ST37 Дуб Галифакс белый.jpg',
     'H1180': 'H1180 ST37 Дуб Галифакс натуральный.jpg',
     'H1181': 'H1181 ST37 Дуб Галифакс табак.jpg',
@@ -145,10 +143,10 @@ var EGGER_DB = {};
     'H1277': 'H1277 ST9 Акация Лэйклэнд светлая.jpg',
     'H1298': 'H1298 ST22 Ясень Лион песочно-бежевый.jpg',
     'H1334': 'H1334 ST9 Дуб Сорано натуральный светлый.jpg',
-    'H1369': 'H1369 ST40 Дуб Каселла каштановый.jpg',
+    'H1369': 'ЛМДФ H1369 ST40 Дуб Каселла каштановый Egger.jpg',
     'H1377': 'H1377 ST36 Дуб Орлеанский песочно-бежевый.jpg',
     'H1379': 'H1379 ST36 Дуб Орлеанский коричневый.jpg',
-    'H1385': 'H1385 ST40 Дуб Каселла натуральный.png',
+    'H1385': 'Дуб Каселла натуральный H1385 ST40.png',
     'H1386': 'Дуб Каселла коричневый H1386.png',
     'H1387': 'H1387 ST10 Дуб Денвер графит.jpg',
     'H1399': 'H1399 ST10 Дуб Денвер трюфель.jpg',
@@ -165,7 +163,6 @@ var EGGER_DB = {};
     'H1615': 'H1615 ST9 Вишня Верона.jpg',
     'H1636': 'H1636 ST12 Вишня Локарно.jpg',
     'H1733': 'H1733 ST9 Берёза Майнау.jpg',
-    'H1734': 'H1734 ST9 Орех Интарсио горизонтальный.jpg',
     'H1887': 'H1887 ST9 Клён Штарнберг натуральный.jpg',
     'H3001': 'H3001 ST15 Ясень Одесса.jpg',
     'H3006': 'H3006 ST22 Зебрано песочно-бежевый.jpg',
@@ -173,10 +170,6 @@ var EGGER_DB = {};
     'H3025': 'H3025 HG Макассар.jpg',
     'H3047': 'H3047 ST10 Борнео трюфель.jpg',
     'H3048': 'H3048 ST10 Борнео коричневый антик.jpg',
-    'H3050': 'H3050.jpg',
-    'H3051': 'H3051.jpg',
-    'H3052': 'H3052.jpg',
-    'H3053': 'H3053.jpg',
     'H3058': 'H3058 ST22 Венге Мали.jpg',
     'H3080': 'H3080 ST15 Махагон.jpg',
     'H3081': 'H3081 ST22 Сосна Гаванна чёрная.jpg',
@@ -226,13 +219,7 @@ var EGGER_DB = {};
     'H3773': 'H3773 ST9 Орех Карини белёный.jpg',
     'H3840': 'H3840 ST9 Клён Мандал натуральный.jpg',
     'H3860': 'H3860 ST9 Клён сахарный шампань.jpg',
-    'H3991': 'H3991 ST10 Бук Кантри натуральный.jpg',
-    'H430':  'H430 ST86 Сосна Аланд белая горизонтальная.jpg',
-    'H433':  'H433 ST86 Сосна Аланд полярная горизонтальная.jpg',
-    'H815':  'H815 ST9 Вишня Верона горизонтальная.jpg',
-    'H834':  'H834 ST9 Дуб Сорано натуральный светлый горизонтальный.jpg',
-    'H853':  'H853 ST86 Флитвуд горизонтальный лава серая.jpg',
-    'H877':  'H877 ST86 Флитвуд горизонтальный лава серая.jpg'
+    'H3991': 'H3991 ST10 Бук Кантри натуральный.jpg'
   };
   for (var k in wood) EGGER_DB[k] = { file: wood[k], cat: 'wood', dir: 'Древесные декоры' };
 })();
@@ -564,21 +551,31 @@ function createPartMaterial(partData) {
     emissiveIntensity: 0
   };
 
-  // Определяем угол поворота текстуры по направлению волокон
-  // grain: 1=по X (горизонтально), 2=по Y (вертикально), 0=не указано
+  // EGGER текстуры: H1145 и аналоги имеют горизонтальные волокна (U-ось = shape X = L панели).
+  // ExtrudeGeometry UV: U → shape X (=L), V → shape Y (=W).
+  // Без поворота волокна идут по X (=L). Поворот 90° смещает волокна на Y (=W).
+  // Правило: текстура идёт по длинной стороне панели.
+  //   L > W → волокна уже по L (длинная) → поворот НЕ нужен
+  //   W > L → нужно сместить волокна на W (длинная) → поворот 90°
+  //   grain=1 → по X (L) → не поворачиваем
+  //   grain=2 → по Y (W) → поворачиваем на 90°
   var grainAngle = 0;
   var grain = partData.grain || 0;
-  if (grain === 2) {
-    // Вертикальное направление — поворачиваем на90°
+  // ExtrudeGeometry UV: U → shape X (=L), V → shape Y (=W).
+  // Egger texture images have grain running vertically (V direction).
+  // Grain should follow the LONGER side of the panel.
+  //   W >= L → grain already along V (=W) → no rotation
+  //   L > W  → need to rotate 90° to shift grain from V(=W) to U(=L, long side)
+  // grain=0: auto-detect by dimensions
+  // grain=1: force along L (U) — rotate90°
+  // grain=2: force along W (V) — no rotation
+  if (grain === 1) {
     grainAngle = Math.PI / 2;
   } else if (grain === 0) {
-    // Не указано — определяем по соотношению L/W
-    // Если W > L — вертикальное направление (текстура идёт по длинной стороне)
-    if ((partData.W || 0) > (partData.L || 0)) {
+    if ((partData.L || 0) > (partData.W || 0)) {
       grainAngle = Math.PI / 2;
     }
   }
-  // grain === 1 (по X) — не поворачиваем (0)
 
   // Если есть реальная текстура — загружаем асинхронно
   var mat = new THREE.MeshStandardMaterial(matProps);
@@ -1693,7 +1690,43 @@ function buildScene() {
     } else if (part.contour && part.contour.length >= 2 && part.contour[0].t) {
       shape = buildContourShape(part.contour, sc);
     } else {
-      // Fallback: прямоугольник от (0,0) если есть placement, иначе центрированный
+      // Fallback: прямоугольник — проверяем, можно ли использовать быстрый BoxGeometry
+      var cutouts = part.cuts || part.cutouts || [];
+      var hasCutouts = cutouts.length > 0;
+      if (!hasCutouts) {
+        // Simple rectangle — use BoxGeometry (much faster than ExtrudeGeometry)
+        var panelGeo = new THREE.BoxGeometry(shapeW, shapeH, panelT);
+        var panelMat = createPartMaterial(part);
+        var panelMesh = new THREE.Mesh(panelGeo, panelMat);
+        if (part.placement) {
+          panelMesh.position.set(
+            part._pos.x + shapeW / 2,
+            part._pos.y + shapeH / 2,
+            part._pos.z + panelT / 2
+          );
+        } else {
+          panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
+        }
+        if (part._quat) panelMesh.quaternion.copy(part._quat);
+        panelMesh.userData = { partId: part.id };
+        panelMesh.castShadow = deviceQuality !== 'low';
+        panelMesh.receiveShadow = deviceQuality !== 'low';
+        scene.add(panelMesh);
+        var edgeThreshold = deviceQuality === 'low' ? 30 : 15;
+        var edgeGeo = new THREE.EdgesGeometry(panelGeo, edgeThreshold);
+        var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x1a1a1a : 0x666666, transparent: true, opacity: 0.6 });
+        var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
+        edgeLineObj.quaternion.copy(panelMesh.quaternion);
+        edgeLineObj.position.copy(panelMesh.position);
+        scene.add(edgeLineObj);
+        originalPositions.set(part.id, panelMesh.position.clone());
+        meshMap.set(part.id, panelMesh);
+        edgeLineMap.set(part.id, edgeLineObj);
+        var details = buildPartDetails(part, panelMesh);
+        if (details.length) detailMeshes.set(part.id, details);
+        return; // Skip the ExtrudeGeometry path
+      }
+      // Has cutouts — use Shape + ExtrudeGeometry
       shape = new THREE.Shape();
       if (part.placement) {
         shape.moveTo(0, 0);
@@ -1707,9 +1740,48 @@ function buildScene() {
         shape.lineTo(-shapeW / 2, shapeH / 2);
       }
       shape.closePath();
+      cutouts.forEach(function(cut) {
+        var pth = new THREE.Path();
+        if (cut.t === 'circle' && cut.r > 0) {
+          pth.absarc(cut.x * sc, cut.y * sc, cut.r * sc, 0, Math.PI * 2, true);
+          shape.holes.push(pth);
+        } else if (cut.pts && cut.pts.length >= 3) {
+          pth.moveTo(cut.pts[0][0] * sc, cut.pts[0][1] * sc);
+          for (var ci = 1; ci < cut.pts.length; ci++) {
+            pth.lineTo(cut.pts[ci][0] * sc, cut.pts[ci][1] * sc);
+          }
+          pth.closePath();
+          shape.holes.push(pth);
+        }
+      });
+      var extrudeSettings = { depth: panelT, bevelEnabled: false };
+      var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      // Fall through to the common mesh creation code below
+      var panelMat = createPartMaterial(part);
+      var panelMesh = new THREE.Mesh(panelGeo, panelMat);
+      panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
+      if (part._quat) panelMesh.quaternion.copy(part._quat);
+      panelMesh.userData = { partId: part.id };
+      panelMesh.castShadow = deviceQuality !== 'low';
+      panelMesh.receiveShadow = deviceQuality !== 'low';
+      scene.add(panelMesh);
+      var edgeThreshold = deviceQuality === 'low' ? 30 : 15;
+      var edgeGeo = new THREE.EdgesGeometry(panelGeo, edgeThreshold);
+      var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x1a1a1a : 0x666666, transparent: true, opacity: 0.6 });
+      var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
+      edgeLineObj.quaternion.copy(panelMesh.quaternion);
+      edgeLineObj.position.copy(panelMesh.position);
+      scene.add(edgeLineObj);
+      originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
+      meshMap.set(part.id, panelMesh);
+      edgeLineMap.set(part.id, edgeLineObj);
+      var details = buildPartDetails(part, panelMesh);
+      if (details.length) detailMeshes.set(part.id, details);
+      return;
     }
-    // Вырезы (без центрирования — координаты как в poly)
+    // Вырезы (для poly и contour форм)
     var cutouts = part.cuts || part.cutouts || [];
+    if (shape) {
     cutouts.forEach(function(cut) {
       var pth = new THREE.Path();
       if (cut.t === 'circle' && cut.r > 0) {
@@ -1724,6 +1796,7 @@ function buildScene() {
         shape.holes.push(pth);
       }
     });
+    }
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
     var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     var panelMat = createPartMaterial(part);
@@ -2437,7 +2510,7 @@ function updateAssemblyStep() {
   startSmoothZoom(currentPart.id);
   updateSheet(currentPart);
   openSheet();
-  renderPartsList();
+  renderPartsListDeferred();
   showToast("🔧 Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length + ": " + (currentPart.name || currentPart.code));
 
   needsRender = true;
@@ -2513,6 +2586,12 @@ function renderPartsList() {
   _renderPartsScheduled = true;
   requestAnimationFrame(_doRenderPartsList);
 }
+// Debounced version for rapid-fire updates (assembly playback)
+let _deferredPartsTimer = null;
+function renderPartsListDeferred() {
+  if (_deferredPartsTimer) clearTimeout(_deferredPartsTimer);
+  _deferredPartsTimer = setTimeout(renderPartsList, 80);
+}
 function _doRenderPartsList() {
   _renderPartsScheduled = false;
   const container = document.getElementById("partsList");
@@ -2535,35 +2614,32 @@ function _doRenderPartsList() {
     return;
   }
   const sortedModules = Array.from(moduleMap.keys()).sort((a, b) => {
-    if (a === "HARDWARE") {
-      return 1;
-    }
-    if (b === "HARDWARE") {
-      return -1;
-    }
+    if (a === "HARDWARE") return 1;
+    if (b === "HARDWARE") return -1;
     const aPrefix = a.replace(/_\d+$/, "");
     const bPrefix = b.replace(/_\d+$/, "");
-    if (aPrefix !== bPrefix) {
-      return aPrefix.localeCompare(bPrefix);
-    }
-    const aNum = parseInt(a.match(/\d+$/)?.[0] || "0");
-    const bNum = parseInt(b.match(/\d+$/)?.[0] || "0");
-    return aNum - bNum;
+    if (aPrefix !== bPrefix) return aPrefix.localeCompare(bPrefix);
+    return parseInt(a.match(/\d+$/)?.[0] || "0") - parseInt(b.match(/\d+$/)?.[0] || "0");
   });
+  // Track which modules are expanded (preserve state across re-renders)
+  if (!_expandedModules) _expandedModules = new Set();
   sortedModules.forEach(moduleKey => {
     const moduleParts = moduleMap.get(moduleKey);
-    if (!moduleParts) {
-      return;
-    }
-    // Get groupName from first part in module
+    if (!moduleParts) return;
     const displayName = (moduleParts[0] && moduleParts[0].groupName) ? moduleParts[0].groupName : getModuleName(moduleKey === "HARDWARE" ? "D-000" : moduleKey + "_00");
     const dotColor = moduleKey === "HARDWARE" ? "#94a3b8" : getModuleColor(moduleKey + "_00");
     const scannedCount = moduleParts.filter(p => scannedSet.has(p.id)).length;
+    const isExpanded = _expandedModules.has(moduleKey);
     const groupEl = document.createElement("div");
     groupEl.className = "module-group";
-    groupEl.innerHTML = "\n        <div class=\"module-header\" data-module=\"" + moduleKey + "\">\n          <div class=\"module-dot\" style=\"background:" + dotColor + "\"></div>\n          <span class=\"module-name\">" + escapeHtml(displayName) + "</span>\n          <span class=\"module-count\">" + scannedCount + "/" + moduleParts.length + "</span>\n          <span class=\"module-arrow open\">▶</span>\n        </div>\n        <div class=\"module-parts\" data-module-parts=\"" + moduleKey + "\"></div>\n      ";
+    groupEl.innerHTML = '<div class="module-header" data-module="' + moduleKey + '">' +
+      '<div class="module-dot" style="background:' + dotColor + '"></div>' +
+      '<span class="module-name">' + escapeHtml(displayName) + '</span>' +
+      '<span class="module-count">' + scannedCount + '/' + moduleParts.length + '</span>' +
+      '<span class="module-arrow' + (isExpanded ? ' open' : '') + '">▶</span>' +
+      '</div>' +
+      '<div class="module-parts' + (isExpanded ? '' : ' collapsed') + '" data-module-parts="' + moduleKey + '"></div>';
     const headerEl = groupEl.querySelector(".module-header");
-    // Add isolate button to module header
     var isolateBtn = document.createElement("button");
     isolateBtn.className = "module-isolate-btn";
     isolateBtn.textContent = "\u2299";
@@ -2577,22 +2653,34 @@ function _doRenderPartsList() {
     const partsContainer = groupEl.querySelector(".module-parts");
     headerEl.addEventListener("click", (e) => {
       if (e.target.closest(".module-isolate-btn")) return;
+      const nowExpanded = !partsContainer.classList.contains("collapsed") ? false : true;
       partsContainer.classList.toggle("collapsed");
       headerEl.querySelector(".module-arrow").classList.toggle("open");
+      // Lazy render: only build part items on first expand
+      if (nowExpanded && !partsContainer.hasChildNodes()) {
+        const frag = document.createDocumentFragment();
+        moduleParts.forEach(part => frag.appendChild(createPartItem(part)));
+        partsContainer.appendChild(frag);
+      }
+      if (nowExpanded) _expandedModules.add(moduleKey);
+      else _expandedModules.delete(moduleKey);
     });
-    // Long-press to isolate
     var pressTimer = null;
     headerEl.addEventListener("touchstart", () => {
       pressTimer = setTimeout(() => isolateModule(moduleKey), 500);
     }, { passive: true });
     headerEl.addEventListener("touchend", () => clearTimeout(pressTimer), { passive: true });
     headerEl.addEventListener("touchmove", () => clearTimeout(pressTimer), { passive: true });
-    moduleParts.forEach(part => partsContainer.appendChild(createPartItem(part)));
+    // Only render parts for expanded modules
+    if (isExpanded) {
+      moduleParts.forEach(part => partsContainer.appendChild(createPartItem(part)));
+    }
     fragment.appendChild(groupEl);
   });
   container.innerHTML = "";
   container.appendChild(fragment);
 }
+var _expandedModules = null;
 function createPartItem(part) {
   const isHidden = hiddenSet.has(part.id);
   const isScanned = scannedSet.has(part.id);
