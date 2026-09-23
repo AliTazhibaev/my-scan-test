@@ -17,6 +17,12 @@ import {
 } from './src/materials.js';
 import { handleLogin, initAuth } from './src/auth.js';
 import { initQR, wireQRListeners } from './src/qr.js';
+import {
+  initCamera, setupCameraControls, updateCamera,
+  startSmoothZoom, animateSmoothZoom,
+  deselectPart, handleRaycast as cameraHandleRaycast
+} from './src/camera.js';
+import { initAssembly, toggleAssembly, toggleAssemblyPlay, stopAssemblyPlay, updateAssemblyStep } from './src/assembly.js';
 
 // === Wake Lock ===
 async function requestWakeLock() {
@@ -306,322 +312,11 @@ function initThree() {
   wall.position.set(0, 2.5, -5);
   wall.receiveShadow = deviceQuality !== 'low';
   if (deviceQuality !== 'low') scene.add(wall);
-  setupControls();
+  setupCameraControls(canvas);
   animate();
 }
-function setupControls() {
-  canvas.addEventListener("touchstart", onTouchStart, {
-    passive: false
-  });
-  canvas.addEventListener("touchmove", onTouchMove, {
-    passive: false
-  });
-  canvas.addEventListener("touchend", onTouchEnd, {
-    passive: false
-  });
-  canvas.addEventListener("mousedown", onMouseDown);
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
-  canvas.addEventListener("wheel", onWheel, {
-    passive: false
-  });
-  canvas.addEventListener("contextmenu", function(e) { e.preventDefault(); });
-}
-function onTouchStart(touchEvent) {
-  touchEvent.preventDefault();
-  const touches = touchEvent.touches;
-  if (touches.length === 1) {
-    touchStartPos = {
-      x: touches[0].clientX,
-      y: touches[0].clientY
-    };
-    isDragging = true;
-    prevMouse = {
-      x: touches[0].clientX,
-      y: touches[0].clientY
-    };
-    autoRotate = false;
-  } else if (touches.length === 2) {
-    isPinching = true;
-    isDragging = false;
-    isPanning = false;
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    pinchStartDist = Math.hypot(dx, dy);
-    pinchStartCamDist = camDist;
-    panStartMid = {
-      x: (touches[0].clientX + touches[1].clientX) / 2,
-      y: (touches[0].clientY + touches[1].clientY) / 2
-    };
-    panStartTarget = targetPosition.clone();
-  }
-}
-function onTouchMove(moveEvent) {
-  moveEvent.preventDefault();
-  const moveTouches = moveEvent.touches;
-  if (moveTouches.length === 1 && isDragging) {
-    theta -= (moveTouches[0].clientX - prevMouse.x) * 0.008;
-    phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - (moveTouches[0].clientY - prevMouse.y) * 0.008));
-    prevMouse = {
-      x: moveTouches[0].clientX,
-      y: moveTouches[0].clientY
-    };
-    updateCamera();
-  } else if (moveTouches.length === 2 && isPinching) {
-    const pinchDx = moveTouches[0].clientX - moveTouches[1].clientX;
-    const pinchDy = moveTouches[0].clientY - moveTouches[1].clientY;
-    const currentDist = Math.hypot(pinchDx, pinchDy);
-    const distRatio = currentDist / pinchStartDist;
-    const midX = (moveTouches[0].clientX + moveTouches[1].clientX) / 2;
-    const midY = (moveTouches[0].clientY + moveTouches[1].clientY) / 2;
-    const midDx = midX - panStartMid.x;
-    const midDy = midY - panStartMid.y;
-    const midMove = Math.hypot(midDx, midDy);
-    const distChange = Math.abs(distRatio - 1);
-    if (!isPanning && midMove > 8 && distChange < 0.08) {
-      isPanning = true;
-    }
-    if (isPanning && panStartTarget) {
-      const panSpeed = camDist * 0.0012;
-      const right = new THREE.Vector3();
-      const up = new THREE.Vector3(0, 1, 0);
-      right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), up).normalize();
-      targetPosition.copy(panStartTarget);
-      targetPosition.addScaledVector(right, -midDx * panSpeed);
-      targetPosition.addScaledVector(up, midDy * panSpeed);
-    } else {
-      camDist = Math.max(0.5, Math.min(80, pinchStartCamDist / distRatio));
-    }
-    updateCamera();
-  }
-}
-function onTouchEnd(endEvent) {
-  if (touchStartPos && !isPinching) {
-    const canvasRect = canvas.getBoundingClientRect();
-    const changedTouch = endEvent.changedTouches[0];
-    if (Math.abs(changedTouch.clientX - touchStartPos.x) < 5 && Math.abs(changedTouch.clientY - touchStartPos.y) < 5) {
-      handleRaycast(changedTouch.clientX, changedTouch.clientY, canvasRect);
-    }
-  }
-  isDragging = false;
-  isPinching = false;
-  isPanning = false;
-  panStartMid = null;
-  panStartTarget = null;
-  touchStartPos = null;
-}
-function onMouseDown(mouseEvent) {
-  if (mouseEvent.button === 0) {
-    mouseStartPos = {
-      x: mouseEvent.clientX,
-      y: mouseEvent.clientY
-    };
-    mouseMovedDistance = 0;
-    isDragging = true;
-    prevMouse = {
-      x: mouseEvent.clientX,
-      y: mouseEvent.clientY
-    };
-    autoRotate = false;
-  } else if (mouseEvent.button === 2) {
-    isPanningMouse = true;
-    panStartMouse = {
-      x: mouseEvent.clientX,
-      y: mouseEvent.clientY
-    };
-    panStartTarget = targetPosition.clone();
-  }
-}
-function onMouseMove(moveEvt) {
-  if (isPanningMouse && panStartMouse && panStartTarget) {
-    const midDx = moveEvt.clientX - panStartMouse.x;
-    const midDy = moveEvt.clientY - panStartMouse.y;
-    const panSpeed = camDist * 0.0012;
-    const right = new THREE.Vector3();
-    const up = new THREE.Vector3(0, 1, 0);
-    right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), up).normalize();
-    targetPosition.copy(panStartTarget);
-    targetPosition.addScaledVector(right, -midDx * panSpeed);
-    targetPosition.addScaledVector(up, midDy * panSpeed);
-    updateCamera();
-    return;
-  }
-  if (!isDragging) {
-    return;
-  }
-  const deltaX = moveEvt.clientX - prevMouse.x;
-  const deltaY = moveEvt.clientY - prevMouse.y;
-  mouseMovedDistance += Math.abs(deltaX) + Math.abs(deltaY);
-  theta -= deltaX * 0.005;
-  phi = Math.max(0.2, Math.min(Math.PI - 0.2, phi - deltaY * 0.005));
-  prevMouse = {
-    x: moveEvt.clientX,
-    y: moveEvt.clientY
-  };
-  updateCamera();
-}
-function onMouseUp() {
-  if (isDragging && mouseStartPos && mouseMovedDistance < 5) {
-    const canvasRect = canvas.getBoundingClientRect();
-    handleRaycast(mouseStartPos.x, mouseStartPos.y, canvasRect);
-  }
-  isDragging = false;
-  isPanningMouse = false;
-  panStartMouse = null;
-  mouseStartPos = null;
-  mouseMovedDistance = 0;
-}
-function onWheel(wheelEvent) {
-  wheelEvent.preventDefault();
-  camDist = Math.max(0.5, Math.min(80, camDist + camDist * wheelEvent.deltaY * 0.001));
-  updateCamera();
-}
-function updateCamera() {
-  if (isSmoothZoom) {
-    return;
-  }
-  camera.position.x = targetPosition.x + camDist * Math.sin(phi) * Math.sin(theta);
-  camera.position.y = targetPosition.y + camDist * Math.cos(phi);
-  camera.position.z = targetPosition.z + camDist * Math.sin(phi) * Math.cos(theta);
-  camera.lookAt(targetPosition);
-  needsRender = true;
-}
-let zoomPartCenter = null;
-function startSmoothZoom(partId) {
-  const part = parts.find(p => p.id === partId);
-  if (!part || !part._pos) {
-    return;
-  }
-  zoomPartCenter = new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z);
-  const size = Math.max(part._size.x, part._size.y, part._size.z);
-  const dist = Math.max(size * 2.5, 0.8);
-  const dir = camera.position.clone().sub(zoomPartCenter).normalize();
-  zoomTarget.set(
-    part._pos.x + dir.x * dist,
-    part._pos.y + dir.y * dist,
-    part._pos.z + dir.z * dist
-  );
-  isSmoothZoom = true;
-  autoRotate = false;
-}
-function animateSmoothZoom() {
-  if (!isSmoothZoom) {
-    return;
-  }
-  const lerpFactor = 0.12;
-  camera.position.lerp(zoomTarget, lerpFactor);
-  if (zoomPartCenter) {
-    targetPosition.lerp(zoomPartCenter, lerpFactor);
-  }
-  camera.lookAt(targetPosition);
-  if (camera.position.distanceTo(zoomTarget) < 0.15) {
-    isSmoothZoom = false;
-    if (zoomPartCenter) {
-      targetPosition.copy(zoomPartCenter);
-    }
-    camDist = camera.position.distanceTo(targetPosition);
-    zoomPartCenter = null;
-  }
-}
-let prevClickKey = null;
-function deselectPart() {
-  if (selectedId === null) return;
-  var prevMesh = meshMap.get(selectedId);
-  var prevEdge = edgeLineMap.get(selectedId);
-  if (prevMesh) {
-    prevMesh.material.emissive.setHex(0);
-    prevMesh.material.emissiveIntensity = 0;
-    prevMesh.material.transparent = false;
-    prevMesh.material.opacity = 1;
-    prevMesh.material.needsUpdate = true;
-  }
-  if (prevEdge) {
-    prevEdge.visible = true;
-    prevEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-    prevEdge.material.opacity = 0.55;
-    prevEdge.material.needsUpdate = true;
-  }
-  selectedId = null;
-  if (xrayActive) {
-    applyXray();
-  }
-  updateSheet(null);
-  closeSheet();
-  renderPartsList();
-
-  needsRender = true;
-}
-function handleRaycast(clickX, clickY, rect) {
-  const mouse = new THREE.Vector2();
-  mouse.x = (clickX - rect.left) / rect.width * 2 - 1;
-  mouse.y = -((clickY - rect.top) / rect.height) * 2 + 1;
-  const rc = new THREE.Raycaster();
-  rc.setFromCamera(mouse, camera);
-  const meshes = Array.from(meshMap.values()).filter(m => m.visible === true);
-  if (typeof detailMeshes !== 'undefined') {
-    detailMeshes.forEach(arr => {
-      arr.forEach(m => { if (m.visible && m.userData && m.userData.partId) meshes.push(m); });
-    });
-  }
-  // Add fastener meshes for raycasting
-  if (typeof fastenerMeshes !== 'undefined') {
-    fastenerMeshes.forEach(m => { if (m.visible && m.userData && m.userData.fastenerId !== undefined) meshes.push(m); });
-  }
-  const hits = rc.intersectObjects(meshes);
-  if (hits.length === 0) {
-    deselectPart();
-    return;
-  }
-  // Check if a fastener was clicked
-  for (let i = 0; i < hits.length; i++) {
-    const ud = hits[i].object.userData;
-    if (ud && ud.fastenerId !== undefined) {
-      const f = fastenerData.find(fd => fd.id === ud.fastenerId);
-      if (f) {
-        showToast("\uD83D\uDD27 " + (f.name || "\u0424\u0443\u0440\u043d\u0438\u0442\u0443\u0440\u0430") + " [" + (f.type || "?") + "]");
-      }
-      return;
-    }
-  }
-  const seen = {};
-  const unique = [];
-  for (let i = 0; i < hits.length; i++) {
-    const pid = hits[i].object.userData.partId;
-    if (pid !== undefined && !seen[pid]) { seen[pid] = true; unique.push({ id: pid, dist: hits[i].distance, obj: hits[i].object }); }
-  }
-  if (unique.length === 0) return;
-  let bestId = unique[0].id;
-  let bestVol = Infinity;
-  const closestDist = unique[0].dist;
-  for (let k = 0; k < unique.length; k++) {
-    if (unique[k].dist - closestDist > 0.01) break;
-    const geo = unique[k].obj.geometry;
-    const params = geo.parameters || {};
-    const vol = (params.width || 1) * (params.height || 1) * (params.depth || 1);
-    if (vol < bestVol) { bestVol = vol; bestId = unique[k].id; }
-  }
-  const clickKey = Math.round(clickX * 10) + ',' + Math.round(clickY * 10);
-  if (clickKey === prevClickKey && unique.length > 1) {
-    let idx = 0;
-    for (let m = 0; m < unique.length; m++) { if (unique[m].id === bestId) { idx = m; break; } }
-    bestId = unique[(idx + 1) % unique.length].id;
-  }
-  prevClickKey = clickKey;
-  if (!hiddenSet.has(bestId)) {
-    if (blockMode) {
-      // Highlight all parts in the same module
-      var partData = parts.find(function(p) { return p.id === bestId; });
-      if (partData) {
-        var partGroup = partData.group || getModuleKey(partData.code || "");
-        selectModuleHighlight(partGroup, bestId);
-      } else {
-        selectPart(bestId);
-      }
-    } else {
-      selectPart(bestId);
-    }
-  }
-}
+// Camera controls handled by src/camera.js — wired via setupCameraControls()
+// deselectPart and handleRaycast handled by src/camera.js
 let layoutMinY = 0;
 function autoLayout(partsArr) {
   var hasPlacement = false;
@@ -1883,118 +1578,7 @@ function applyExplode() {
 
   needsRender = true;
 }
-function toggleAssembly() {
-  assemblyMode = !assemblyMode;
-  document.getElementById("assembleBtn").classList.toggle("active", assemblyMode);
-  document.getElementById("assemblyOverlay").classList.toggle("active", assemblyMode);
-  if (assemblyMode) {
-    buildAssemblyOrder();
-    assemblyIndex = 0;
-    assemblyPrevIndex = -1;
-    updateAssemblyStep();
-    autoRotate = false;
-  } else {
-    stopAssemblyPlay();
-  }
-}
-function buildAssemblyOrder() {
-  const sortedKeys = Array.from(moduleMap.keys()).sort();
-  assemblyOrder = [];
-  sortedKeys.forEach(key => {
-    const moduleParts = moduleMap.get(key);
-    if (moduleParts) {
-      moduleParts.forEach(part => assemblyOrder.push(part));
-    }
-  });
-  if (assemblyOrder.length === 0) {
-    assemblyOrder = [...parts];
-  }
-}
-function updateAssemblyStep() {
-  if (assemblyOrder.length === 0) return;
-  const currentPart = assemblyOrder[assemblyIndex];
-  if (!currentPart) return;
-  document.getElementById("assemblyStepLabel").textContent = "Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length;
-  const partLabel = currentPart.position ? currentPart.code + " / " + currentPart.position : currentPart.code;
-  document.getElementById("assemblyInfo").textContent = partLabel + " — " + (currentPart.name || "—");
-  // Only reset previous step (not all meshes — saves O(N) per step)
-  if (assemblyPrevIndex >= 0 && assemblyPrevIndex !== assemblyIndex) {
-    var prevPart = assemblyOrder[assemblyPrevIndex];
-    if (prevPart) {
-      var prevAsmMesh = meshMap.get(prevPart.id);
-      var prevAsmEdge = edgeLineMap.get(prevPart.id);
-      if (prevAsmMesh) {
-        prevAsmMesh.material.emissive.setHex(0);
-        prevAsmMesh.material.emissiveIntensity = 0;
-        prevAsmMesh.material.transparent = false;
-        prevAsmMesh.material.opacity = 0.15;
-        prevAsmMesh.material.needsUpdate = true;
-      }
-      if (prevAsmEdge) {
-        prevAsmEdge.visible = true;
-        prevAsmEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-        prevAsmEdge.material.opacity = 0.15;
-        prevAsmEdge.material.needsUpdate = true;
-      }
-    }
-  } else if (assemblyPrevIndex === -1) {
-    // First step — dim all meshes once
-    meshMap.forEach((asmMesh) => {
-      asmMesh.material.emissive.setHex(0);
-      asmMesh.material.emissiveIntensity = 0;
-      asmMesh.material.transparent = false;
-      asmMesh.material.opacity = 0.15;
-      asmMesh.material.needsUpdate = true;
-    });
-    edgeLineMap.forEach(asmEdge => {
-      asmEdge.visible = true;
-      asmEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-      asmEdge.material.opacity = 0.15;
-      asmEdge.material.needsUpdate = true;
-    });
-  }
-  assemblyPrevIndex = assemblyIndex;
-  const highlightMesh = meshMap.get(currentPart.id);
-  const highlightEdge = edgeLineMap.get(currentPart.id);
-  if (highlightMesh) {
-    highlightMesh.material.emissive.setHex(0x00D4AA);
-    highlightMesh.material.emissiveIntensity = 0.25;
-    highlightMesh.material.transparent = false;
-    highlightMesh.material.opacity = 1;
-    highlightMesh.material.needsUpdate = true;
-  }
-  if (highlightEdge) {
-    highlightEdge.visible = true;
-    highlightEdge.material.color.setHex(0x00D4AA);
-  }
-  startSmoothZoom(currentPart.id);
-  updateSheet(currentPart);
-  openSheet();
-  renderPartsListDeferred();
-  showToast("🔧 Шаг " + (assemblyIndex + 1) + "/" + assemblyOrder.length + ": " + (currentPart.name || currentPart.code));
-
-  needsRender = true;
-}
-function stopAssemblyPlay() {
-  assemblyPlaying = false;
-  if (assemblyTimer) {
-    clearInterval(assemblyTimer);
-  }
-  assemblyTimer = null;
-  document.getElementById("asmPlay").innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
-}
-function toggleAssemblyPlay() {
-  if (assemblyPlaying) {
-    stopAssemblyPlay();
-  } else {
-    assemblyPlaying = true;
-    document.getElementById("asmPlay").innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-    assemblyTimer = setInterval(() => {
-      assemblyIndex = (assemblyIndex + 1) % assemblyOrder.length;
-      updateAssemblyStep();
-    }, 1500);
-  }
-}
+// Assembly mode handled by src/assembly.js
 function updateSummary() {
   if (parts.length === 0) {
     document.getElementById("materialSummary").style.display = "none";
@@ -2695,6 +2279,35 @@ if (blockModeBtnEl) blockModeBtnEl.addEventListener("click", toggleBlockMode);
 
 // Auth & onboarding handled by src/auth.js
 initAuth();
+
+// Camera controls — wire dependencies
+initCamera({
+  handleRaycast: function(bestId) {
+    if (!hiddenSet.has(bestId)) {
+      if (blockMode) {
+        var partData = parts.find(function(p) { return p.id === bestId; });
+        if (partData) {
+          var partGroup = partData.group || getModuleKey(partData.code || '');
+          selectModuleHighlight(partGroup, bestId);
+        } else { selectPart(bestId); }
+      } else { selectPart(bestId); }
+    }
+  },
+  updateSheet: updateSheet,
+  closeSheet: closeSheet,
+  renderPartsList: renderPartsList,
+  applyXray: applyXray,
+  canvas: document.getElementById('canvas3d')
+});
+
+// Assembly mode — wire dependencies
+initAssembly({
+  startSmoothZoom: startSmoothZoom,
+  updateSheet: updateSheet,
+  openSheet: openSheet,
+  renderPartsListDeferred: renderPartsListDeferred,
+  showToast: showToast
+});
 
 // QR scanner handled by src/qr.js
 initQR(handleScan, showToast);
