@@ -23,6 +23,12 @@ import {
   deselectPart, handleRaycast as cameraHandleRaycast
 } from './src/camera.js';
 import { initAssembly, toggleAssembly, toggleAssemblyPlay, stopAssemblyPlay, updateAssemblyStep } from './src/assembly.js';
+import {
+  initUI, showToast, escapeHtml, updateStats, updateSummary,
+  renderPartsList, renderPartsListDeferred, openSheet, closeSheet,
+  openDrawer, closeDrawer, isMobileSheet
+} from './src/ui.js';
+import { initEvents } from './src/events.js';
 
 // === Wake Lock ===
 async function requestWakeLock() {
@@ -140,7 +146,7 @@ let panStartMouse = null;
 const MODULE_COLORS = ["#00d4aa", "#ff6b6b", "#4ade80", "#fbbf24", "#a78bfa", "#f472b6", "#38bdf8", "#fb923c", "#34d399", "#e879f9", "#06b6d4", "#8b5cf6", "#ef4444", "#10b981", "#f59e0b", "#ec4899", "#14b8a6", "#84cc16", "#6366f1", "#f97316", "#22d3ee", "#a855f7", "#e11d48", "#059669", "#d97706", "#d946ef", "#0891b2", "#65a30d", "#4f46e5", "#ea580c"];
 const colorCache = new Map();
 let colorIdx = 0;
-function getModulePrefix(partCode) {
+export function getModulePrefix(partCode) {
   if (!partCode) {
     return "OTHER";
   }
@@ -150,7 +156,7 @@ function getModulePrefix(partCode) {
   }
   return "OTHER";
 }
-function getModuleKey(code) {
+export function getModuleKey(code) {
   const prefix = getModulePrefix(code);
   if (prefix === "OTHER") {
     return "OTHER";
@@ -164,7 +170,7 @@ function getModuleKey(code) {
   }
   return prefix;
 }
-function getModuleColor(materialName) {
+export function getModuleColor(materialName) {
   const moduleKey = getModuleKey(materialName);
   if (moduleKey === "HARDWARE") {
     return "#94a3b8";
@@ -180,7 +186,7 @@ function getModuleColor(materialName) {
   colorCache.set(moduleKey, assignedColor);
   return assignedColor;
 }
-function getModuleName(partCodeForName, groupName) {
+export function getModuleName(partCodeForName, groupName) {
   if (groupName) return groupName;
   const moduleKeyName = getModuleKey(partCodeForName);
   if (moduleKeyName === "HARDWARE") {
@@ -1579,164 +1585,10 @@ function applyExplode() {
   needsRender = true;
 }
 // Assembly mode handled by src/assembly.js
-function updateSummary() {
-  if (parts.length === 0) {
-    document.getElementById("materialSummary").style.display = "none";
-    return;
-  }
-  document.getElementById("materialSummary").style.display = "block";
-  const materialStats = {};
-  let totalMass = 0;
-  parts.forEach(part => {
-    const matName = part.material || "Неизвестно";
-    if (!materialStats[matName]) {
-      materialStats[matName] = {
-        count: 0,
-        totalArea: 0
-      };
-    }
-    materialStats[matName].count++;
-    if (part.L && part.W) {
-      materialStats[matName].totalArea += part.L * part.W / 1000000;
-    }
-    if (part.L && part.W && part.T) {
-      totalMass += part.L * part.W * part.T / 1000 * 6.5e-7;
-    }
-  });
-  const moduleCount = moduleMap.size;
-  let summaryHtml = "\n      <div class=\"summary-row\"><span class=\"summary-label\">Всего деталей:</span><span class=\"summary-val\">" + parts.length + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Модулей:</span><span class=\"summary-val\">" + moduleCount + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Собрано:</span><span class=\"summary-val\" style=\"color:var(--success)\">" + scannedSet.size + " / " + parts.length + "</span></div>\n      <div class=\"summary-row\"><span class=\"summary-label\">Масса:</span><span class=\"summary-val\">≈ " + totalMass.toFixed(1) + " кг</span></div>\n      <div style=\"margin-top:4px;border-top:1px solid var(--border);padding-top:4px\">\n    ";
-  const sortedMats = Object.entries(materialStats).sort((a, b) => b[1].count - a[1].count);
-  sortedMats.slice(0, 6).forEach(([mat, stats]) => {
-    summaryHtml += "<div class=\"summary-row\"><span class=\"summary-label\" style=\"font-size:8px\">" + escapeHtml(mat.substring(0, 30)) + "</span><span class=\"summary-val\" style=\"font-size:9px\">" + stats.count + " шт</span></div>";
-  });
-  summaryHtml += "</div>";
-  document.getElementById("summaryContent").innerHTML = summaryHtml;
-}
-function updateStats() {
-  const total = parts.length;
-  const scanned = scannedSet.size;
-  const percent = total > 0 ? Math.round(scanned / total * 100) : 0;
-  document.getElementById("totalCount").textContent = total;
-  document.getElementById("scannedCount").textContent = scanned;
-  document.getElementById("progressFill").style.width = percent + "%";
-  const fastenerInfo = document.getElementById("fastenerCount");
-  if (fastenerInfo) {
-    fastenerInfo.textContent = fastenerData.length ? "🔧 " + fastenerData.length : "";
-  }
-}
-let _renderPartsScheduled = false;
-function renderPartsList() {
-  if (_renderPartsScheduled) return;
-  _renderPartsScheduled = true;
-  requestAnimationFrame(_doRenderPartsList);
-}
-// Debounced version for rapid-fire updates (assembly playback)
-let _deferredPartsTimer = null;
-function renderPartsListDeferred() {
-  if (_deferredPartsTimer) clearTimeout(_deferredPartsTimer);
-  _deferredPartsTimer = setTimeout(renderPartsList, 80);
-}
-function _doRenderPartsList() {
-  _renderPartsScheduled = false;
-  const container = document.getElementById("partsList");
-  if (!container) return;
-  const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
-  if (parts.length === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:11px">📁 Загрузите JSON файл для начала</div>';
-    return;
-  }
-  const fragment = document.createDocumentFragment();
-  if (searchVal) {
-    var filteredParts = parts.filter(p => (p.name || "").toLowerCase().includes(searchVal) || (p.code || "").toLowerCase().includes(searchVal) || (p.position || "").toLowerCase().includes(searchVal));
-    if (filteredParts.length === 0) {
-      container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:11px">🔍 Ничего не найдено</div>';
-      return;
-    }
-    filteredParts.forEach(part => fragment.appendChild(createPartItem(part)));
-    container.innerHTML = "";
-    container.appendChild(fragment);
-    return;
-  }
-  const sortedModules = Array.from(moduleMap.keys()).sort((a, b) => {
-    if (a === "HARDWARE") return 1;
-    if (b === "HARDWARE") return -1;
-    const aPrefix = a.replace(/_\d+$/, "");
-    const bPrefix = b.replace(/_\d+$/, "");
-    if (aPrefix !== bPrefix) return aPrefix.localeCompare(bPrefix);
-    return parseInt(a.match(/\d+$/)?.[0] || "0") - parseInt(b.match(/\d+$/)?.[0] || "0");
-  });
-  // Track which modules are expanded (preserve state across re-renders)
-  if (!_expandedModules) _expandedModules = new Set();
-  sortedModules.forEach(moduleKey => {
-    const moduleParts = moduleMap.get(moduleKey);
-    if (!moduleParts) return;
-    const displayName = (moduleParts[0] && moduleParts[0].groupName) ? moduleParts[0].groupName : getModuleName(moduleKey === "HARDWARE" ? "D-000" : moduleKey + "_00");
-    const dotColor = moduleKey === "HARDWARE" ? "#94a3b8" : getModuleColor(moduleKey + "_00");
-    const scannedCount = moduleParts.filter(p => scannedSet.has(p.id)).length;
-    const isExpanded = _expandedModules.has(moduleKey);
-    const groupEl = document.createElement("div");
-    groupEl.className = "module-group";
-    groupEl.innerHTML = '<div class="module-header" data-module="' + moduleKey + '">' +
-      '<div class="module-dot" style="background:' + dotColor + '"></div>' +
-      '<span class="module-name">' + escapeHtml(displayName) + '</span>' +
-      '<span class="module-count">' + scannedCount + '/' + moduleParts.length + '</span>' +
-      '<span class="module-arrow' + (isExpanded ? ' open' : '') + '">▶</span>' +
-      '</div>' +
-      '<div class="module-parts' + (isExpanded ? '' : ' collapsed') + '" data-module-parts="' + moduleKey + '"></div>';
-    const headerEl = groupEl.querySelector(".module-header");
-    var isolateBtn = document.createElement("button");
-    isolateBtn.className = "module-isolate-btn";
-    isolateBtn.textContent = "\u2299";
-    isolateBtn.title = "Изолировать модуль";
-    isolateBtn.addEventListener("click", function(e) {
-      e.stopPropagation();
-      isolateModule(moduleKey);
-    });
-    var arrowEl = headerEl.querySelector(".module-arrow");
-    if (arrowEl) headerEl.insertBefore(isolateBtn, arrowEl);
-    const partsContainer = groupEl.querySelector(".module-parts");
-    headerEl.addEventListener("click", (e) => {
-      if (e.target.closest(".module-isolate-btn")) return;
-      const nowExpanded = !partsContainer.classList.contains("collapsed") ? false : true;
-      partsContainer.classList.toggle("collapsed");
-      headerEl.querySelector(".module-arrow").classList.toggle("open");
-      // Lazy render: only build part items on first expand
-      if (nowExpanded && !partsContainer.hasChildNodes()) {
-        const frag = document.createDocumentFragment();
-        moduleParts.forEach(part => frag.appendChild(createPartItem(part)));
-        partsContainer.appendChild(frag);
-      }
-      if (nowExpanded) _expandedModules.add(moduleKey);
-      else _expandedModules.delete(moduleKey);
-    });
-    var pressTimer = null;
-    headerEl.addEventListener("touchstart", () => {
-      pressTimer = setTimeout(() => isolateModule(moduleKey), 500);
-    }, { passive: true });
-    headerEl.addEventListener("touchend", () => clearTimeout(pressTimer), { passive: true });
-    headerEl.addEventListener("touchmove", () => clearTimeout(pressTimer), { passive: true });
-    // Only render parts for expanded modules
-    if (isExpanded) {
-      moduleParts.forEach(part => partsContainer.appendChild(createPartItem(part)));
-    }
-    fragment.appendChild(groupEl);
-  });
-  container.innerHTML = "";
-  container.appendChild(fragment);
-}
-var _expandedModules = null;
-function createPartItem(part) {
-  const isHidden = hiddenSet.has(part.id);
-  const isScanned = scannedSet.has(part.id);
-  const itemEl = document.createElement("div");
-  itemEl.className = "part-item " + (selectedId === part.id ? "active" : "");
-  itemEl.style.opacity = isHidden ? "0.4" : "1";
-  const displayId = idMode === "position" ? part.position || part.code || "—" : part.code || "—";
-  const moduleColor = getModuleColor(idMode === "position" ? part.position || part.code || "" : part.code || "");
-  itemEl.innerHTML = "\n      <div class=\"part-swatch\" style=\"background:" + getColor(part.material, part) + ";border-left:3px solid " + moduleColor + "\"></div>\n      <div class=\"part-info\">\n        <div class=\"part-name\">" + escapeHtml(part.name || "—") + "</div>\n        <div class=\"part-code\">" + escapeHtml(displayId) + "</div>\n        <div class=\"part-dims\">" + (part.gab ? part.gab.w + "×" + part.gab.h + "×" + part.gab.d + " мм" : "") + "</div>\n      </div>\n      <div class=\"check " + (isScanned ? "done" : "") + "\">" + (isScanned ? "✅" : "○") + "</div>\n    ";
-  itemEl.addEventListener("click", () => selectPart(part.id));
-  return itemEl;
-}
+// updateSummary handled by src/ui.js
+// updateStats handled by src/ui.js
+// renderPartsList, renderPartsListDeferred handled by src/ui.js
+// _doRenderPartsList, createPartItem handled by src/ui.js
 function showStats() {
   if (parts.length === 0) {
     showToast("📁 Сначала загрузите JSON");
@@ -1868,198 +1720,26 @@ function resetProgress() {
     showToast("🔄 Прогресс сброшен");
   }
 }
-function openDrawer() {
-  document.getElementById("drawer").classList.add("open");
-  document.getElementById("drawerBackdrop").style.display = "block";
-}
-function closeDrawer() {
-  document.getElementById("drawer").classList.remove("open");
-  document.getElementById("drawerBackdrop").style.display = "none";
-}
-function openSheet() {
-  document.getElementById("bottomSheet").classList.add("open");
-}
-function closeSheet() {
-  var bs = document.getElementById("bottomSheet");
-  bs.classList.remove("open");
-  bs.removeAttribute("data-state");
-  sheetCollapsed = false;
-}
-function escapeHtml(str) {
-  return (str || "").replace(/[&<>]/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;"
-  })[char]);
-}
-function showToast(message) {
-  let toastEl = document.getElementById("customToast");
-  if (!toastEl) {
-    toastEl = document.createElement("div");
-    toastEl.id = "customToast";
-    toastEl.className = "toast";
-    document.body.appendChild(toastEl);
-  }
-  toastEl.textContent = message;
-  toastEl.classList.add("show");
-  clearTimeout(toastEl._timer);
-  toastEl._timer = setTimeout(() => toastEl.classList.remove("show"), 2000);
-}
-document.getElementById("themeToggle").addEventListener("click", toggleTheme);
-document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("fileInput").click());
-document.getElementById("fileInput").addEventListener("change", changeEvent => {
-  const file = changeEvent.target.files[0];
-  if (!file) {
-    return;
-  }
-  document.getElementById("loadingOverlay").classList.add("show");
-  const reader = new FileReader();
-  reader.onload = loadEvent => {
-    try {
-      const jsonData = JSON.parse(loadEvent.target.result);
-      parts = jsonData.parts || jsonData;
-      fastenerData = jsonData.fasteners || [];
-      dimsData = jsonData.dims || [];
-      var loadedHoles = jsonData.holes || [];
-      window._loadedHoles = loadedHoles;
-      parts.forEach((part, index) => {
-        if (part.id === undefined) {
-          part.id = index;
-        }
-      });
-      autoLayout(parts);
-      // Yield to browser so loading overlay paints before heavy work
-      var loadText = document.querySelector('#loadingOverlay .load-text');
-      if (loadText) loadText.textContent = 'Построение 3D (' + parts.length + ' деталей)...';
-      setTimeout(function() {
-        buildScene();
-        selectedId = null;
-        loadProgress();
-        centerCamera();
-        closeDrawer();
-        updateStats();
-        showToast("✅ Загружено " + parts.length + " деталей");
-        if (dimsData.length) {
-          showToast("📐 " + dimsData.length + " размеров из БАЗИС");
-        }
-        document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
-        saveProgress();
-        document.getElementById("loadingOverlay").classList.remove("show");
-      }, 30);
-    } catch (err) {
-      showToast("❌ Ошибка файла: " + err.message);
-      document.getElementById("loadingOverlay").classList.remove("show");
-    }
-  };
-  reader.readAsText(file, "UTF-8");
-});
-document.getElementById("menuBtn").addEventListener("click", openDrawer);
-document.getElementById("drawerBackdrop").addEventListener("click", closeDrawer);
-document.getElementById("closeDrawerBtn").addEventListener("click", closeDrawer);
-document.getElementById("closeSheetBtn").addEventListener("click", closeSheet);
+// UI functions handled by src/ui.js
 
-// QR scanner wiring handled by src/qr.jsdocument.getElementById("hideBtn").addEventListener("click", () => {
-  if (selectedId !== null) { toggleVisibility(selectedId); }
-});
-document.getElementById("showAllBtn").addEventListener("click", showAllParts);
-document.getElementById("rotateBtn").addEventListener("click", () => {
-  autoRotate = !autoRotate;
-});
-document.getElementById("resetViewBtn").addEventListener("click", () => {
-  isSmoothZoom = false;
-  autoRotate = false;
-  centerCamera();
-});
-document.getElementById("focusBtn").addEventListener("click", () => {
-  if (selectedId !== null) {
-    startSmoothZoom(selectedId);
-  } else {
-    showToast("Сначала выберите деталь");
-  }
-});
-document.getElementById("xrayBtn").addEventListener("click", toggleXray);
-document.getElementById("explodeBtn").addEventListener("click", toggleExplode);
-document.getElementById("assembleBtn").addEventListener("click", toggleAssembly);
-document.getElementById("resetProgressBtn").addEventListener("click", resetProgress);
-document.getElementById("printBtn").addEventListener("click", printSpecification);
-document.getElementById("statsBtn").addEventListener("click", showStats);
-document.getElementById("csgBtn").addEventListener("click", toggleCSGVisibility);
-document.getElementById("dimsBtn").addEventListener("click", toggleDims);
-// QR close handled by wireQRListeners()
-document.getElementById("statsModal").addEventListener("click", function(e) { if (e.target === this) this.classList.add("hidden"); });
-// QR manual submit handled by wireQRListeners()
-document.getElementById("searchInput").addEventListener("input", renderPartsList);
-document.querySelectorAll(".id-mode-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    idMode = btn.dataset.mode;
-    localStorage.setItem("aivoIdMode", idMode);
-    document.querySelectorAll(".id-mode-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    buildModuleMap();
-    renderPartsList();
-  });
-});
-// Initialize ID-mode toggle active state
-document.querySelector('.id-mode-btn[data-mode="' + idMode + '"]')?.classList.add('active');
-document.getElementById("asmPrev").addEventListener("click", () => {
-  if (assemblyOrder.length === 0) {
-    return;
-  }
-  assemblyIndex = (assemblyIndex - 1 + assemblyOrder.length) % assemblyOrder.length;
-  updateAssemblyStep();
-});
-document.getElementById("asmNext").addEventListener("click", () => {
-  if (assemblyOrder.length === 0) {
-    return;
-  }
-  assemblyIndex = (assemblyIndex + 1) % assemblyOrder.length;
-  updateAssemblyStep();
-});
-document.getElementById("asmPlay").addEventListener("click", toggleAssemblyPlay);
-document.getElementById("asmClose").addEventListener("click", toggleAssembly);
-
-// === UX IMPROVEMENTS ===
-
-// 2.1 Drag-and-drop file upload
-(function() {
-  const canvas = document.getElementById('canvas3d');
-  const overlay = document.getElementById('dropOverlay');
-  let dragCounter = 0;
-
-  canvas.addEventListener('dragenter', function(e) {
-    e.preventDefault();
-    dragCounter++;
-    overlay.style.display = 'flex';
-  });
-  canvas.addEventListener('dragleave', function(e) {
-    e.preventDefault();
-    dragCounter--;
-    if (dragCounter <= 0) { dragCounter = 0; overlay.style.display = 'none'; }
-  });
-  canvas.addEventListener('dragover', function(e) { e.preventDefault(); });
-  canvas.addEventListener('drop', function(e) {
-    e.preventDefault();
-    dragCounter = 0;
-    overlay.style.display = 'none';
-    const file = e.dataTransfer.files[0];
-    if (!file || !file.name.endsWith('.json')) {
-      showToast('❌ Только JSON файлы');
-      return;
-    }
-    document.getElementById('loadingOverlay').classList.add('show');
-    const reader = new FileReader();
+// Event wiring handled by src/events.js
+initEvents({
+  toggleTheme, toggleVisibility, showAllParts, toggleXray, toggleExplode,
+  toggleCSGVisibility, toggleDims, resetProgress, showStats, printSpecification,
+  selectPart, buildModuleMap, centerCamera, handleFileLoad: function(file) {
+    document.getElementById("loadingOverlay").classList.add("show");
+    var reader = new FileReader();
     reader.onload = function(ev) {
       try {
-        const data = JSON.parse(ev.target.result);
+        var data = JSON.parse(ev.target.result);
         parts = data.parts || data;
         fastenerData = data.fasteners || [];
         dimsData = data.dims || [];
-        var loadedHoles = data.holes || [];
-        window._loadedHoles = loadedHoles;
+        window._loadedHoles = data.holes || [];
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
-        var loadText = document.querySelector('#loadingOverlay .load-text');
-        if (loadText) loadText.textContent = 'Построение 3D (' + parts.length + ' деталей)...';
+        var loadText = document.querySelector("#loadingOverlay .load-text");
+        if (loadText) loadText.textContent = "Построение 3D (" + parts.length + " деталей)...";
         setTimeout(function() {
           buildScene();
           selectedId = null;
@@ -2067,168 +1747,24 @@ document.getElementById("asmClose").addEventListener("click", toggleAssembly);
           centerCamera();
           closeDrawer();
           updateStats();
-          showToast('✅ Загружено ' + parts.length + ' деталей');
-          if (dimsData.length) showToast('📐 ' + dimsData.length + ' размеров из БАЗИС');
-          requestWakeLock();
-          document.getElementById('projectTitle').textContent = file.name.replace('.json', '');
+          showToast("✅ Загружено " + parts.length + " деталей");
+          if (dimsData.length) showToast("📐 " + dimsData.length + " размеров из БАЗИС");
+          document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
           saveProgress();
-          document.getElementById('loadingOverlay').classList.remove('show');
+          document.getElementById("loadingOverlay").classList.remove("show");
         }, 30);
-      } catch (err) {
-        showToast('❌ Ошибка файла: ' + err.message);
-        document.getElementById('loadingOverlay').classList.remove('show');
+      } catch(err) {
+        showToast("❌ Ошибка файла: " + err.message);
+        document.getElementById("loadingOverlay").classList.remove("show");
       }
     };
-    reader.readAsText(file, 'UTF-8');
-  });
-})();
-
-// 2.2 Keyboard shortcuts
-document.addEventListener('keydown', function(e) {
-  // Don't handle shortcuts when typing in inputs
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-  switch(e.key) {
-    case 'Escape':
-      closeDrawer();
-      closeSheet();
-      document.getElementById('scannerModal').classList.add('hidden');
-      document.getElementById('statsModal').classList.add('hidden');
-      document.getElementById('onboardingModal').classList.add('hidden');
-      break;
-    case 'r':
-    case 'R':
-      if (!e.ctrlKey && !e.metaKey) {
-        isSmoothZoom = false;
-        autoRotate = false;
-        centerCamera();
-        showToast('🎯 Вид сброшен');
-      }
-      break;
-    case 'x':
-    case 'X':
-      if (!e.ctrlKey && !e.metaKey) toggleXray();
-      break;
-    case 'e':
-    case 'E':
-      if (!e.ctrlKey && !e.metaKey) toggleExplode();
-      break;
-    case 'f':
-    case 'F':
-      if (!e.ctrlKey && !e.metaKey) {
-        if (selectedId !== null) { startSmoothZoom(selectedId); }
-        else { showToast('Сначала выберите деталь'); }
-      }
-      break;
-    case 'd':
-    case 'D':
-      if (!e.ctrlKey && !e.metaKey) toggleDims();
-      break;
-    case 'ArrowLeft':
-      if (assemblyMode && assemblyOrder.length > 0) {
-        e.preventDefault();
-        assemblyIndex = (assemblyIndex - 1 + assemblyOrder.length) % assemblyOrder.length;
-        updateAssemblyStep();
-      }
-      break;
-    case 'ArrowRight':
-      if (assemblyMode && assemblyOrder.length > 0) {
-        e.preventDefault();
-        assemblyIndex = (assemblyIndex + 1) % assemblyOrder.length;
-        updateAssemblyStep();
-      }
-      break;
-    case ' ':
-      if (assemblyMode) {
-        e.preventDefault();
-        toggleAssemblyPlay();
-      }
-      break;
-  }
+    reader.readAsText(file, "UTF-8");
+  },
+  assemblyMode: assemblyMode
 });
 
-// 2.3 Swipe navigation for assembly overlay
-(function() {
-  const overlay = document.getElementById('assemblyOverlay');
-  let touchStartX = 0;
-  let touchStartY = 0;
+// Drag-and-drop handled by initEvents
 
-  overlay.addEventListener('touchstart', function(e) {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-  }, { passive: true });
-
-  overlay.addEventListener('touchend', function(e) {
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-      if (dx < 0) {
-        // Swipe left -> next
-        assemblyIndex = (assemblyIndex + 1) % assemblyOrder.length;
-      } else {
-        // Swipe right -> prev
-        assemblyIndex = (assemblyIndex - 1 + assemblyOrder.length) % assemblyOrder.length;
-      }
-      updateAssemblyStep();
-    }
-  }, { passive: true });
-})();
-
-// End UX improvements
-
-
-// === Mobile sheet expand/collapse ===
-(function() {
-  var preview = document.getElementById('sheetPreview');
-  var bottomSheet = document.getElementById('bottomSheet');
-  if (!preview || !bottomSheet) return;
-  
-  // Click to expand
-  preview.addEventListener('click', function() {
-    if (sheetCollapsed) {
-      bottomSheet.removeAttribute('data-state');
-      sheetCollapsed = false;
-    }
-  });
-  
-  // Touch swipe up to expand
-  var touchStartY = 0;
-  preview.addEventListener('touchstart', function(e) {
-    touchStartY = e.touches[0].clientY;
-  }, { passive: true });
-  preview.addEventListener('touchend', function(e) {
-    var dy = e.changedTouches[0].clientY - touchStartY;
-    if (dy < -20 && sheetCollapsed) {
-      bottomSheet.removeAttribute('data-state');
-      sheetCollapsed = false;
-    }
-  }, { passive: true});
-  
-  // Swipe down on sheet header to collapse (mobile only)
-  var handle = bottomSheet.querySelector('.sheet-handle');
-  if (handle) {
-    var handleStartY = 0;
-    handle.addEventListener('touchstart', function(e) {
-      handleStartY = e.touches[0].clientY;
-    }, { passive: true });
-    handle.addEventListener('touchend', function(e) {
-      var dy = e.changedTouches[0].clientY - handleStartY;
-      if (dy > 30 && isMobileSheet() && !sheetCollapsed) {
-        bottomSheet.setAttribute('data-state', 'collapsed');
-        sheetCollapsed = true;
-      }
-    }, { passive: true });
-  }
-})();
-
-
-// === Block Mode Toggle ===
-function toggleBlockMode() {
-  blockMode = !blockMode;
-  var btn = document.getElementById("blockModeBtn");
-  if (btn) btn.classList.toggle("active", blockMode);
-  showToast(blockMode ? "Режим блоков: ВКЛ" : "Режим блоков: ВЫКЛ");
-}
 
 function animate() {
   requestAnimationFrame(animate);
@@ -2272,10 +1808,6 @@ updateStats();
 document.getElementById("isolationExitBtn").addEventListener("click", exitIsolation);
 document.getElementById("isolationExplodeBtn").addEventListener("click", explodeIsolatedModule);
 
-
-// Block mode toggle
-var blockModeBtnEl = document.getElementById("blockModeBtn");
-if (blockModeBtnEl) blockModeBtnEl.addEventListener("click", toggleBlockMode);
 
 // Auth & onboarding handled by src/auth.js
 initAuth();
