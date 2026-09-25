@@ -157,3 +157,38 @@ export function setColorIdx(v) { colorIdx = v; }
 
 // Detail meshes
 export const detailMeshes = new Map();
+
+// Hole / pocket meshes
+export const holeMeshes = [];
+export const pocketMeshes = [];
+
+// Module helpers (moved here to break circular dep with ui.js ←→ app.js)
+export function getModulePrefix(partCode) {
+  if (!partCode) return 'OTHER';
+  const m = partCode.match(/^([A-Z]+\d*_\d+)/);
+  return m ? m[1] : 'OTHER';
+}
+export function getModuleKey(code) {
+  const prefix = getModulePrefix(code);
+  if (prefix === 'OTHER') return 'OTHER';
+  if (prefix.startsWith('D-')) return 'HARDWARE';
+  const m = prefix.match(/^([A-Z]+\d*_\d+)/);
+  return m ? m[1] : prefix;
+}
+export function getModuleColor(materialName) {
+  const moduleKey = getModuleKey(materialName);
+  if (moduleKey === 'HARDWARE') return '#94a3b8';
+  if (moduleKey === 'OTHER') return '#6b7280';
+  if (colorCache.has(moduleKey)) return colorCache.get(moduleKey);
+  const assigned = MODULE_COLORS[colorIdx % MODULE_COLORS.length];
+  colorIdx++;
+  colorCache.set(moduleKey, assigned);
+  return assigned;
+}
+export function getModuleName(partCodeForName, groupName) {
+  if (groupName) return groupName;
+  const k = getModuleKey(partCodeForName);
+  if (k === 'HARDWARE') return 'Фурнитура';
+  if (k === 'OTHER') return 'Прочее';
+  return k;
+}

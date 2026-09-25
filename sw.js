@@ -1,10 +1,8 @@
-const CACHE_NAME = 'aivo-scan-v8';
+const CACHE_NAME = 'aivo-scan-v9';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/app.html',
-  '/app.js',
-  '/styles.css',
   '/manifest.json',
   '/favicon.svg',
   '/logo.svg',

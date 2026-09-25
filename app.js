@@ -164,7 +164,7 @@ function initThree() {
   _renderer.shadowMap.type = deviceQuality === 'low' ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
   _renderer.toneMapping = deviceQuality === 'low' ? THREE.LinearToneMapping : THREE.ACESFilmicToneMapping;
   _renderer.toneMappingExposure = 1.15;
-  _renderer.outputEncoding = THREE.sRGBEncoding;
+  _renderer.outputColorSpace = THREE.SRGBColorSpace;
   setRenderer(_renderer);
   initMaterials(deviceQuality, _renderer);
   const _scene = new THREE.Scene();
@@ -250,7 +250,7 @@ function initThree() {
 function autoLayout(partsArr) {
   var hasPlacement = false;
   partsArr.forEach(function(p) {
-    if (p.placement && p.placement.origin) hasPlacement = true;
+    if (p.placement && p.placement.origin && typeof p.placement.origin.x === 'number') hasPlacement = true;
   });
 
   const scaleFactor = 0.001;
@@ -282,8 +282,8 @@ function autoLayout(partsArr) {
       p._quat = null; // v3 без поворота
     } else {
       var gridSize = Math.ceil(Math.sqrt(partsArr.length));
-      var row = Math.floor(p.id / gridSize);
-      var col = p.id % gridSize;
+      var row = Math.floor((p.id || 0) / gridSize);
+      var col = (p.id || 0) % gridSize;
       p._pos = { x: (col - gridSize / 2) * 0.15, y: 0, z: (row - gridSize / 2) * 0.15 };
       p._quat = null;
     }
@@ -736,6 +736,8 @@ function buildScene() {
   detailMeshes.clear();
   originalPositions.clear();
   parts.forEach(part => {
+    try {
+    if (!part._pos) return; // skip parts without layout
     var shapeW = Math.max(part.L || 100, 1) * sc;
     var shapeH = Math.max(part.W || 100, 1) * sc;
     var panelT = Math.max(part.T || 16, 1) * sc;
@@ -906,6 +908,9 @@ function buildScene() {
     var details = buildPartDetails(part, panelMesh);
     if (details.length) {
       detailMeshes.set(part.id, details);
+    }
+    } catch(partErr) {
+      console.warn("Skipping part " + (part.id || '?') + " (" + (part.code || '?') + "): " + partErr.message);
     }
   });
   centerCamera();
@@ -1647,11 +1652,23 @@ initEvents({
   toggleCSGVisibility, toggleDims, resetProgress, showStats, printSpecification,
   selectPart, buildModuleMap, centerCamera, handleFileLoad: function(file) {
     document.getElementById("loadingOverlay").classList.add("show");
+    // Safety timeout — force-hide overlay if something hangs
+    var _loadSafetyTimer = setTimeout(function() {
+      document.getElementById("loadingOverlay").classList.remove("show");
+      showToast("❌ Превышено время загрузки");
+    }, 15000);
     var reader = new FileReader();
     reader.onload = function(ev) {
       try {
         var data = JSON.parse(ev.target.result);
-        setParts(data.parts || data);
+        var loadedParts = data.parts || data;
+        if (!Array.isArray(loadedParts) || loadedParts.length === 0) {
+          clearTimeout(_loadSafetyTimer);
+          showToast("❌ Неверный формат JSON — массив деталей пуст");
+          document.getElementById("loadingOverlay").classList.remove("show");
+          return;
+        }
+        setParts(loadedParts);
         setFastenerData(data.fasteners || []);
         setDimsData(data.dims || []);
         window._loadedHoles = data.holes || [];
@@ -1660,22 +1677,34 @@ initEvents({
         var loadText = document.querySelector("#loadingOverlay .load-text");
         if (loadText) loadText.textContent = "Построение 3D (" + parts.length + " деталей)...";
         setTimeout(function() {
-          buildScene();
-          setSelectedId(null);
-          loadProgress();
-          centerCamera();
-          closeDrawer();
-          updateStats();
-          showToast("✅ Загружено " + parts.length + " деталей");
-          if (dimsData.length) showToast("📐 " + dimsData.length + " размеров из БАЗИС");
-          document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
-          saveProgress();
+          try {
+            buildScene();
+            setSelectedId(null);
+            loadProgress();
+            centerCamera();
+            closeDrawer();
+            updateStats();
+            showToast("✅ Загружено " + parts.length + " деталей");
+            if (dimsData.length) showToast("📐 " + dimsData.length + " размеров из БАЗИС");
+            document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
+            saveProgress();
+          } catch(buildErr) {
+            console.error("3D build error:", buildErr);
+            showToast("❌ Ошибка 3D: " + buildErr.message);
+          }
+          clearTimeout(_loadSafetyTimer);
           document.getElementById("loadingOverlay").classList.remove("show");
         }, 30);
       } catch(err) {
+        clearTimeout(_loadSafetyTimer);
         showToast("❌ Ошибка файла: " + err.message);
         document.getElementById("loadingOverlay").classList.remove("show");
       }
+    };
+    reader.onerror = function() {
+      clearTimeout(_loadSafetyTimer);
+      showToast("❌ Не удалось прочитать файл");
+      document.getElementById("loadingOverlay").classList.remove("show");
     };
     reader.readAsText(file, "UTF-8");
   },

@@ -10,7 +10,7 @@ import {
   setXrayActive, setExplodeActive, setExplodeModuleKey,
   setAutoRotate, setBlockMode, setDimsVisible
 } from './state.js';
-import { getModuleKey, getModuleName, getModuleColor } from '../app.js';
+import { getModuleKey, getModuleName, getModuleColor } from './state.js';
 import { classifyMaterial } from './materials.js';
 
 // Dependencies injected via initUI()
