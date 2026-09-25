@@ -109,6 +109,8 @@ const CONFIG = {
   if (cores <= 2 || mem <= 2) setDeviceQuality('low');
   else if (isMobile || cores <= 4 || mem <= 4 || pixels > 3000000) setDeviceQuality('medium');
 })();
+// Auth — MUST run before any Three.js code so login works even if 3D fails
+initAuth();
 // Pre-allocated temp vectors for explode animation (avoids GC pressure per frame)
 const _tmpCenter = new THREE.Vector3();
 const _tmpDir = new THREE.Vector3();
@@ -1756,9 +1758,6 @@ updateStats();
 document.getElementById("isolationExitBtn").addEventListener("click", exitIsolation);
 document.getElementById("isolationExplodeBtn").addEventListener("click", explodeIsolatedModule);
 
-
-// Auth & onboarding handled by src/auth.js
-initAuth();
 
 // Camera controls — wire dependencies
 initCamera({
