@@ -9,7 +9,7 @@ import {
   assemblyMode
 } from './state.js';
 import { renderPartsList, showToast, closeDrawer, closeSheet, openDrawer } from './ui.js';
-import { startSmoothZoom, updateCamera } from './camera.js';
+import { startSmoothZoom } from './camera.js';
 import { toggleAssembly, toggleAssemblyPlay, updateAssemblyStep } from './assembly.js';
 
 export function initEvents(deps) {

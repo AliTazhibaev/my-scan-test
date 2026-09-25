@@ -1,28 +1,14 @@
 import {
   init as initMaterials,
-  createWoodTexture,
-  woodTextureCache,
-  TEX_BASE,
-  EGGER_DB,
-  WOOD_KEYWORDS,
-  SOLID_KEYWORDS,
-  MATERIAL_KEYWORDS,
-  MANUFACTURER_MAP,
-  classifyMaterial,
-  findBestWoodTexture,
-  guessColor,
-  _realTexCache,
-  loadRealTexture,
   createPartMaterial
 } from './src/materials.js';
 import { handleLogin, initAuth } from './src/auth.js';
 import { initQR, wireQRListeners } from './src/qr.js';
 import {
   initCamera, setupCameraControls, updateCamera,
-  startSmoothZoom, animateSmoothZoom,
-  deselectPart, handleRaycast as cameraHandleRaycast
+  startSmoothZoom, animateSmoothZoom
 } from './src/camera.js';
-import { initAssembly, toggleAssembly, toggleAssemblyPlay, stopAssemblyPlay, updateAssemblyStep } from './src/assembly.js';
+import { initAssembly } from './src/assembly.js';
 import {
   initUI, showToast, escapeHtml, updateStats, updateSummary,
   renderPartsList, renderPartsListDeferred, openSheet, closeSheet,
@@ -168,6 +154,7 @@ function initThree() {
   _renderer.toneMapping = THREE.NoToneMapping; // Simpler pipeline, correct with sRGB textures
   _renderer.outputColorSpace = THREE.SRGBColorSpace;
   setRenderer(_renderer);
+  window.renderer = _renderer;
   initMaterials(deviceQuality, _renderer);
   const _scene = new THREE.Scene();
   _scene.background = new THREE.Color(isDarkTheme ? 0x141416 : 0xf0f0f2);
