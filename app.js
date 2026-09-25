@@ -1812,6 +1812,12 @@ function init3D() {
     initThree();
   } catch(e) {
     console.error('3D initialization failed:', e);
+    // Show error on screen so user can report it
+    var overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+      overlay.innerHTML = '<div style="text-align:center;color:#ff6b6b;padding:20px;max-width:500px"><div style="font-size:32px;margin-bottom:12px">⚠️</div><div style="font-size:16px;font-weight:700;margin-bottom:8px">Ошибка 3D</div><div style="font-size:13px;color:#aaa;margin-bottom:16px;word-break:break-all">' + (e.message || e) + '</div><div style="font-size:11px;color:#666">Обновите страницу (Ctrl+Shift+R)</div></div>';
+      overlay.classList.add('show');
+    }
   }
   updateStats();
 }
