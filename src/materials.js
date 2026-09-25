@@ -17,9 +17,24 @@ export function init(quality, r) {
 
 // === WOOD TEXTURE GENERATOR ===
 export const woodTextureCache = new Map();
-export function createWoodTexture(baseColor, scale) {
-  const key = baseColor + '_' + (scale || 1);
+// Seeded PRNG for deterministic wood grain per material name
+function _seededRandom(seed) {
+  var s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xFFFFFFFF;
+    return (s >>> 0) / 0xFFFFFFFF;
+  };
+}
+function _hashStr(str) {
+  var h = 0;
+  for (var i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+export function createWoodTexture(baseColor, scale, materialName) {
+  var key = (materialName || baseColor) + '_' + (scale || 1);
   if (woodTextureCache.has(key)) return woodTextureCache.get(key);
+  var rng = _seededRandom(_hashStr(key));
   var size = _quality === 'low' ? 64 : _quality === 'medium' ? 128 : 256;
   const canvas2d = document.createElement('canvas');
   canvas2d.width = size; canvas2d.height = size;
@@ -32,13 +47,13 @@ export function createWoodTexture(baseColor, scale) {
   tmp.fillStyle = baseColor; tmp.fillRect(0, 0, 1, 1);
   const rgb = tmp.getImageData(0, 0, 1, 1).data;
   const r0 = rgb[0], g0 = rgb[1], b0 = rgb[2];
-  // Wood grain lines — more visible (0.25 alpha instead of 0.08)
+  // Wood grain lines
   ctx.globalAlpha = 0.25;
   var grainCount = _quality === 'low' ? 20 : _quality === 'medium' ? 40 : 80;
   for (let i = 0; i < grainCount; i++) {
-    const y = Math.random() * size;
-    const w = 1 + Math.random() * 3;
-    const drift = Math.random() * 20 - 10;
+    const y = rng() * size;
+    const w = 1 + rng() * 3;
+    const drift = rng() * 20 - 10;
     ctx.strokeStyle = i % 3 === 0
       ? `rgba(${Math.max(0, r0 - 30)},${Math.max(0, g0 - 30)},${Math.max(0, b0 - 20)},0.5)`
       : `rgba(${Math.min(255, r0 + 20)},${Math.min(255, g0 + 15)},${Math.min(255, b0 + 10)},0.3)`;
@@ -54,7 +69,7 @@ export function createWoodTexture(baseColor, scale) {
   // Noise overlay
   const imgData = ctx.getImageData(0, 0, size, size);
   for (let i = 0; i < imgData.data.length; i += 4) {
-    const n = (Math.random() - 0.5) * 8;
+    const n = (rng() - 0.5) * 8;
     imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + n));
     imgData.data[i + 1] = Math.max(0, Math.min(255, imgData.data[i + 1] + n));
     imgData.data[i + 2] = Math.max(0, Math.min(255, imgData.data[i + 2] + n));
@@ -194,15 +209,15 @@ export function classifyMaterial(matName) {
     }
   }
 
-  // 2. Ключевые слова
-  for (var w = 0; w < WOOD_KEYWORDS.length; w++) {
-    if (name.indexOf(WOOD_KEYWORDS[w]) >= 0) {
-      return { cat: 'wood', tex: findBestWoodTexture(name), color: ci.color, smooth: false };
-    }
-  }
+  // 2. Ключевые слова — SOLID FIRST (ЛДСП/МДФ — гладкие, без текстуры, даже если в имени "дуб")
   for (var s = 0; s < SOLID_KEYWORDS.length; s++) {
     if (name.indexOf(SOLID_KEYWORDS[s]) >= 0) {
       return { cat: 'solid', tex: null, color: ci.color, smooth: ci.smooth };
+    }
+  }
+  for (var w = 0; w < WOOD_KEYWORDS.length; w++) {
+    if (name.indexOf(WOOD_KEYWORDS[w]) >= 0) {
+      return { cat: 'wood', tex: findBestWoodTexture(name), color: ci.color, smooth: false };
     }
   }
   for (var m = 0; m < MATERIAL_KEYWORDS.length; m++) {
@@ -319,8 +334,20 @@ export function guessColorInfo(name) {
   if (n.match(/шифер|slate/)) return { color: '#606068', smooth: false };
   if (n.match(/ферро|ferro|ржавч|rust/)) return { color: '#8a5830', smooth: false };
 
-  // === ЛДСП / МДФ / HDF — гладкие, по цвету ===
-  if (n.match(/ЛДСП|лдсп|ЛМДФ|лмдф|ДСП|дсп|мдф|МДФ|HDF|hdf|ламинир|laminate|пластик|plastic|акрил|acrylic/)) return { color: '#c0b090', smooth: true };
+  // === ЛДСП / МДФ / HDF — гладкие, но с правильным цветом ===
+  // Проверяем цветовые ключевые слова ПЕРЕД generic "лдсп"
+  if (n.match(/белый|white|альпийск|полярн|арктик/)) { /* fall through to white check above */ }
+  else if (n.match(/чёрный|черный|black/)) { /* fall through */ }
+  else if (n.match(/серый|grey|gray|графит|антрацит/)) { /* fall through */ }
+  else if (n.match(/ЛДСП|лдсп|ЛМДФ|лмдф|ДСП|дсп|мдф|МДФ|HDF|hdf|ламинир|laminate|пластик|plastic|акрил|acrylic/)) {
+    // Генерируем уникальный цвет на основе хеша имени
+    var hash = 0;
+    for (var hi = 0; hi < n.length; hi++) hash = ((hash << 5) - hash + n.charCodeAt(hi)) | 0;
+    var hue = Math.abs(hash) % 360;
+    var sat = 15 + (Math.abs(hash >> 8) % 25); // 15-40%
+    var lit = 45 + (Math.abs(hash >> 16) % 25); // 45-70%
+    return { color: 'hsl(' + hue + ',' + sat + '%,' + lit + '%)', smooth: true };
+  }
 
   // === ДРЕВЕСНЫЕ — с текстурой ===
   if (n.match(/венге|wenge/)) return { color: '#3b2a1c', smooth: false };
@@ -450,7 +477,7 @@ export function createPartMaterial(partData) {
   if (info.tex) {
     // Сначала ставим процедурную текстуру как fallback
     if (info.cat === 'wood') {
-      var wt = createWoodTexture(baseColor, 4);
+      var wt = createWoodTexture(baseColor, 4, matName);
       applyTexRotation(wt);
       mat.map = wt;
     }
@@ -463,7 +490,7 @@ export function createPartMaterial(partData) {
       }
     });
   } else if (info.cat === 'wood') {
-    var pt = createWoodTexture(baseColor, 4);
+    var pt = createWoodTexture(baseColor, 4, matName);
     applyTexRotation(pt);
     mat.map = pt;
   }
