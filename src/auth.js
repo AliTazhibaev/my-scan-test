@@ -171,6 +171,15 @@ export function initAuth() {
     });
   }
 
+  var onboardSkip = document.getElementById('onboardSkip');
+  if (onboardSkip) {
+    onboardSkip.addEventListener('click', () => {
+      localStorage.setItem('aivoOnboarded', '1');
+      document.getElementById('onboardingModal').classList.add('hidden');
+      onboardStep = 0;
+    });
+  }
+
   auth.onAuthStateChanged(authUser => {
     if (authUser) {
       currentUser = authUser;

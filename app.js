@@ -139,7 +139,23 @@ function applyTheme() {
   }
 }
 const canvas = document.getElementById("canvas3d");
+function checkWebGL() {
+  try {
+    var testCanvas = document.createElement('canvas');
+    return !!(testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl'));
+  } catch(e) { return false; }
+}
 function initThree() {
+  if (!checkWebGL()) {
+    var overlay = document.getElementById("loadingOverlay");
+    if (overlay) {
+      overlay.classList.add("show");
+      overlay.querySelector(".load-text").textContent = "WebGL не поддерживается";
+      overlay.querySelector(".spinner").style.display = "none";
+    }
+    showToast("❌ Ваш браузер не поддерживает WebGL");
+    return;
+  }
   const _renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     antialias: true,
@@ -818,6 +834,8 @@ async function buildSceneAsync() {
         panelMesh.userData = { partId: part.id };
         panelMesh.castShadow = false;
         panelMesh.receiveShadow = false;
+        panelMesh.material.transparent = false;
+        panelMesh.material.opacity = 1;
         scene.add(panelMesh);
         originalPositions.set(part.id, panelMesh.position.clone());
         meshMap.set(part.id, panelMesh);
@@ -872,6 +890,8 @@ async function buildSceneAsync() {
       panelMesh.userData = { partId: part.id };
       panelMesh.castShadow = false;
       panelMesh.receiveShadow = false;
+      panelMesh.material.transparent = false;
+      panelMesh.material.opacity = 1;
       scene.add(panelMesh);
       originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
       meshMap.set(part.id, panelMesh);
@@ -918,6 +938,8 @@ async function buildSceneAsync() {
     panelMesh.userData = { partId: part.id };
     panelMesh.castShadow = false;
     panelMesh.receiveShadow = false;
+    panelMesh.material.transparent = false;
+    panelMesh.material.opacity = 1;
     scene.add(panelMesh);
     // Wireframe edges — skip for large models (DetalQR pattern)
     originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
@@ -942,6 +964,8 @@ async function buildSceneAsync() {
     // Yield to browser every 50 parts to prevent UI freeze
     if ((_pi + 1) % 50 === 0 && _pi + 1 < _totalParts) {
       if (_loadText) _loadText.textContent = "Построение 3D (" + (_pi + 1) + "/" + _totalParts + ")...";
+      var _loadProg = document.getElementById("loadProgressFill");
+      if (_loadProg) _loadProg.style.width = Math.round(20 + ((_pi + 1) / _totalParts) * 75) + "%";
       await new Promise(function(r) { requestAnimationFrame(r); });
     }
   }
@@ -1704,9 +1728,13 @@ initEvents({
       return;
     }
     document.getElementById("loadingOverlay").classList.add("show");
+    var loadText = document.querySelector("#loadingOverlay .load-text");
+    var progressFill = document.getElementById("loadProgressFill");
+    if (progressFill) { progressFill.classList.remove("indeterminate"); progressFill.style.width = "0%"; }
     // Safety timeout — force-hide overlay if something hangs
     var _loadSafetyTimer = setTimeout(function() {
       document.getElementById("loadingOverlay").classList.remove("show");
+      if (progressFill) progressFill.classList.add("indeterminate");
       showToast("❌ Превышено время загрузки");
     }, 15000);
     var reader = new FileReader();
@@ -1718,6 +1746,7 @@ initEvents({
           clearTimeout(_loadSafetyTimer);
           showToast("❌ Неверный формат JSON — массив деталей пуст");
           document.getElementById("loadingOverlay").classList.remove("show");
+          if (progressFill) progressFill.classList.add("indeterminate");
           return;
         }
         setParts(loadedParts);
@@ -1725,9 +1754,11 @@ initEvents({
         setDimsData(data.dims || []);
         window._loadedHoles = data.holes || [];
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
+        if (loadText) loadText.textContent = "Подготовка данных...";
+        if (progressFill) progressFill.style.width = "10%";
         autoLayout(parts);
-        var loadText = document.querySelector("#loadingOverlay .load-text");
         if (loadText) loadText.textContent = "Построение 3D (" + parts.length + " деталей)...";
+        if (progressFill) progressFill.style.width = "20%";
         setTimeout(function() {
           buildSceneAsync().then(function() {
             setSelectedId(null);
@@ -1736,26 +1767,34 @@ initEvents({
             centerCamera();
             closeDrawer();
             updateStats();
+            if (progressFill) progressFill.style.width = "100%";
             showToast("✅ Загружено " + parts.length + " деталей");
             if (dimsData.length) showToast("📐 " + dimsData.length + " размеров из БАЗИС");
             saveProgress();
           }).catch(function(buildErr) {
-            console.error("3D build error:", buildErr);
             showToast("❌ Ошибка 3D: " + buildErr.message);
+            if (loadText) {
+              loadText.innerHTML = '<div class="error-container"><div class="error-icon">⚠️</div><div class="error-message">Ошибка построения 3D</div><div class="error-detail">' + escapeHtml(buildErr.message) + '</div><button class="retry-btn" onclick="this.closest(\'#loadingOverlay\').classList.remove(\'show\')">🔄 Попробовать снова</button></div>';
+            }
           }).finally(function() {
             clearTimeout(_loadSafetyTimer);
+            if (progressFill) progressFill.classList.add("indeterminate");
             document.getElementById("loadingOverlay").classList.remove("show");
           });
         }, 30);
       } catch(err) {
         clearTimeout(_loadSafetyTimer);
         showToast("❌ Ошибка файла: " + err.message);
+        var progressFill2 = document.getElementById("loadProgressFill");
+        if (progressFill2) progressFill2.classList.add("indeterminate");
         document.getElementById("loadingOverlay").classList.remove("show");
       }
     };
     reader.onerror = function() {
       clearTimeout(_loadSafetyTimer);
       showToast("❌ Не удалось прочитать файл");
+      var progressFill3 = document.getElementById("loadProgressFill");
+      if (progressFill3) progressFill3.classList.add("indeterminate");
       document.getElementById("loadingOverlay").classList.remove("show");
     };
     reader.readAsText(file, "UTF-8");
@@ -1812,7 +1851,12 @@ function init3D() {
     initThree();
     if (renderer && scene && camera) renderer.render(scene, camera);
   } catch(e) {
-    console.error('3D init failed:', e);
+    var overlay = document.getElementById("loadingOverlay");
+    if (overlay) {
+      overlay.classList.add("show");
+      overlay.querySelector(".spinner").style.display = "none";
+      overlay.querySelector(".load-text").innerHTML = '<div class="error-container"><div class="error-icon">🖥️</div><div class="error-message">Ошибка инициализации 3D</div><div class="error-detail">' + escapeHtml(e.message) + '</div><button class="retry-btn" onclick="this.closest(\'#loadingOverlay\').classList.remove(\'show\');location.reload()">🔄 Перезагрузить</button></div>';
+    }
   }
   updateStats();
 }

@@ -431,7 +431,9 @@ export function createPartMaterial(partData) {
     roughness: isSmooth ? 0.85 : (info.cat === 'material' ? 0.6 : 0.78),
     metalness: isSmooth ? 0 : (info.cat === 'material' ? 0.15 : 0.02),
     emissive: new THREE.Color(0),
-    emissiveIntensity: 0
+    emissiveIntensity: 0,
+    transparent: false,
+    opacity: 1
   };
 
   // Гладкие — сразу возвращаем без текстуры

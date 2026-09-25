@@ -84,7 +84,7 @@ export function updateAssemblyStep() {
       if (prevAsmMesh) {
         prevAsmMesh.material.emissive.setHex(0);
         prevAsmMesh.material.emissiveIntensity = 0;
-        prevAsmMesh.material.transparent = false;
+        prevAsmMesh.material.transparent = true;
         prevAsmMesh.material.opacity = 0.15;
         prevAsmMesh.material.needsUpdate = true;
       }
@@ -92,6 +92,7 @@ export function updateAssemblyStep() {
         prevAsmEdge.visible = true;
         prevAsmEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
         prevAsmEdge.material.opacity = 0.15;
+        prevAsmEdge.material.transparent = true;
         prevAsmEdge.material.needsUpdate = true;
       }
     }
@@ -100,7 +101,7 @@ export function updateAssemblyStep() {
     meshMap.forEach(asmMesh => {
       asmMesh.material.emissive.setHex(0);
       asmMesh.material.emissiveIntensity = 0;
-      asmMesh.material.transparent = false;
+      asmMesh.material.transparent = true;
       asmMesh.material.opacity = 0.15;
       asmMesh.material.needsUpdate = true;
     });
@@ -108,6 +109,7 @@ export function updateAssemblyStep() {
       asmEdge.visible = true;
       asmEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
       asmEdge.material.opacity = 0.15;
+      asmEdge.material.transparent = true;
       asmEdge.material.needsUpdate = true;
     });
   }
@@ -125,6 +127,9 @@ export function updateAssemblyStep() {
   if (highlightEdge) {
     highlightEdge.visible = true;
     highlightEdge.material.color.setHex(0x00D4AA);
+    highlightEdge.material.opacity = 0.8;
+    highlightEdge.material.transparent = true;
+    highlightEdge.material.needsUpdate = true;
   }
   if (_startSmoothZoom) _startSmoothZoom(currentPart.id);
   if (_updateSheet) _updateSheet(currentPart);

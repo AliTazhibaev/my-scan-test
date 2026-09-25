@@ -140,6 +140,9 @@
   <div style="text-align:center">
     <div class="spinner"></div>
     <div class="load-text">Загрузка...</div>
+    <div class="load-progress-bar">
+      <div class="load-progress-fill indeterminate" id="loadProgressFill"></div>
+    </div>
   </div>
 </div>
 
@@ -291,7 +294,10 @@
       <div class="onboard-dot" style="width:8px;height:8px;border-radius:50%;background:var(--bg-tertiary);transition:all 0.2s"></div>
       <div class="onboard-dot" style="width:8px;height:8px;border-radius:50%;background:var(--bg-tertiary);transition:all 0.2s"></div>
     </div>
-    <button class="modal-btn" id="onboardNext" style="width:100%">Далее</button>
+    <div style="display:flex;gap:8px">
+      <button class="modal-btn secondary" id="onboardSkip" style="width:auto;flex:0 0 auto;padding:11px 20px;font-size:12px">Пропустить</button>
+      <button class="modal-btn" id="onboardNext" style="flex:1">Далее</button>
+    </div>
   </div>
 </div>
 

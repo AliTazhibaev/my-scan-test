@@ -35,6 +35,30 @@ export function initEvents(deps) {
       }
     });
   }
+  // Swipe down on handle to collapse bottom sheet
+  var sheetHandle = document.querySelector('.sheet-handle');
+  if (sheetHandle) {
+    var sheetSwipeStartY = 0;
+    var sheetSwiping = false;
+    sheetHandle.addEventListener('touchstart', function(e) {
+      sheetSwipeStartY = e.touches[0].clientY;
+      sheetSwiping = true;
+    }, { passive: true });
+    sheetHandle.addEventListener('touchmove', function(e) {
+      if (!sheetSwiping) return;
+      var dy = e.touches[0].clientY - sheetSwipeStartY;
+      if (dy > 40) {
+        var bottomSheet = document.getElementById('bottomSheet');
+        if (window.innerWidth <= 600) {
+          bottomSheet.setAttribute('data-state', 'collapsed');
+        } else {
+          closeSheet();
+        }
+        sheetSwiping = false;
+      }
+    }, { passive: true });
+    sheetHandle.addEventListener('touchend', function() { sheetSwiping = false; }, { passive: true });
+  }
   document.getElementById('hideBtn').addEventListener('click', () => {
     if (selectedId !== null) toggleVisibility(selectedId);
   });
@@ -60,6 +84,10 @@ export function initEvents(deps) {
   document.getElementById('dimsBtn').addEventListener('click', toggleDims);
   document.getElementById('statsModal').addEventListener('click', function(e) { if (e.target === this) this.classList.add('hidden'); });
   document.getElementById('searchInput').addEventListener('input', renderPartsList);
+  // Dismiss mobile keyboard on Enter
+  document.getElementById('searchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { this.blur(); }
+  });
 
   // === ID Mode Toggle ===
   document.querySelectorAll('.id-mode-btn').forEach(btn => {
@@ -145,7 +173,11 @@ export function initEvents(deps) {
         closeDrawer(); closeSheet();
         document.getElementById('scannerModal').classList.add('hidden');
         document.getElementById('statsModal').classList.add('hidden');
-        document.getElementById('onboardingModal').classList.add('hidden');
+        var onbModal = document.getElementById('onboardingModal');
+        if (!onbModal.classList.contains('hidden')) {
+          localStorage.setItem('aivoOnboarded', '1');
+          onbModal.classList.add('hidden');
+        }
         break;
       case 'r': case 'R':
         if (!e.ctrlKey && !e.metaKey) { setIsSmoothZoom(false); setAutoRotate(false); centerCamera(); showToast('🎯 Вид сброшен'); }
