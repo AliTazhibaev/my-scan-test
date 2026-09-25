@@ -29,18 +29,52 @@ import {
   openDrawer, closeDrawer, isMobileSheet
 } from './src/ui.js';
 import { initEvents } from './src/events.js';
+import {
+  // state values
+  parts, selectedId, scannedSet, hiddenSet, idMode,
+  meshMap, edgeLineMap, originalPositions, moduleMap,
+  isDarkTheme, needsRender, blockMode,
+  xrayActive, explodeActive, explodeProgress, explodeModuleKey,
+  isolatedModule, csgEnabled, autoRotate,
+  theta, phi, camDist,
+  isDragging, prevMouse, isSmoothZoom,
+  targetPosition, zoomTarget,
+  assemblyMode, assemblyIndex, assemblyPrevIndex,
+  assemblyOrder, assemblyPlaying, assemblyTimer,
+  fastenerData, dimsData, dimGroup, dimsVisible, fastenerMeshes,
+  scene, camera, renderer, floor, wall,
+  wakeLock, layoutMinY,
+  MODULE_COLORS, colorCache, colorIdx,
+  detailMeshes, holeMeshes, pocketMeshes,
+  deviceQuality,
+  getModulePrefix, getModuleKey, getModuleColor, getModuleName,
+  // setters
+  setParts, setSelectedId, setIdMode,
+  setIsDarkTheme, setNeedsRender, setBlockMode,
+  setXrayActive, setExplodeActive, setExplodeProgress, setExplodeModuleKey,
+  setIsolatedModule, setCsgEnabled, setAutoRotate,
+  setTheta, setPhi, setCamDist,
+  setIsDragging, setPrevMouse, setIsSmoothZoom,
+  setTargetPosition, setZoomTarget,
+  setAssemblyMode, setAssemblyIndex, setAssemblyPrevIndex,
+  setAssemblyOrder, setAssemblyPlaying, setAssemblyTimer,
+  setFastenerData, setDimsData, setDimGroup, setDimsVisible,
+  setScene, setCamera, setRenderer, setFloor, setWall,
+  setWakeLock, setLayoutMinY, setColorIdx,
+  setDeviceQuality
+} from './src/state.js';
 
 // === Wake Lock ===
 async function requestWakeLock() {
   try {
     if ("wakeLock" in navigator) {
-      wakeLock = await navigator.wakeLock.request("screen");
-      wakeLock.addEventListener("release", () => { wakeLock = null; });
+      setWakeLock(await navigator.wakeLock.request("screen"));
+      wakeLock.addEventListener("release", () => { setWakeLock(null); });
     }
   } catch(e) {}
 }
 function releaseWakeLock() {
-  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  if (wakeLock) { wakeLock.release(); setWakeLock(null); }
 }
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && parts.length > 0) requestWakeLock();
@@ -65,144 +99,27 @@ const CONFIG = {
   SCALE_FACTOR: 0.001,
 };
 
-
 // === Device Capability Detection ===
-var deviceQuality = 'high'; // 'low', 'medium', 'high'
 (function detectDevice() {
   var cores = navigator.hardwareConcurrency || 2;
   var mem = navigator.deviceMemory || 4;
   var pixels = screen.width * screen.height * (window.devicePixelRatio || 1);
   var ua = navigator.userAgent;
   var isMobile = /Android|iPhone|iPad/i.test(ua);
-
-  if (cores <= 2 || mem <= 2) {
-    deviceQuality = 'low';
-  } else if (isMobile || cores <= 4 || mem <= 4 || pixels > 3000000) {
-    deviceQuality = 'medium';
-  }
+  if (cores <= 2 || mem <= 2) setDeviceQuality('low');
+  else if (isMobile || cores <= 4 || mem <= 4 || pixels > 3000000) setDeviceQuality('medium');
 })();
 // Pre-allocated temp vectors for explode animation (avoids GC pressure per frame)
 const _tmpCenter = new THREE.Vector3();
 const _tmpDir = new THREE.Vector3();
 const _tmpNewPos = new THREE.Vector3();
 const _tmpDelta = new THREE.Vector3();
-
-let parts = [];
-let selectedId = null;
-let scannedSet = new Set();
-let hiddenSet = new Set();
-let idMode = localStorage.getItem("aivoIdMode") || "designation";
-let meshMap = new Map();
-let edgeLineMap = new Map();
-let xrayActive = false;
-let isDarkTheme = true;
-let explodeActive = false;
-let explodeProgress = 0;
-let originalPositions = new Map();
-let moduleMap = new Map();
-let assemblyMode = false;
-let assemblyIndex = 0;
-let assemblyPrevIndex = -1;
-let assemblyOrder = [];
-let assemblyPlaying = false;
-let assemblyTimer = null;
-let fastenerData = [];
-let dimsData = [];
-let dimGroup = null;
-let dimsVisible = false;
-let csgEnabled = true;
-let fastenerMeshes = [];
-let isolatedModule = null;
-let blockMode = false;
-let explodeModuleKey = null;
-let wakeLock = null;
-let needsRender = true;
-let scene;
-let camera;
-let renderer;
-let theta = 0.8;
-let phi = 0.9;
-let camDist = 3.5;
-let targetPosition = new THREE.Vector3(0, 0.5, 0);
-let isDragging = false;
-let prevMouse = {
-  x: 0,
-  y: 0
-};
-let autoRotate = false;
-let isSmoothZoom = false;
-let zoomTarget = new THREE.Vector3();
-let touchStartPos = null;
-let isPinching = false;
-let pinchStartDist = 0;
-let pinchStartCamDist = 0;
-let isPanning = false;
-let panStartMid = null;
-let panStartTarget = null;
-let mouseStartPos = null;
-let mouseMovedDistance = 0;
-let isPanningMouse = false;
-let panStartMouse = null;
-const MODULE_COLORS = ["#00d4aa", "#ff6b6b", "#4ade80", "#fbbf24", "#a78bfa", "#f472b6", "#38bdf8", "#fb923c", "#34d399", "#e879f9", "#06b6d4", "#8b5cf6", "#ef4444", "#10b981", "#f59e0b", "#ec4899", "#14b8a6", "#84cc16", "#6366f1", "#f97316", "#22d3ee", "#a855f7", "#e11d48", "#059669", "#d97706", "#d946ef", "#0891b2", "#65a30d", "#4f46e5", "#ea580c"];
-const colorCache = new Map();
-let colorIdx = 0;
-export function getModulePrefix(partCode) {
-  if (!partCode) {
-    return "OTHER";
-  }
-  const matchResult = partCode.match(/^([A-Z]+\d*_\d+)/);
-  if (matchResult) {
-    return matchResult[1];
-  }
-  return "OTHER";
-}
-export function getModuleKey(code) {
-  const prefix = getModulePrefix(code);
-  if (prefix === "OTHER") {
-    return "OTHER";
-  }
-  if (prefix.startsWith("D-")) {
-    return "HARDWARE";
-  }
-  const keyMatch = prefix.match(/^([A-Z]+\d*_\d+)/);
-  if (keyMatch) {
-    return keyMatch[1];
-  }
-  return prefix;
-}
-export function getModuleColor(materialName) {
-  const moduleKey = getModuleKey(materialName);
-  if (moduleKey === "HARDWARE") {
-    return "#94a3b8";
-  }
-  if (moduleKey === "OTHER") {
-    return "#6b7280";
-  }
-  if (colorCache.has(moduleKey)) {
-    return colorCache.get(moduleKey);
-  }
-  const assignedColor = MODULE_COLORS[colorIdx % MODULE_COLORS.length];
-  colorIdx++;
-  colorCache.set(moduleKey, assignedColor);
-  return assignedColor;
-}
-export function getModuleName(partCodeForName, groupName) {
-  if (groupName) return groupName;
-  const moduleKeyName = getModuleKey(partCodeForName);
-  if (moduleKeyName === "HARDWARE") {
-    return "Фурнитура";
-  }
-  if (moduleKeyName === "OTHER") {
-    return "Прочее";
-  }
-  return moduleKeyName;
-}
 function initTheme() {
-  isDarkTheme = localStorage.getItem("aivoTheme") !== "light";
+  setIsDarkTheme(localStorage.getItem("aivoTheme") !== "light");
   applyTheme();
 }
 function toggleTheme() {
-  isDarkTheme = !isDarkTheme;
+  setIsDarkTheme(!isDarkTheme);
   localStorage.setItem("aivoTheme", isDarkTheme ? "dark" : "light");
   applyTheme();
 }
@@ -234,30 +151,33 @@ function applyTheme() {
   }
 }
 const canvas = document.getElementById("canvas3d");
-var floor = null;
-var wall = null;
 function initThree() {
-  renderer = new THREE.WebGLRenderer({
+  const _renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     antialias: true,
     alpha: false
   });
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  _renderer.setSize(window.innerWidth, window.innerHeight);
   var maxRatio = deviceQuality === 'low' ? 1 : deviceQuality === 'medium' ? 1.5 : 2;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxRatio));
-  renderer.shadowMap.enabled = deviceQuality !== 'low';
-  renderer.shadowMap.type = deviceQuality === 'low' ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
-  renderer.toneMapping = deviceQuality === 'low' ? THREE.LinearToneMapping : THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  initMaterials(deviceQuality, renderer);
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(isDarkTheme ? 0x141416 : 0xf0f0f2);
-  scene.fog = new THREE.FogExp2(isDarkTheme ? 0x141416 : 0xf0f0f2, deviceQuality === 'low' ? 0.005 : 0.008);
-  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
-  camera.position.set(3, 2.5, 3);
+  _renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxRatio));
+  _renderer.shadowMap.enabled = deviceQuality !== 'low';
+  _renderer.shadowMap.type = deviceQuality === 'low' ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+  _renderer.toneMapping = deviceQuality === 'low' ? THREE.LinearToneMapping : THREE.ACESFilmicToneMapping;
+  _renderer.toneMappingExposure = 1.15;
+  _renderer.outputEncoding = THREE.sRGBEncoding;
+  setRenderer(_renderer);
+  initMaterials(deviceQuality, _renderer);
+  const _scene = new THREE.Scene();
+  _scene.background = new THREE.Color(isDarkTheme ? 0x141416 : 0xf0f0f2);
+  _scene.fog = new THREE.FogExp2(isDarkTheme ? 0x141416 : 0xf0f0f2, deviceQuality === 'low' ? 0.005 : 0.008);
+  setScene(_scene);
+  const _camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
+  _camera.position.set(3, 2.5, 3);
+  setCamera(_camera);
+  setTargetPosition(new THREE.Vector3(0, 0.5, 0));
+  setZoomTarget(new THREE.Vector3());
   const ambientLight = new THREE.AmbientLight(0x8899aa, 0.6);
-  scene.add(ambientLight);
+  _scene.add(ambientLight);
   const mainLight = new THREE.DirectionalLight(0xfff5e6, 1.4);
   mainLight.position.set(8, 18, 12);
   mainLight.castShadow = deviceQuality !== 'low';
@@ -268,18 +188,18 @@ function initThree() {
   mainLight.shadow.camera.bottom = -50;
   mainLight.shadow.bias = -0.001;
   mainLight.shadow.radius = 4;
-  scene.add(mainLight);
+  _scene.add(mainLight);
   const fillLight = new THREE.DirectionalLight(0xaabbdd, 0.35);
   fillLight.position.set(-6, 3, -8);
-  scene.add(fillLight);
+  _scene.add(fillLight);
   // Rim light for edge definition on wood panels
   const rimLight = new THREE.DirectionalLight(0x00D4AA, 0.15);
   rimLight.position.set(-8, 6, 4);
-  if (deviceQuality !== 'low') scene.add(rimLight);
+  if (deviceQuality !== 'low') _scene.add(rimLight);
   // Hemisphere: sky blue top, warm ground
   if (deviceQuality !== 'low') {
     var hemiLight = new THREE.HemisphereLight(0x8899cc, 0x443322, 0.3);
-    scene.add(hemiLight);
+    _scene.add(hemiLight);
   }
   // Room — floor: 20m wide, 10m deep, one-sided (visible from above only)
   var floorGeo = new THREE.PlaneGeometry(20, 10);
@@ -291,18 +211,19 @@ function initThree() {
     transparent: true,
     opacity: 0.3
   });
-  floor = new THREE.Mesh(floorGeo, floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.set(0, 0, 0);
-  floor.receiveShadow = deviceQuality !== 'low';
-  scene.add(floor);
+  var _floor = new THREE.Mesh(floorGeo, floorMat);
+  _floor.rotation.x = -Math.PI / 2;
+  _floor.position.set(0, 0, 0);
+  _floor.receiveShadow = deviceQuality !== 'low';
+  _scene.add(_floor);
+  setFloor(_floor);
 
   // Grid on the floor - subtle, not too harsh
   var gridHelper = new THREE.GridHelper(20, 40, 0x00d4aa, 0x00d4aa);
   gridHelper.material.transparent = true;
   gridHelper.material.opacity = 0.04;
   gridHelper.position.y = 0.001;
-  if (deviceQuality !== 'low') scene.add(gridHelper);
+  if (deviceQuality !== 'low') _scene.add(gridHelper);
 
   // Room — back wall: 20m wide, 5m tall, one-sided
   var wallGeo = new THREE.PlaneGeometry(20, 5);
@@ -314,16 +235,18 @@ function initThree() {
     transparent: true,
     opacity: 0.25
   });
-  wall = new THREE.Mesh(wallGeo, wallMat);
-  wall.position.set(0, 2.5, -5);
-  wall.receiveShadow = deviceQuality !== 'low';
-  if (deviceQuality !== 'low') scene.add(wall);
+  var _wall = new THREE.Mesh(wallGeo, wallMat);
+  _wall.position.set(0, 2.5, -5);
+  _wall.receiveShadow = deviceQuality !== 'low';
+  if (deviceQuality !== 'low') _scene.add(_wall);
+  setWall(_wall);
   setupCameraControls(canvas);
   animate();
 }
 // Camera controls handled by src/camera.js — wired via setupCameraControls()
 // deselectPart and handleRaycast handled by src/camera.js
-let layoutMinY = 0;
+// Camera controls handled by src/camera.js — wired via setupCameraControls()
+// deselectPart and handleRaycast handled by src/camera.js
 function autoLayout(partsArr) {
   var hasPlacement = false;
   partsArr.forEach(function(p) {
@@ -331,7 +254,7 @@ function autoLayout(partsArr) {
   });
 
   const scaleFactor = 0.001;
-  layoutMinY = 0;
+  setLayoutMinY(0);
 
   partsArr.forEach(p => {
     if (hasPlacement && p.placement && p.placement.origin) {
@@ -553,7 +476,6 @@ function buildFasteners(fasteners) {
   });
 }
 // --- Визуализация отверстий из holes[] ---
-var holeMeshes = [];
 function buildHoles(holes) {
   if (!holes || !holes.length) return;
   var UP = new THREE.Vector3(0, 1, 0);
@@ -589,7 +511,6 @@ function clearHoles() {
 // --- Визуализация карманов/пазов (pockets) как decals на поверхности ---
 // Following DetalQR approach: pockets are added as children of the panel mesh,
 // using local panel coordinates. Face 'A' = front (Z=0 side), 'B' = back (Z=panelT side).
-var pocketMeshes = [];
 function buildPockets(partsArr) {
   partsArr.forEach(function(part) {
     if (!part.pockets || !part.pockets.length) return;
@@ -639,7 +560,7 @@ function clearPockets() {
 // Рисует линейные размеры из БАЗИС в 3D: выноски, стрелки, цифры.
 function buildDimLines() {
   if (!dimsData || !dimsData.length) return;
-  dimGroup = new THREE.Group();
+  setDimGroup(new THREE.Group());
   var HL = 0.03;   // длина стрелки (м)
   var HW = 0.008;  // полудлина наконечника (м)
   var DIM_MIN_OFF = 0.12; // минимальное смещение от детали (м)
@@ -716,7 +637,7 @@ function buildDimLines() {
     dimGroup.add(dg);
   }
   scene.add(dimGroup);
-  needsRender = true;
+  setNeedsRender(true);
 }
 
 function makeDimLabel(text, worldSize) {
@@ -739,13 +660,13 @@ function makeDimLabel(text, worldSize) {
 }
 
 function toggleDims() {
-  dimsVisible = !dimsVisible;
+  setDimsVisible(!dimsVisible);
   if (dimsVisible && !dimGroup) buildDimLines();
   if (dimGroup) dimGroup.visible = dimsVisible;
   var btn = document.getElementById("dimsBtn");
   if (btn) btn.classList.toggle("active", dimsVisible);
   showToast(dimsVisible ? "📐 Размеры показаны" : "📐 Размеры скрыты");
-  needsRender = true;
+  setNeedsRender(true);
 }
 
 function buildContourShape(contour, sc) {
@@ -782,7 +703,6 @@ function buildContourShape(contour, sc) {
   return shape;
 }
 
-const detailMeshes = new Map();
 const sc = 0.001;
 function buildScene() {
   meshMap.forEach(function(oldMesh) {
@@ -808,8 +728,8 @@ function buildScene() {
       if (obj.geometry) obj.geometry.dispose();
       if (obj.material) { if (obj.material.map) obj.material.map.dispose(); obj.material.dispose(); }
     });
-    dimGroup = null;
-    dimsVisible = false;
+    setDimGroup(null);
+    setDimsVisible(false);
   }
   meshMap.clear();
   edgeLineMap.clear();
@@ -989,7 +909,7 @@ function buildScene() {
     }
   });
   centerCamera();
-  needsRender = true;
+  setNeedsRender(true);
   updateStats();
   buildModuleMap();
   renderPartsList();
@@ -1040,12 +960,12 @@ function centerCamera() {
   });
   targetPosition.set((minX + maxX) / 2, (minY2 + maxY) / 2, (minZ + maxZ) / 2);
   const maxExtent = Math.max(maxX - minX, maxY - minY2, maxZ - minZ);
-  camDist = Math.max(maxExtent * 1.5, 2);
+  setCamDist(Math.max(maxExtent * 1.5, 2));
   updateCamera();
 }
 
 function selectModuleHighlight(moduleKey, clickedId) {
-  selectedId = clickedId;
+  setSelectedId(clickedId);
   var moduleParts = moduleMap.get(moduleKey);
   if (!moduleParts) { selectPart(clickedId); return; }
   var moduleIds = new Set(moduleParts.map(function(p) { return p.id; }));
@@ -1089,11 +1009,11 @@ function selectModuleHighlight(moduleKey, clickedId) {
   renderPartsList();
   openSheet();
 
-  needsRender = true;
+  setNeedsRender(true);
 }
 function selectPart(partId) {
   var prevId = selectedId;
-  selectedId = partId;
+  setSelectedId(partId);
   // Only reset previous selected (not all meshes — saves O(N) per click)
   if (prevId !== null && prevId !== partId) {
     var prevMesh = meshMap.get(prevId);
@@ -1135,7 +1055,7 @@ function selectPart(partId) {
   renderPartsList();
   openSheet();
 
-  needsRender = true;
+  setNeedsRender(true);
 }
 function renderProcessingInfo(partData) {
   const grooves = partData.grooves || [];
@@ -1289,7 +1209,7 @@ function toggleVisibility(partId) {
       visEdge.visible = false;
     }
     if (selectedId === partId) {
-      selectedId = null;
+      setSelectedId(null);
       updateSheet(null);
       closeSheet();
     }
@@ -1299,11 +1219,11 @@ function toggleVisibility(partId) {
     applyXray();
   }
   saveProgress();
-  needsRender = true;
+  setNeedsRender(true);
   showToast((hiddenSet.has(partId) ? "🙈" : "👁") + " Деталь " + (hiddenSet.has(partId) ? "скрыта" : "показана"));
 }
 function toggleCSGVisibility() {
-  csgEnabled = !csgEnabled;
+  setCsgEnabled(!csgEnabled);
   detailMeshes.forEach(function(arr) {
     arr.forEach(function(obj) {
       obj.visible = csgEnabled;
@@ -1328,13 +1248,13 @@ function toggleCSGVisibility() {
   });
   const btn = document.getElementById("csgBtn");
   btn.classList.toggle("active", csgEnabled);
-  needsRender = true;
+  setNeedsRender(true);
   showToast(csgEnabled ? "Фурнитура показана" : "Фурнитура скрыта");
 }
 function showAllParts() {
   hiddenSet.clear();
-  isolatedModule = null;
-  explodeModuleKey = null;
+  setIsolatedModule(null);
+  setExplodeModuleKey(null);
   meshMap.forEach(m => {
     m.visible = true;
     m.material.transparent = false;
@@ -1354,19 +1274,19 @@ function showAllParts() {
   if (xrayActive) { applyXray(); }
   if (explodeActive) {
     animateExplodeTo(0);
-    explodeActive = false;
+    setExplodeActive(false);
     document.getElementById("explodeBtn").classList.remove("active");
   }
   document.getElementById("isolationBar").style.display = "none";
   showToast("Все модули показаны");
 
-  needsRender = true;
+  setNeedsRender(true);
 }
 
 // === Module Isolation ===
 function isolateModule(moduleKey) {
   if (!moduleMap.has(moduleKey)) return;
-  isolatedModule = moduleKey;
+  setIsolatedModule(moduleKey);
   var moduleParts = moduleMap.get(moduleKey);
   var moduleIds = new Set(moduleParts.map(p => p.id));
   meshMap.forEach((m, id) => {
@@ -1405,11 +1325,11 @@ function isolateModule(moduleKey) {
   renderPartsList();
   showToast("Изолирован: " + displayName);
 
-  needsRender = true;
+  setNeedsRender(true);
 }
 function exitIsolation() {
-  isolatedModule = null;
-  explodeModuleKey = null;
+  setIsolatedModule(null);
+  setExplodeModuleKey(null);
   meshMap.forEach(m => {
     m.visible = true;
     m.material.transparent = false;
@@ -1428,7 +1348,7 @@ function exitIsolation() {
   });
   if (explodeActive) {
     animateExplodeTo(0);
-    explodeActive = false;
+    setExplodeActive(false);
     document.getElementById("explodeBtn").classList.remove("active");
   }
   document.getElementById("isolationBar").style.display = "none";
@@ -1436,7 +1356,7 @@ function exitIsolation() {
   renderPartsList();
   showToast("Изоляция снята");
 
-  needsRender = true;
+  setNeedsRender(true);
 }
 function centerCameraOnParts(partsArr) {
   if (!partsArr.length) return;
@@ -1454,13 +1374,13 @@ function centerCameraOnParts(partsArr) {
   });
   targetPosition.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
   var maxExtent = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
-  camDist = Math.max(maxExtent * 2, 1.5);
+  setCamDist(Math.max(maxExtent * 2, 1.5));
   updateCamera();
 }
 function explodeIsolatedModule() {
   if (!isolatedModule) return;
-  explodeModuleKey = isolatedModule;
-  explodeActive = true;
+  setExplodeModuleKey(isolatedModule);
+  setExplodeActive(true);
   document.getElementById("explodeBtn").classList.add("active");
   // Reset positions for non-module parts to original
   parts.forEach(function(p) {
@@ -1473,7 +1393,7 @@ function explodeIsolatedModule() {
       if (e && orig) e.position.copy(orig);
     }
   });
-  explodeProgress = 0;
+  setExplodeProgress(0);
   animateExplodeTo(1);
 }
 function applyXray() {
@@ -1498,10 +1418,10 @@ function applyXray() {
     xrayMesh.material.needsUpdate = true;
   });
 
-  needsRender = true;
+  setNeedsRender(true);
 }
 function toggleXray() {
-  xrayActive = !xrayActive;
+  setXrayActive(!xrayActive);
   document.getElementById("xrayBtn").classList.toggle("active", xrayActive);
   if (!xrayActive) {
     meshMap.forEach(m => {
@@ -1515,14 +1435,14 @@ function toggleXray() {
   }
 }
 function toggleExplode() {
-  explodeActive = !explodeActive;
+  setExplodeActive(!explodeActive);
   document.getElementById("explodeBtn").classList.toggle("active", explodeActive);
   if (!explodeActive) {
-    explodeModuleKey = null;
+    setExplodeModuleKey(null);
     animateExplodeTo(0);
   } else {
-    if (isolatedModule) { explodeModuleKey = isolatedModule; }
-    else { explodeModuleKey = null; }
+    if (isolatedModule) { setExplodeModuleKey(isolatedModule); }
+    else { setExplodeModuleKey(null); }
     animateExplodeTo(1);
   }
 }
@@ -1533,9 +1453,9 @@ function animateExplodeTo(target) {
   function step(now) {
     const progress = Math.min((now - startTime) / duration, 1);
     const eased = progress < 0.5 ? progress * 2 * progress : 1 - Math.pow(progress * -2 + 2, 2) / 2;
-    explodeProgress = startVal + (target - startVal) * eased;
+    setExplodeProgress(startVal + (target - startVal) * eased);
     applyExplode();
-    needsRender = true;
+    setNeedsRender(true);
     if (progress < 1) {
       requestAnimationFrame(step);
     }
@@ -1579,7 +1499,7 @@ function applyExplode() {
     // Detail meshes are children of panel mesh — they move automatically
   });
 
-  needsRender = true;
+  setNeedsRender(true);
 }
 // Assembly mode handled by src/assembly.js
 // updateSummary handled by src/ui.js
@@ -1696,10 +1616,12 @@ function saveProgress() {
 function loadProgress() {
   const saved = JSON.parse(localStorage.getItem("aivoProgress") || "{}");
   if (saved.scanned) {
-    scannedSet = new Set(saved.scanned);
+    scannedSet.clear();
+    saved.scanned.forEach(id => scannedSet.add(id));
   }
   if (saved.hidden) {
-    hiddenSet = new Set(saved.hidden);
+    hiddenSet.clear();
+    saved.hidden.forEach(id => hiddenSet.add(id));
   }
 }
 function resetProgress() {
@@ -1708,7 +1630,7 @@ function resetProgress() {
     hiddenSet.clear();
     meshMap.forEach(m => m.visible = true);
     edgeLineMap.forEach(e => e.visible = true);
-    selectedId = null;
+    setSelectedId(null);
     updateSheet(null);
     closeSheet();
     updateStats();
@@ -1729,9 +1651,9 @@ initEvents({
     reader.onload = function(ev) {
       try {
         var data = JSON.parse(ev.target.result);
-        parts = data.parts || data;
-        fastenerData = data.fasteners || [];
-        dimsData = data.dims || [];
+        setParts(data.parts || data);
+        setFastenerData(data.fasteners || []);
+        setDimsData(data.dims || []);
         window._loadedHoles = data.holes || [];
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         autoLayout(parts);
@@ -1739,7 +1661,7 @@ initEvents({
         if (loadText) loadText.textContent = "Построение 3D (" + parts.length + " деталей)...";
         setTimeout(function() {
           buildScene();
-          selectedId = null;
+          setSelectedId(null);
           loadProgress();
           centerCamera();
           closeDrawer();
@@ -1767,16 +1689,16 @@ function animate() {
   requestAnimationFrame(animate);
   if (document.hidden) return;
   if (autoRotate && !isDragging && !isSmoothZoom) {
-    theta += 0.0025;
+    setTheta(theta + 0.0025);
     updateCamera();
   }
   if (isSmoothZoom) {
     animateSmoothZoom();
-    needsRender = true;
+    setNeedsRender(true);
   }
   if (needsRender) {
     renderer.render(scene, camera);
-    needsRender = false;
+    setNeedsRender(false);
   }
 }
 let _resizeTimer = null;
@@ -1786,7 +1708,7 @@ window.addEventListener("resize", () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-    needsRender = true;
+    setNeedsRender(true);
   }, 100);
 });
 initTheme();
