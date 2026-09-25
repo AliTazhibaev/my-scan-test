@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aivo-scan-v9';
+const CACHE_NAME = 'aivo-scan-v10';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -55,7 +55,21 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Local static assets — cache-first, update in background
+  // HTML and JS — network-first (always get latest code)
+  if (url.pathname.endsWith('.html') || url.pathname.endsWith('.js')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(resp => {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+          return resp;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Local static assets (CSS, images, etc) — cache-first, update in background
   event.respondWith(
     caches.match(event.request).then(cached => {
       const fetchPromise = fetch(event.request).then(resp => {
