@@ -26,7 +26,7 @@ import { initAssembly, toggleAssembly, toggleAssemblyPlay, stopAssemblyPlay, upd
 import {
   initUI, showToast, escapeHtml, updateStats, updateSummary,
   renderPartsList, renderPartsListDeferred, openSheet, closeSheet,
-  openDrawer, closeDrawer, isMobileSheet
+  openDrawer, closeDrawer, isMobileSheet, resetExpandedModules
 } from './src/ui.js';
 import { initEvents } from './src/events.js';
 import {
@@ -700,6 +700,10 @@ function buildContourShape(contour, sc) {
 
 const sc = 0.001;
 function buildScene() {
+  // Reset module color assignment for new project
+  colorCache.clear();
+  setColorIdx(0);
+  resetExpandedModules();
   meshMap.forEach(function(oldMesh) {
     if (oldMesh.material.map) oldMesh.material.map.dispose();
     oldMesh.material.dispose();
@@ -1137,8 +1141,10 @@ function updateSheet(part) {
   var modName = part.groupName || getModuleName(displayCode);
   var modColor = getModuleColor(displayCode);
   var neighbors = findNeighbors(part);
-  if (previewCodeEl) var dims = (part.L || '?') + '×' + (part.W || '?') + '×' + (part.T || '?');
-  previewCodeEl.textContent = (displayCode || '—') + '  ' + dims + '  ' + (part.name || '');
+  if (previewCodeEl) {
+    var dims = (part.L || '?') + '×' + (part.W || '?') + '×' + (part.T || '?');
+    previewCodeEl.textContent = (displayCode || '—') + '  ' + dims + '  ' + (part.name || '');
+  }
   var html = '<div class="detail-card">';
   html += '<div style="font-size:18px;font-weight:700;color:var(--code-color);font-family:Monaco,Menlo,monospace;margin-bottom:4px">' + escapeHtml(displayCode || '—') + '</div>';
   if (displayCode2) {
@@ -1550,6 +1556,10 @@ function printSpecification() {
     return;
   }
   const printWin = window.open("", "_blank");
+  if (!printWin) {
+    showToast("❌ Разрешите всплывающие окна для печати");
+    return;
+  }
   let printHtml = "<html><head><title>Спецификация</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f0f0f0;font-weight:700}.mod{background:#e8e8ff;font-weight:700}</style></head><body>";
   printHtml += "<h2>Спецификация — " + document.getElementById("projectTitle").textContent + "</h2>";
   printHtml += "<p>Всего деталей: " + parts.length + " | Собрано: " + scannedSet.size + "</p>";
@@ -1614,7 +1624,14 @@ function saveProgress() {
   }));
 }
 function loadProgress() {
+  const currentTitle = document.getElementById("projectTitle").textContent;
   const saved = JSON.parse(localStorage.getItem("aivoProgress") || "{}");
+  // Only restore progress if it belongs to the same project
+  if (saved.projectTitle && saved.projectTitle !== currentTitle) {
+    scannedSet.clear();
+    hiddenSet.clear();
+    return;
+  }
   if (saved.scanned) {
     scannedSet.clear();
     saved.scanned.forEach(id => scannedSet.add(id));
@@ -1646,6 +1663,10 @@ initEvents({
   toggleTheme, toggleVisibility, showAllParts, toggleXray, toggleExplode,
   toggleCSGVisibility, toggleDims, resetProgress, showStats, printSpecification,
   selectPart, buildModuleMap, centerCamera, handleFileLoad: function(file) {
+    if (!file.name.endsWith('.json')) {
+      showToast("❌ Только JSON файлы поддерживаются");
+      return;
+    }
     document.getElementById("loadingOverlay").classList.add("show");
     // Safety timeout — force-hide overlay if something hangs
     var _loadSafetyTimer = setTimeout(function() {
@@ -1675,13 +1696,13 @@ initEvents({
           try {
             buildScene();
             setSelectedId(null);
+            document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
             loadProgress();
             centerCamera();
             closeDrawer();
             updateStats();
             showToast("✅ Загружено " + parts.length + " деталей");
             if (dimsData.length) showToast("📐 " + dimsData.length + " размеров из БАЗИС");
-            document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
             saveProgress();
           } catch(buildErr) {
             console.error("3D build error:", buildErr);

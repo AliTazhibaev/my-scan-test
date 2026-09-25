@@ -25,6 +25,16 @@ export function initEvents(deps) {
   document.getElementById('drawerBackdrop').addEventListener('click', closeDrawer);
   document.getElementById('closeDrawerBtn').addEventListener('click', closeDrawer);
   document.getElementById('closeSheetBtn').addEventListener('click', closeSheet);
+  // Expand collapsed bottom sheet on preview tap (mobile)
+  var sheetPreview = document.getElementById('sheetPreview');
+  if (sheetPreview) {
+    sheetPreview.addEventListener('click', () => {
+      var bottomSheet = document.getElementById('bottomSheet');
+      if (bottomSheet.getAttribute('data-state') === 'collapsed') {
+        bottomSheet.removeAttribute('data-state');
+      }
+    });
+  }
   document.getElementById('hideBtn').addEventListener('click', () => {
     if (selectedId !== null) toggleVisibility(selectedId);
   });
@@ -92,6 +102,39 @@ export function initEvents(deps) {
     const file = e.target.files[0];
     if (!file) return;
     handleFileLoad(file);
+    e.target.value = '';
+  });
+
+  // === Drag-and-Drop File Upload ===
+  var dropOverlay = document.getElementById('dropOverlay');
+  var dragCounter = 0;
+  document.addEventListener('dragenter', e => {
+    e.preventDefault();
+    dragCounter++;
+    if (dropOverlay) dropOverlay.style.display = 'flex';
+  });
+  document.addEventListener('dragleave', e => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      if (dropOverlay) dropOverlay.style.display = 'none';
+    }
+  });
+  document.addEventListener('dragover', e => { e.preventDefault(); });
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    dragCounter = 0;
+    if (dropOverlay) dropOverlay.style.display = 'none';
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length > 0) {
+      var file = files[0];
+      if (!file.name.endsWith('.json')) {
+        showToast('❌ Только JSON файлы поддерживаются');
+        return;
+      }
+      handleFileLoad(file);
+    }
   });
 
   // === Keyboard Shortcuts ===

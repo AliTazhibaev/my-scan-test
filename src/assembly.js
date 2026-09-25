@@ -38,6 +38,21 @@ export function toggleAssembly() {
     setAutoRotate(false);
   } else {
     stopAssemblyPlay();
+    // Restore all mesh opacities when exiting assembly mode
+    meshMap.forEach(m => {
+      m.material.emissive.setHex(0);
+      m.material.emissiveIntensity = 0;
+      m.material.transparent = false;
+      m.material.opacity = 1;
+      m.material.needsUpdate = true;
+    });
+    edgeLineMap.forEach(e => {
+      e.visible = true;
+      e.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
+      e.material.opacity = 0.55;
+      e.material.needsUpdate = true;
+    });
+    setNeedsRender(true);
   }
 }
 

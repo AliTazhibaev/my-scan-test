@@ -181,6 +181,11 @@ export function initAuth() {
         } else {
           showLoginPage();
         }
+      }).catch(err => {
+        console.error('Device limit check failed:', err);
+        // If Firestore is unreachable, still allow access
+        showMainApp();
+        setTimeout(showOnboarding, 500);
       });
     } else {
       currentUser = null;

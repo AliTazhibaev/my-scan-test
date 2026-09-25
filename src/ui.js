@@ -216,3 +216,7 @@ function createPartItem(part) {
 }
 
 export function isMobileSheet() { return window.innerWidth <= 600; }
+
+export function resetExpandedModules() {
+  if (_expandedModules) _expandedModules.clear();
+}
