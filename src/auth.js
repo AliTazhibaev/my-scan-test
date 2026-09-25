@@ -114,19 +114,8 @@ function showLoginPage() {
 function showMainApp() {
   document.getElementById('loginPage').classList.remove('active');
   document.getElementById('mainApp').style.display = 'block';
-  // DEBUG: Show canvas state
-  var c = document.getElementById('canvas3d');
-  console.log('[AUTH] showMainApp called. canvas:', c, 'init3D:', typeof window.init3D);
-  if (c) console.log('[AUTH] canvas size:', c.width, 'x', c.height, 'offset:', c.offsetWidth, 'x', c.offsetHeight);
   // Initialize 3D AFTER canvas is visible
-  if (window.init3D) {
-    try {
-      window.init3D();
-      console.log('[AUTH] init3D completed');
-    } catch(e) {
-      console.error('[AUTH] init3D failed:', e);
-    }
-  }
+  if (window.init3D) window.init3D();
   window.dispatchEvent(new Event('resize'));
 }
 

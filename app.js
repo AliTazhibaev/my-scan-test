@@ -1806,24 +1806,13 @@ initTheme();
 // 3D initialization is deferred until after login (showMainApp calls init3D)
 var _3dInitialized = false;
 function init3D() {
-  console.log('[3D] init3D called, already initialized:', _3dInitialized);
   if (_3dInitialized) return;
   _3dInitialized = true;
   try {
     initThree();
-    console.log('[3D] initThree OK. renderer:', !!renderer, 'scene:', !!scene, 'camera:', !!camera);
-    // Force initial render
-    if (renderer && scene && camera) {
-      renderer.render(scene, camera);
-      console.log('[3D] First render done');
-    }
+    if (renderer && scene && camera) renderer.render(scene, camera);
   } catch(e) {
-    console.error('[3D] initThree FAILED:', e);
-    var overlay = document.getElementById('loadingOverlay');
-    if (overlay) {
-      overlay.innerHTML = '<div style="text-align:center;color:#ff6b6b;padding:20px;max-width:500px"><div style="font-size:32px;margin-bottom:12px">⚠️</div><div style="font-size:16px;font-weight:700;margin-bottom:8px">Ошибка 3D</div><div style="font-size:13px;color:#aaa;margin-bottom:16px;word-break:break-all">' + (e.message || e) + '</div><div style="font-size:11px;color:#666">Обновите страницу (Ctrl+Shift+R)</div></div>';
-      overlay.classList.add('show');
-    }
+    console.error('3D init failed:', e);
   }
   updateStats();
 }
