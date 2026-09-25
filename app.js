@@ -152,7 +152,7 @@ function initThree() {
   _renderer.setPixelRatio(bestPR);
   _renderer.shadowMap.enabled = false; // No real shadows — use fake contact shadow (DetalQR pattern)
   _renderer.toneMapping = THREE.NoToneMapping; // Simpler pipeline, correct with sRGB textures
-  _renderer.outputColorSpace = THREE.SRGBColorSpace;
+  _renderer.outputEncoding = THREE.sRGBEncoding;
   setRenderer(_renderer);
   window.renderer = _renderer;
   initMaterials(deviceQuality, _renderer);
