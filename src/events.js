@@ -5,7 +5,8 @@ import {
   selectedId, setSelectedId, idMode, setIdMode,
   autoRotate, setAutoRotate, isSmoothZoom, setIsSmoothZoom,
   assemblyOrder, assemblyIndex, setAssemblyIndex,
-  hiddenSet, scannedSet, blockMode, setBlockMode
+  hiddenSet, scannedSet, blockMode, setBlockMode,
+  assemblyMode
 } from './state.js';
 import { renderPartsList, showToast, closeDrawer, closeSheet, openDrawer } from './ui.js';
 import { startSmoothZoom, updateCamera } from './camera.js';
@@ -116,21 +117,21 @@ export function initEvents(deps) {
         break;
       case 'd': case 'D': if (!e.ctrlKey && !e.metaKey) toggleDims(); break;
       case 'ArrowLeft':
-        if (deps.assemblyMode && assemblyOrder.length > 0) {
+        if (assemblyMode && assemblyOrder.length > 0) {
           e.preventDefault();
           setAssemblyIndex((assemblyIndex - 1 + assemblyOrder.length) % assemblyOrder.length);
           updateAssemblyStep();
         }
         break;
       case 'ArrowRight':
-        if (deps.assemblyMode && assemblyOrder.length > 0) {
+        if (assemblyMode && assemblyOrder.length > 0) {
           e.preventDefault();
           setAssemblyIndex((assemblyIndex + 1) % assemblyOrder.length);
           updateAssemblyStep();
         }
         break;
       case ' ':
-        if (deps.assemblyMode) { e.preventDefault(); toggleAssemblyPlay(); }
+        if (assemblyMode) { e.preventDefault(); toggleAssemblyPlay(); }
         break;
     }
   });

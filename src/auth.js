@@ -78,7 +78,7 @@ export async function handleLogin() {
     return;
   }
   loginBtn.disabled = true;
-  loginBtn.textContent = 'Вход...';
+  loginBtn.querySelector('span').textContent = 'Вход...';
   errorEl.classList.remove('show');
   try {
     const cred = await auth.signInWithEmailAndPassword(email, password);
@@ -102,7 +102,7 @@ export async function handleLogin() {
     errorEl.classList.add('show');
   } finally {
     loginBtn.disabled = false;
-    loginBtn.textContent = 'Войти';
+    loginBtn.querySelector('span').textContent = 'Войти';
   }
 }
 

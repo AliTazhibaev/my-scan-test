@@ -15,7 +15,7 @@ import {
   mouseStartPos, mouseMovedDistance, isPanningMouse, panStartMouse,
   parts, selectedId, setSelectedId,
   meshMap, edgeLineMap, isDarkTheme,
-  xrayActive, fastenerMeshes
+  xrayActive, fastenerMeshes, fastenerData, detailMeshes
 } from './state.js';
 
 // Dependencies injected via init()
@@ -24,6 +24,7 @@ let _updateSheet = null;
 let _closeSheet = null;
 let _renderPartsList = null;
 let _applyXray = null;
+let _showToast = null;
 let _canvas = null;
 
 export function initCamera(deps) {
@@ -32,6 +33,7 @@ export function initCamera(deps) {
   _closeSheet = deps.closeSheet;
   _renderPartsList = deps.renderPartsList;
   _applyXray = deps.applyXray;
+  _showToast = deps.showToast;
   _canvas = deps.canvas;
 }
 
@@ -106,19 +108,17 @@ export function handleRaycast(clickX, clickY, rect) {
   const rc = new THREE.Raycaster();
   rc.setFromCamera(mouse, camera);
   const meshes = Array.from(meshMap.values()).filter(m => m.visible === true);
-  if (typeof detailMeshes !== 'undefined') {
-    detailMeshes.forEach(arr => {
-      arr.forEach(m => { if (m.visible && m.userData && m.userData.partId) meshes.push(m); });
-    });
-  }
+  detailMeshes.forEach(arr => {
+    arr.forEach(m => { if (m.visible && m.userData && m.userData.partId) meshes.push(m); });
+  });
   fastenerMeshes.forEach(m => { if (m.visible && m.userData && m.userData.fastenerId !== undefined) meshes.push(m); });
   const hits = rc.intersectObjects(meshes);
   if (hits.length === 0) { deselectPart(); return; }
   for (let i = 0; i < hits.length; i++) {
     const ud = hits[i].object.userData;
     if (ud && ud.fastenerId !== undefined) {
-      const f = (window._fastenerData || []).find(fd => fd.id === ud.fastenerId);
-      if (f) { try { window.showToast("\uD83D\uDD27 " + (f.name || "Фурнитура") + " [" + (f.type || "?") + "]"); } catch(e) {} }
+      const f = fastenerData.find(fd => fd.id === ud.fastenerId);
+      if (f && _showToast) { _showToast("\uD83D\uDD27 " + (f.name || "Фурнитура") + " [" + (f.type || "?") + "]"); }
       return;
     }
   }

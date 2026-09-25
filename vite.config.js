@@ -11,7 +11,7 @@ function copyStaticAssets() {
     'favicon.svg', 'logo.svg', 'qr-logo.svg',
     'manifest.json', 'robots.txt', 'sitemap.xml', 'CNAME',
     'mbank-qr.jpg', 'bg-dark.png', 'bg-light.png',
-    'sw.js', 'service-account.json',
+    'sw.js',
   ];
   return {
     name: 'copy-static-assets',

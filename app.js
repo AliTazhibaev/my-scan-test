@@ -301,13 +301,6 @@ function autoLayout(partsArr) {
     }
   });
 }
-function getColor(materialStr, partData) {
-  if (partData?.color) {
-    return partData.color;
-  }
-  var info = classifyMaterial(materialStr);
-  return info.color;
-}
 function buildPartDetails(partInfo, meshObj) {
   const detailArr = [];
   const grooves = partInfo.grooves || [];
@@ -922,9 +915,7 @@ function buildScene() {
   renderPartsList();
   updateSummary();
   buildFasteners(fastenerData);
-  clearHoles();
   buildHoles(window._loadedHoles || []);
-  clearPockets();
   buildPockets(parts);
 }
 function buildModuleMap() {
@@ -1104,7 +1095,7 @@ function renderProcessingInfo(partData) {
     if (relatedFasteners.length) {
     html += "<div style=\"font-size:9px;color:#ff9800;margin-bottom:2px\">Фурнитура (" + relatedFasteners.length + "):</div>";
     relatedFasteners.forEach((f, idx) => {
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + (f.name || "?") + " [" + (f.type || "?") + "]</div>";
+      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + escapeHtml(f.name || "?") + " [" + escapeHtml(f.type || "?") + "]</div>";
     });
   }
   html += "</div>";
@@ -1176,13 +1167,15 @@ function updateSheet(part) {
     html += '<div style="font-size:10px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">Соседи</div>';
     html += '<div style="display:flex;gap:4px;flex-wrap:wrap">';
     neighbors.forEach(function(nb) {
-      html += '<span onclick="navigateToNeighbor(\'' + escapeHtml(nb).replace(/'/g, "\\'") + '\')" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--code-color);font-family:Monaco,Menlo,monospace;cursor:pointer">' + escapeHtml(nb) + '</span>';
+      var safeNbAttr = JSON.stringify(nb || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      html += '<span onclick="navigateToNeighbor(' + safeNbAttr + ')" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--code-color);font-family:Monaco,Menlo,monospace;cursor:pointer">' + escapeHtml(nb) + '</span>';
     });
     html += '</div></div>';
   }
   html += renderProcessingInfo(part);
   html += '<div class="action-buttons">';
-  html += '<div class="action-btn" onclick="handleScan(\'' + escapeHtml(displayCode).replace(/'/g, "\\'") + '\')">Скан</div>';
+  var safeCodeAttr = JSON.stringify(displayCode || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  html += '<div class="action-btn" onclick="handleScan(' + safeCodeAttr + ')">Скан</div>';
   html += '<div class="action-btn" onclick="startSmoothZoom(' + part.id + ')">Фокус</div>';
   html += '<div class="action-btn" onclick="toggleVisibility(' + part.id + ')">' + (hiddenSet.has(part.id) ? 'Показать' : 'Скрыть') + '</div>';
   html += '</div>';
@@ -1709,8 +1702,7 @@ initEvents({
       document.getElementById("loadingOverlay").classList.remove("show");
     };
     reader.readAsText(file, "UTF-8");
-  },
-  assemblyMode: assemblyMode
+  }
 });
 
 // Drag-and-drop handled by initEvents
@@ -1745,7 +1737,6 @@ window.addEventListener("resize", () => {
 initTheme();
 try {
   initThree();
-  initMaterials(deviceQuality, renderer);
 } catch(e) {
   console.error('3D initialization failed:', e);
   document.getElementById('loadingOverlay').innerHTML = '<div style="text-align:center;color:#ff6b6b;padding:20px"><div style="font-size:32px;margin-bottom:12px">⚠️</div><div style="font-size:14px">Ошибка инициализации 3D</div><div style="font-size:12px;color:var(--text-tertiary);margin-top:8px">' + e.message + '</div></div>';
@@ -1776,6 +1767,7 @@ initCamera({
   closeSheet: closeSheet,
   renderPartsList: renderPartsList,
   applyXray: applyXray,
+  showToast: showToast,
   canvas: document.getElementById('canvas3d')
 });
 
@@ -1787,6 +1779,24 @@ initAssembly({
   renderPartsListDeferred: renderPartsListDeferred,
   showToast: showToast
 });
+
+// UI — wire dependencies for parts list click handlers and module isolate buttons
+initUI({
+  selectPart: selectPart,
+  startSmoothZoom: startSmoothZoom,
+  toggleVisibility: toggleVisibility,
+  isolateModule: isolateModule,
+  applyXray: applyXray,
+  centerCamera: centerCamera,
+  exitIsolation: exitIsolation,
+  animateExplodeTo: animateExplodeTo
+});
+
+// Expose functions used by inline HTML onclick handlers
+window.handleScan = handleScan;
+window.startSmoothZoom = startSmoothZoom;
+window.toggleVisibility = toggleVisibility;
+window.navigateToNeighbor = navigateToNeighbor;
 
 // QR scanner handled by src/qr.js
 initQR(handleScan, showToast);

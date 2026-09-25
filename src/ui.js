@@ -29,7 +29,7 @@ export function initUI(deps) {
 }
 
 export function escapeHtml(str) {
-  return (str || '').replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[char]);
+  return (str || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
 
 export function showToast(message) {
