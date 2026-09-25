@@ -157,15 +157,15 @@ function initThree() {
   const _renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     antialias: true,
-    alpha: false
+    alpha: false,
+    powerPreference: 'high-performance'
   });
   _renderer.setSize(window.innerWidth, window.innerHeight);
-  var maxRatio = deviceQuality === 'low' ? 1 : deviceQuality === 'medium' ? 1.5 : 2;
-  _renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxRatio));
-  _renderer.shadowMap.enabled = deviceQuality !== 'low';
-  _renderer.shadowMap.type = deviceQuality === 'low' ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
-  _renderer.toneMapping = deviceQuality === 'low' ? THREE.LinearToneMapping : THREE.ACESFilmicToneMapping;
-  _renderer.toneMappingExposure = 1.15;
+  // DetalQR-style pixel ratio cap: sqrt(6M pixels) — saves fill rate on 4K/retina
+  var bestPR = Math.min(window.devicePixelRatio, Math.max(1.75, Math.sqrt(6000000 / (window.innerWidth * window.innerHeight))));
+  _renderer.setPixelRatio(bestPR);
+  _renderer.shadowMap.enabled = false; // No real shadows — use fake contact shadow (DetalQR pattern)
+  _renderer.toneMapping = THREE.NoToneMapping; // Simpler pipeline, correct with sRGB textures
   _renderer.outputColorSpace = THREE.SRGBColorSpace;
   setRenderer(_renderer);
   initMaterials(deviceQuality, _renderer);
@@ -178,68 +178,67 @@ function initThree() {
   setCamera(_camera);
   setTargetPosition(new THREE.Vector3(0, 0.5, 0));
   setZoomTarget(new THREE.Vector3());
-  const ambientLight = new THREE.AmbientLight(0x8899aa, 0.6);
-  _scene.add(ambientLight);
-  const mainLight = new THREE.DirectionalLight(0xfff5e6, 1.4);
+  // Lighting — DetalQR style: hemisphere as main, low-cost directional fill, NO shadows
+  var hemiLight = new THREE.HemisphereLight(0x8899cc, 0x443322, 0.8);
+  _scene.add(hemiLight);
+  const mainLight = new THREE.DirectionalLight(0xfff5e6, 0.5);
   mainLight.position.set(8, 18, 12);
-  mainLight.castShadow = deviceQuality !== 'low';
-  mainLight.shadow.mapSize.set(2048, 2048);
-  mainLight.shadow.camera.left = -50;
-  mainLight.shadow.camera.right = 50;
-  mainLight.shadow.camera.top = 50;
-  mainLight.shadow.camera.bottom = -50;
-  mainLight.shadow.bias = -0.001;
-  mainLight.shadow.radius = 4;
   _scene.add(mainLight);
-  const fillLight = new THREE.DirectionalLight(0xaabbdd, 0.35);
+  const fillLight = new THREE.DirectionalLight(0xaabbdd, 0.25);
   fillLight.position.set(-6, 3, -8);
   _scene.add(fillLight);
-  // Rim light for edge definition on wood panels
-  const rimLight = new THREE.DirectionalLight(0x00D4AA, 0.15);
-  rimLight.position.set(-8, 6, 4);
-  if (deviceQuality !== 'low') _scene.add(rimLight);
-  // Hemisphere: sky blue top, warm ground
-  if (deviceQuality !== 'low') {
-    var hemiLight = new THREE.HemisphereLight(0x8899cc, 0x443322, 0.3);
-    _scene.add(hemiLight);
-  }
-  // Room — floor: 20m wide, 10m deep, one-sided (visible from above only)
+  const bottomLight = new THREE.DirectionalLight(0xffffff, 0.12);
+  bottomLight.position.set(0, -5, 0);
+  _scene.add(bottomLight);
+  // Room — floor
   var floorGeo = new THREE.PlaneGeometry(20, 10);
   var floorMat = new THREE.MeshStandardMaterial({
     color: isDarkTheme ? 0x2a2a2e : 0xd0d0d4,
-    roughness: 0.85,
-    metalness: 0,
-    side: THREE.FrontSide,
-    transparent: true,
-    opacity: 0.3
+    roughness: 0.85, metalness: 0, side: THREE.FrontSide,
+    transparent: true, opacity: 0.3
   });
   var _floor = new THREE.Mesh(floorGeo, floorMat);
   _floor.rotation.x = -Math.PI / 2;
   _floor.position.set(0, 0, 0);
-  _floor.receiveShadow = deviceQuality !== 'low';
   _scene.add(_floor);
   setFloor(_floor);
 
-  // Grid on the floor - subtle, not too harsh
+  // Fake contact shadow (DetalQR pattern) — zero GPU cost
+  var shadowCanvas = document.createElement('canvas');
+  shadowCanvas.width = 256; shadowCanvas.height = 256;
+  var sCtx = shadowCanvas.getContext('2d');
+  var grad = sCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(0,0,0,0.35)');
+  grad.addColorStop(0.5, 'rgba(0,0,0,0.15)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  sCtx.fillStyle = grad;
+  sCtx.fillRect(0, 0, 256, 256);
+  var shadowTex = new THREE.CanvasTexture(shadowCanvas);
+  var shadowPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(6, 6),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.8 })
+  );
+  shadowPlane.rotation.x = -Math.PI / 2;
+  shadowPlane.position.y = 0.002;
+  shadowPlane.renderOrder = -1;
+  _scene.add(shadowPlane);
+
+  // Grid on the floor
   var gridHelper = new THREE.GridHelper(20, 40, 0x00d4aa, 0x00d4aa);
   gridHelper.material.transparent = true;
   gridHelper.material.opacity = 0.04;
   gridHelper.position.y = 0.001;
   if (deviceQuality !== 'low') _scene.add(gridHelper);
 
-  // Room — back wall: 20m wide, 5m tall, one-sided
+  // Room — back wall
   var wallGeo = new THREE.PlaneGeometry(20, 5);
   var wallMat = new THREE.MeshStandardMaterial({
     color: isDarkTheme ? 0x444448 : 0xd0d0d4,
-    roughness: 0.9,
-    metalness: 0,
-    side: THREE.FrontSide,
-    transparent: true,
-    opacity: 0.25
+    roughness: 0.9, metalness: 0, side: THREE.FrontSide,
+    transparent: true, opacity: 0.25
   });
   var _wall = new THREE.Mesh(wallGeo, wallMat);
   _wall.position.set(0, 2.5, -5);
-  _wall.receiveShadow = deviceQuality !== 'low';
   if (deviceQuality !== 'low') _scene.add(_wall);
   setWall(_wall);
   setupCameraControls(canvas);
@@ -423,7 +422,7 @@ function buildFasteners(fasteners) {
           sec.p[2] * sc + dir.z * len / 2
         );
         mesh.userData = { fastenerId: fastener.id, type: "fastener", name: fastener.name };
-        mesh.castShadow = true;
+        mesh.castShadow = false;
         scene.add(mesh);
         fastenerMeshes.push(mesh);
       });
@@ -791,19 +790,20 @@ function buildScene() {
         }
         if (part._quat) panelMesh.quaternion.copy(part._quat);
         panelMesh.userData = { partId: part.id };
-        panelMesh.castShadow = deviceQuality !== 'low';
-        panelMesh.receiveShadow = deviceQuality !== 'low';
+        panelMesh.castShadow = false;
+        panelMesh.receiveShadow = false;
         scene.add(panelMesh);
-        var edgeThreshold = deviceQuality === 'low' ? 30 : 15;
-        var edgeGeo = new THREE.EdgesGeometry(panelGeo, edgeThreshold);
+        originalPositions.set(part.id, panelMesh.position.clone());
+        meshMap.set(part.id, panelMesh);
+        if (parts.length <= 500) {
+        var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
         var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x1a1a1a : 0x666666, transparent: true, opacity: 0.6 });
         var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
         edgeLineObj.quaternion.copy(panelMesh.quaternion);
         edgeLineObj.position.copy(panelMesh.position);
         scene.add(edgeLineObj);
-        originalPositions.set(part.id, panelMesh.position.clone());
-        meshMap.set(part.id, panelMesh);
         edgeLineMap.set(part.id, edgeLineObj);
+        }
         var details = buildPartDetails(part, panelMesh);
         if (details.length) detailMeshes.set(part.id, details);
         return; // Skip the ExtrudeGeometry path
@@ -844,19 +844,20 @@ function buildScene() {
       panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
       if (part._quat) panelMesh.quaternion.copy(part._quat);
       panelMesh.userData = { partId: part.id };
-      panelMesh.castShadow = deviceQuality !== 'low';
-      panelMesh.receiveShadow = deviceQuality !== 'low';
+      panelMesh.castShadow = false;
+      panelMesh.receiveShadow = false;
       scene.add(panelMesh);
-      var edgeThreshold = deviceQuality === 'low' ? 30 : 15;
-      var edgeGeo = new THREE.EdgesGeometry(panelGeo, edgeThreshold);
+      originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
+      meshMap.set(part.id, panelMesh);
+      if (parts.length <= 500) {
+      var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
       var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x1a1a1a : 0x666666, transparent: true, opacity: 0.6 });
       var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
       edgeLineObj.quaternion.copy(panelMesh.quaternion);
       edgeLineObj.position.copy(panelMesh.position);
       scene.add(edgeLineObj);
-      originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
-      meshMap.set(part.id, panelMesh);
       edgeLineMap.set(part.id, edgeLineObj);
+      }
       var details = buildPartDetails(part, panelMesh);
       if (details.length) detailMeshes.set(part.id, details);
       return;
@@ -889,20 +890,21 @@ function buildScene() {
       panelMesh.quaternion.copy(part._quat);
     }
     panelMesh.userData = { partId: part.id };
-    panelMesh.castShadow = deviceQuality !== 'low';
-    panelMesh.receiveShadow = deviceQuality !== 'low';
+    panelMesh.castShadow = false;
+    panelMesh.receiveShadow = false;
     scene.add(panelMesh);
-    // Wireframe edges
-    var edgeThreshold = deviceQuality === 'low' ? 30 : 15;
-    var edgeGeo = new THREE.EdgesGeometry(panelGeo, edgeThreshold);
+    // Wireframe edges — skip for large models (DetalQR pattern)
+    originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
+    meshMap.set(part.id, panelMesh);
+    if (parts.length <= 500) {
+    var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
     var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x1a1a1a : 0x666666, transparent: true, opacity: 0.6 });
     var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
     edgeLineObj.quaternion.copy(panelMesh.quaternion);
     edgeLineObj.position.copy(panelMesh.position);
     scene.add(edgeLineObj);
-    originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
-    meshMap.set(part.id, panelMesh);
     edgeLineMap.set(part.id, edgeLineObj);
+    }
     // Build detail overlays (grooves, holes, edges — cutouts are now in the shape)
     var details = buildPartDetails(part, panelMesh);
     if (details.length) {
@@ -1750,6 +1752,8 @@ window.addEventListener("resize", () => {
   clearTimeout(_resizeTimer);
   _resizeTimer = setTimeout(() => {
     renderer.setSize(window.innerWidth, window.innerHeight);
+    var bestPR = Math.min(window.devicePixelRatio, Math.max(1.75, Math.sqrt(6000000 / (window.innerWidth * window.innerHeight))));
+    renderer.setPixelRatio(bestPR);
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     setNeedsRender(true);
