@@ -114,13 +114,9 @@ function showLoginPage() {
 function showMainApp() {
   document.getElementById('loginPage').classList.remove('active');
   document.getElementById('mainApp').style.display = 'block';
-  // Immediate resize so Three.js renderer matches the now-visible canvas
-  try {
-    var canvas = document.getElementById('canvas3d');
-    if (canvas && window.renderer) {
-      window.renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-  } catch(e) {}
+  // Initialize 3D AFTER canvas is visible (zero-size canvas causes WebGL issues)
+  if (window.init3D) window.init3D();
+  // Force resize so renderer picks up correct canvas dimensions
   window.dispatchEvent(new Event('resize'));
 }
 

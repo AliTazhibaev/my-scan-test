@@ -1803,14 +1803,20 @@ window.addEventListener("resize", () => {
   }, 100);
 });
 initTheme();
-try {
-  initThree();
-} catch(e) {
-  console.error('3D initialization failed:', e);
-  document.getElementById('loadingOverlay').innerHTML = '<div style="text-align:center;color:#ff6b6b;padding:20px"><div style="font-size:32px;margin-bottom:12px">⚠️</div><div style="font-size:14px">Ошибка инициализации 3D</div><div style="font-size:12px;color:var(--text-tertiary);margin-top:8px">' + e.message + '</div></div>';
-  document.getElementById('loadingOverlay').classList.add('show');
+// 3D initialization is deferred until after login (showMainApp calls init3D)
+var _3dInitialized = false;
+function init3D() {
+  if (_3dInitialized) return;
+  _3dInitialized = true;
+  try {
+    initThree();
+  } catch(e) {
+    console.error('3D initialization failed:', e);
+  }
+  updateStats();
 }
-updateStats();
+// Expose for auth.js to call after showing mainApp
+window.init3D = init3D;
 
 
 // === Isolation bar handlers ===
