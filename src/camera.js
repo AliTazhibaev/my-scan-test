@@ -116,6 +116,15 @@ export function handleRaycast(clickX, clickY, rect) {
   if (hits.length === 0) { deselectPart(); return; }
   for (let i = 0; i < hits.length; i++) {
     const ud = hits[i].object.userData;
+    // Handle InstancedMesh fasteners (batched by geometry+color)
+    if (ud && ud.fastenerInstances && hits[i].instanceId !== undefined) {
+      const instData = ud.fastenerInstances[hits[i].instanceId];
+      if (instData) {
+        const f = fastenerData.find(fd => fd.id === instData.fastenerId);
+        if (f && _showToast) { _showToast("\uD83D\uDD27 " + (f.name || "Фурнитура") + " [" + (f.type || "?") + "]"); }
+      }
+      return;
+    }
     if (ud && ud.fastenerId !== undefined) {
       const f = fastenerData.find(fd => fd.id === ud.fastenerId);
       if (f && _showToast) { _showToast("\uD83D\uDD27 " + (f.name || "Фурнитура") + " [" + (f.type || "?") + "]"); }
