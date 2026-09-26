@@ -442,34 +442,31 @@ export function createPartMaterial(partData, geoType) {
     return new THREE.MeshStandardMaterial(matProps);
   }
 
-  // Grain direction — different UV mapping for BoxGeometry vs ExtrudeGeometry
-  // ExtrudeGeometry: U→X(=L), V→Y(=W). Texture grain naturally along V(=W).
-  // BoxGeometry: U→X(=W), V→Y(=H). Texture grain naturally along V(=H).
+  // Grain direction
+  // Texture images are VERTICAL (portrait): grain runs top-to-bottom = V axis in UV.
+  // ExtrudeGeometry: U → shape X = W(panel), V → shape Y = L(panel)
+  // BoxGeometry front: U → X = W(panel), V → Y = L(panel)
   //
-  // For ExtrudeGeometry: L > W → rotate 90° to move grain from V(=W) to U(=L)
-  // For BoxGeometry:     L > W → no rotation (grain already along V, which is Y=H=W for the panel)
-  //                      W > L → rotate 90° to move grain along L
+  // Default (no rotation): grain along V = L (height/length of panel).
+  // Rotate 90°: grain along U = W (width of panel).
+  //
+  // Rules:
+  //   Vertical panel (L > W): grain along V = L → CORRECT, no rotation
+  //   Horizontal panel (W > L): grain should go along W (the long side) → rotate 90°
+  //   grain=1: force along L → no rotation (V = L)
+  //   grain=2: force along W → rotate 90°
   var grainAngle = 0;
   var grain = partData.grain || 0;
-  var isBoxGeo = (geoType === 'box');
-
-  if (isBoxGeo) {
-    // BoxGeometry: default grain along V(=height=W). Rotate if L > W.
-    if (grain === 1) {
-      grainAngle = Math.PI / 2; // force along L
-    } else if (grain === 0) {
-      if ((partData.L || 0) > (partData.W || 0)) {
-        grainAngle = Math.PI / 2; // L is longer → rotate grain to U(=width=L)
-      }
-    }
-  } else {
-    // ExtrudeGeometry: default grain along V(=Y=W). Rotate if L > W.
-    if (grain === 1) {
-      grainAngle = Math.PI / 2; // force along L (U axis)
-    } else if (grain === 0) {
-      if ((partData.L || 0) > (partData.W || 0)) {
-        grainAngle = Math.PI / 2; // L is longer → rotate grain to U(=L)
-      }
+  if (grain === 2) {
+    grainAngle = Math.PI / 2; // force grain along W (horizontal)
+  } else if (grain === 0) {
+    // Auto: grain should follow the LONGER dimension
+    // Texture grain is vertical (V axis = L in both geometries)
+    // If W > L (horizontal panel): rotate 90° so grain goes along U = W (the long side)
+    // If L > W (vertical panel): no rotation, grain goes along V = L (the long side)
+    // If L === W: no rotation
+    if ((partData.W || 0) > (partData.L || 0)) {
+      grainAngle = Math.PI / 2;
     }
   }
 
