@@ -419,7 +419,7 @@ export function loadRealTexture(url) {
 }
 
 // Создание материала для детали (с учётом типа и направления текстуры)
-export function createPartMaterial(partData) {
+export function createPartMaterial(partData, geoType) {
   var matName = partData.material || '';
   var info = classifyMaterial(matName);
   var baseColor = info.color;
@@ -442,29 +442,34 @@ export function createPartMaterial(partData) {
     return new THREE.MeshStandardMaterial(matProps);
   }
 
-  // EGGER текстуры: H1145 и аналоги имеют горизонтальные волокна (U-ось = shape X = L панели).
-  // ExtrudeGeometry UV: U → shape X (=L), V → shape Y (=W).
-  // Без поворота волокна идут по X (=L). Поворот 90° смещает волокна на Y (=W).
-  // Правило: текстура идёт по длинной стороне панели.
-  //   L > W → волокна уже по L (длинная) → поворот НЕ нужен
-  //   W > L → нужно сместить волокна на W (длинная) → поворот 90°
-  //   grain=1 → по X (L) → не поворачиваем
-  //   grain=2 → по Y (W) → поворачиваем на 90°
+  // Grain direction — different UV mapping for BoxGeometry vs ExtrudeGeometry
+  // ExtrudeGeometry: U→X(=L), V→Y(=W). Texture grain naturally along V(=W).
+  // BoxGeometry: U→X(=W), V→Y(=H). Texture grain naturally along V(=H).
+  //
+  // For ExtrudeGeometry: L > W → rotate 90° to move grain from V(=W) to U(=L)
+  // For BoxGeometry:     L > W → no rotation (grain already along V, which is Y=H=W for the panel)
+  //                      W > L → rotate 90° to move grain along L
   var grainAngle = 0;
   var grain = partData.grain || 0;
-  // ExtrudeGeometry UV: U → shape X (=L), V → shape Y (=W).
-  // Egger texture images have grain running vertically (V direction).
-  // Grain should follow the LONGER side of the panel.
-  //   W >= L → grain already along V (=W) → no rotation
-  //   L > W  → need to rotate 90° to shift grain from V(=W) to U(=L, long side)
-  // grain=0: auto-detect by dimensions
-  // grain=1: force along L (U) — rotate90°
-  // grain=2: force along W (V) — no rotation
-  if (grain === 1) {
-    grainAngle = Math.PI / 2;
-  } else if (grain === 0) {
-    if ((partData.L || 0) > (partData.W || 0)) {
-      grainAngle = Math.PI / 2;
+  var isBoxGeo = (geoType === 'box');
+
+  if (isBoxGeo) {
+    // BoxGeometry: default grain along V(=height=W). Rotate if L > W.
+    if (grain === 1) {
+      grainAngle = Math.PI / 2; // force along L
+    } else if (grain === 0) {
+      if ((partData.L || 0) > (partData.W || 0)) {
+        grainAngle = Math.PI / 2; // L is longer → rotate grain to U(=width=L)
+      }
+    }
+  } else {
+    // ExtrudeGeometry: default grain along V(=Y=W). Rotate if L > W.
+    if (grain === 1) {
+      grainAngle = Math.PI / 2; // force along L (U axis)
+    } else if (grain === 0) {
+      if ((partData.L || 0) > (partData.W || 0)) {
+        grainAngle = Math.PI / 2; // L is longer → rotate grain to U(=L)
+      }
     }
   }
 

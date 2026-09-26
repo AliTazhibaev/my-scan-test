@@ -819,7 +819,7 @@ async function buildSceneAsync() {
       if (!hasCutouts) {
         // Simple rectangle — use BoxGeometry (much faster than ExtrudeGeometry)
         var panelGeo = new THREE.BoxGeometry(shapeW, shapeH, panelT);
-        var panelMat = createPartMaterial(part);
+        var panelMat = createPartMaterial(part, 'box');
         var panelMesh = new THREE.Mesh(panelGeo, panelMat);
         if (part.placement) {
           panelMesh.position.set(
@@ -884,7 +884,7 @@ async function buildSceneAsync() {
       var extrudeSettings = { depth: panelT, bevelEnabled: false };
       var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
       // Fall through to the common mesh creation code below
-      var panelMat = createPartMaterial(part);
+      var panelMat = createPartMaterial(part, 'extrude');
       var panelMesh = new THREE.Mesh(panelGeo, panelMat);
       panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
       if (part._quat) panelMesh.quaternion.copy(part._quat);
