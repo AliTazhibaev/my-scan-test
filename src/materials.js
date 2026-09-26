@@ -442,32 +442,47 @@ export function createPartMaterial(partData, geoType) {
     return new THREE.MeshStandardMaterial(matProps);
   }
 
-  // Grain direction
-  // Texture images are VERTICAL (portrait): grain runs top-to-bottom = V axis in UV.
-  // ExtrudeGeometry: U → shape X = W(panel), V → shape Y = L(panel)
-  // BoxGeometry front: U → X = W(panel), V → Y = L(panel)
+  // Grain direction — based on panel ORIENTATION in world space (placement).
+  // Two identical 500×500 panels rotated differently should show the SAME grain
+  // direction in world space (because they're cut from the same sheet).
   //
-  // Default (no rotation): grain along V = L (height/length of panel).
-  // Rotate 90°: grain along U = W (width of panel).
+  // Texture images: grain runs along image height (V axis in UV).
+  // ExtrudeGeometry: shape X → local X, shape Y → local Y. UV: U=X, V=Y.
   //
-  // Rules:
-  //   Vertical panel (L > W): grain along V = L → CORRECT, no rotation
-  //   Horizontal panel (W > L): grain should go along W (the long side) → rotate 90°
-  //   grain=1: force along L → no rotation (V = L)
-  //   grain=2: force along W → rotate 90°
+  // The grain direction in world space = local Y direction transformed by placement.
+  // We need the UV rotation angle that aligns the texture's V axis with the grain.
+  //
+  // Formula: angle = cross(V_local, grain_world).z → atan2 for rotation.
   var grainAngle = 0;
   var grain = partData.grain || 0;
-  if (grain === 2) {
-    grainAngle = Math.PI / 2; // force grain along W (horizontal)
-  } else if (grain === 0) {
-    // Auto: grain should follow the LONGER dimension
-    // Texture grain is vertical (V axis = L in both geometries)
-    // If W > L (horizontal panel): rotate 90° so grain goes along U = W (the long side)
-    // If L > W (vertical panel): no rotation, grain goes along V = L (the long side)
-    // If L === W: no rotation
-    if ((partData.W || 0) > (partData.L || 0)) {
+  var pl = partData.placement;
+
+  if (!pl || !pl.ax) {
+    // No placement — use simple L vs W heuristic
+    if (grain === 0 && (partData.W || 0) > (partData.L || 0)) {
+      grainAngle = Math.PI / 2;
+    } else if (grain === 2) {
       grainAngle = Math.PI / 2;
     }
+  } else {
+    var ax = pl.ax; // panel's local X axis in world space
+    // Local Y axis in world space (cross of Z and X, assuming right-handed)
+    var ayX = -ax.z, ayZ = ax.x; // simplified for Y=0 plane
+    // Grain direction in world space:
+    //   grain=0 or grain=1: along local Y (shape Y = L direction)
+    //   grain=2: along local X (shape X = W direction)
+    var grainX, grainZ;
+    if (grain === 2) {
+      grainX = ax.x; grainZ = ax.z; // along local X
+    } else {
+      grainX = ayX; grainZ = ayZ; // along local Y (default for grain=0,1)
+    }
+    // Texture V axis in world = local Y = (ayX, 0, ayZ)
+    // Rotation angle = angle from texture V to grain direction
+    // sin = cross(V, grain), cos = dot(V, grain)
+    var sinA = ayX * grainZ - ayZ * grainX;
+    var cosA = ayX * grainX + ayZ * grainZ;
+    grainAngle = Math.atan2(sinA, cosA);
   }
 
   // Если есть реальная текстура — загружаем асинхронно
