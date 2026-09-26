@@ -442,47 +442,38 @@ export function createPartMaterial(partData, geoType) {
     return new THREE.MeshStandardMaterial(matProps);
   }
 
-  // Grain direction — based on panel ORIENTATION in world space (placement).
-  // Two identical 500×500 panels rotated differently should show the SAME grain
-  // direction in world space (because they're cut from the same sheet).
+  // Grain direction: ALWAYS along L (panel length) = local X axis of the shape.
+  // NOT the longer side — L is the texture direction from БАЗИС.
   //
-  // Texture images: grain runs along image height (V axis in UV).
-  // ExtrudeGeometry: shape X → local X, shape Y → local Y. UV: U=X, V=Y.
+  // Texture images: grain runs along image height = V axis in UV.
+  // ExtrudeGeometry: shape X (L) → U axis, shape Y (W) → V axis.
   //
-  // The grain direction in world space = local Y direction transformed by placement.
-  // We need the UV rotation angle that aligns the texture's V axis with the grain.
+  // We need UV rotation so texture grain (V) aligns with L (local X).
+  // Default: grain along V (=W). Rotate 90° → grain along U (=L).
   //
-  // Formula: angle = cross(V_local, grain_world).z → atan2 for rotation.
+  // But we also need to account for panel orientation in world space:
+  // placement.ax = local X direction in world coords.
+  // Same panel rotated 90° → grain should still visually follow L.
+  //
+  // Formula: angle = atan2(ax.z, ax.x) — rotation of L axis in XZ plane.
   var grainAngle = 0;
   var grain = partData.grain || 0;
   var pl = partData.placement;
 
-  if (!pl || !pl.ax) {
-    // No placement — use simple L vs W heuristic
-    if (grain === 0 && (partData.W || 0) > (partData.L || 0)) {
-      grainAngle = Math.PI / 2;
-    } else if (grain === 2) {
-      grainAngle = Math.PI / 2;
-    }
+  if (grain === 2) {
+    // grain=2: force along W. Texture V already along W (shape Y). No rotation.
+    grainAngle = 0;
   } else {
-    var ax = pl.ax; // panel's local X axis in world space
-    // Local Y axis in world space (cross of Z and X, assuming right-handed)
-    var ayX = -ax.z, ayZ = ax.x; // simplified for Y=0 plane
-    // Grain direction in world space:
-    //   grain=0 or grain=1: along local Y (shape Y = L direction)
-    //   grain=2: along local X (shape X = W direction)
-    var grainX, grainZ;
-    if (grain === 2) {
-      grainX = ax.x; grainZ = ax.z; // along local X
-    } else {
-      grainX = ayX; grainZ = ayZ; // along local Y (default for grain=0,1)
+    // grain=0 or grain=1: along L = local X axis.
+    // Default texture: grain along V = W (shape Y).
+    // Need 90° base rotation to move grain from V(=W) to U(=L).
+    grainAngle = Math.PI / 2;
+    // Then adjust for panel orientation in world space
+    if (pl && pl.ax) {
+      var ax = pl.ax;
+      var orientAngle = Math.atan2(ax.z, ax.x);
+      grainAngle += orientAngle;
     }
-    // Texture V axis in world = local Y = (ayX, 0, ayZ)
-    // Rotation angle = angle from texture V to grain direction
-    // sin = cross(V, grain), cos = dot(V, grain)
-    var sinA = ayX * grainZ - ayZ * grainX;
-    var cosA = ayX * grainX + ayZ * grainZ;
-    grainAngle = Math.atan2(sinA, cosA);
   }
 
   // Если есть реальная текстура — загружаем асинхронно
