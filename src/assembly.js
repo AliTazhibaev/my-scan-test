@@ -42,8 +42,9 @@ export function toggleAssembly() {
     meshMap.forEach(m => {
       m.material.emissive.setHex(0);
       m.material.emissiveIntensity = 0;
-      m.material.transparent = false;
+      m.material.transparent = true;
       m.material.opacity = 1;
+      m.material.depthWrite = true;
       m.material.needsUpdate = true;
     });
     edgeLineMap.forEach(e => {
@@ -86,6 +87,7 @@ export function updateAssemblyStep() {
         prevAsmMesh.material.emissiveIntensity = 0;
         prevAsmMesh.material.transparent = true;
         prevAsmMesh.material.opacity = 0.15;
+        prevAsmMesh.material.depthWrite = false;
         prevAsmMesh.material.needsUpdate = true;
       }
       if (prevAsmEdge) {
@@ -103,6 +105,7 @@ export function updateAssemblyStep() {
       asmMesh.material.emissiveIntensity = 0;
       asmMesh.material.transparent = true;
       asmMesh.material.opacity = 0.15;
+      asmMesh.material.depthWrite = false;
       asmMesh.material.needsUpdate = true;
     });
     edgeLineMap.forEach(asmEdge => {
@@ -120,8 +123,9 @@ export function updateAssemblyStep() {
   if (highlightMesh) {
     highlightMesh.material.emissive.setHex(0x00D4AA);
     highlightMesh.material.emissiveIntensity = 0.25;
-    highlightMesh.material.transparent = false;
+    highlightMesh.material.transparent = true;
     highlightMesh.material.opacity = 1;
+    highlightMesh.material.depthWrite = true;
     highlightMesh.material.needsUpdate = true;
   }
   if (highlightEdge) {

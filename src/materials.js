@@ -425,15 +425,16 @@ export function createPartMaterial(partData) {
   var baseColor = info.color;
   var isSmooth = info.smooth || false;
 
-  // Для гладких материалов (ЛДСП, МДФ, HDF, белый, серый, пластик) — без текстуры
+  // All panels transparent:true for xray, fully opaque by default
   var matProps = {
     color: baseColor,
     roughness: isSmooth ? 0.85 : (info.cat === 'material' ? 0.6 : 0.78),
     metalness: isSmooth ? 0 : (info.cat === 'material' ? 0.15 : 0.02),
     emissive: new THREE.Color(0),
     emissiveIntensity: 0,
-    transparent: false,
-    opacity: 1
+    transparent: true,
+    opacity: 1,
+    depthWrite: true
   };
 
   // Гладкие — сразу возвращаем без текстуры

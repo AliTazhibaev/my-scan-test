@@ -834,8 +834,9 @@ async function buildSceneAsync() {
         panelMesh.userData = { partId: part.id };
         panelMesh.castShadow = false;
         panelMesh.receiveShadow = false;
-        panelMesh.material.transparent = false;
+        panelMesh.material.transparent = true;
         panelMesh.material.opacity = 1;
+        panelMesh.material.depthWrite = true;
         scene.add(panelMesh);
         originalPositions.set(part.id, panelMesh.position.clone());
         meshMap.set(part.id, panelMesh);
@@ -890,8 +891,7 @@ async function buildSceneAsync() {
       panelMesh.userData = { partId: part.id };
       panelMesh.castShadow = false;
       panelMesh.receiveShadow = false;
-      panelMesh.material.transparent = false;
-      panelMesh.material.opacity = 1;
+      // Material already transparent:true from createPartMaterial
       scene.add(panelMesh);
       originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
       meshMap.set(part.id, panelMesh);
@@ -938,8 +938,6 @@ async function buildSceneAsync() {
     panelMesh.userData = { partId: part.id };
     panelMesh.castShadow = false;
     panelMesh.receiveShadow = false;
-    panelMesh.material.transparent = false;
-    panelMesh.material.opacity = 1;
     scene.add(panelMesh);
     // Wireframe edges — skip for large models (DetalQR pattern)
     originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
@@ -1034,8 +1032,9 @@ function selectModuleHighlight(moduleKey, clickedId) {
     } else {
       mesh.material.emissive.setHex(0);
       mesh.material.emissiveIntensity = 0;
-      mesh.material.transparent = false;
-      mesh.material.opacity = 1;
+      mesh.material.transparent = true;
+      mesh.material.opacity = 0.3;
+      mesh.material.depthWrite = false;
     }
     mesh.material.needsUpdate = true;
   });
@@ -1077,8 +1076,9 @@ function selectPart(partId) {
     if (prevMesh) {
       prevMesh.material.emissive.setHex(0);
       prevMesh.material.emissiveIntensity = 0;
-      prevMesh.material.transparent = false;
+      prevMesh.material.transparent = true;
       prevMesh.material.opacity = 1;
+      prevMesh.material.depthWrite = true;
       prevMesh.material.needsUpdate = true;
     }
     if (prevEdge) {
@@ -1323,8 +1323,9 @@ function showAllParts() {
   setExplodeModuleKey(null);
   meshMap.forEach(m => {
     m.visible = true;
-    m.material.transparent = false;
+    m.material.transparent = true;
     m.material.opacity = 1;
+    m.material.depthWrite = true;
     m.material.roughness = 0.78;
     m.material.needsUpdate = true;
   });
@@ -1358,8 +1359,9 @@ function isolateModule(moduleKey) {
   meshMap.forEach((m, id) => {
     if (moduleIds.has(id)) {
       m.visible = true;
-      m.material.transparent = false;
+      m.material.transparent = true;
       m.material.opacity = 1;
+      m.material.depthWrite = true;
       m.material.roughness = 0.78;
       m.material.needsUpdate = true;
     } else {
@@ -1398,8 +1400,9 @@ function exitIsolation() {
   setExplodeModuleKey(null);
   meshMap.forEach(m => {
     m.visible = true;
-    m.material.transparent = false;
+    m.material.transparent = true;
     m.material.opacity = 1;
+    m.material.depthWrite = true;
     m.material.roughness = 0.78;
     m.material.needsUpdate = true;
   });
@@ -1464,26 +1467,30 @@ function explodeIsolatedModule() {
 }
 function applyXray() {
   meshMap.forEach((xrayMesh, xrayId) => {
-    // Сброс прозрачности для ВСЕХ — включая скрытые, иначе при показе останется плёнка
     if (!xrayActive) {
-      xrayMesh.material.transparent = false;
+      // Normal mode: opaque, depthWrite on
+      xrayMesh.material.transparent = true;
       xrayMesh.material.opacity = 1;
+      xrayMesh.material.depthWrite = true;
       xrayMesh.material.roughness = 0.78;
       xrayMesh.material.needsUpdate = true;
       return;
     }
     if (selectedId !== null && xrayId === selectedId) {
-      xrayMesh.material.transparent = false;
+      // Selected part: fully visible
+      xrayMesh.material.transparent = true;
       xrayMesh.material.opacity = 1;
+      xrayMesh.material.depthWrite = true;
       xrayMesh.material.roughness = 0.78;
     } else {
+      // Xray: see-through, no depth write
       xrayMesh.material.transparent = true;
-      xrayMesh.material.opacity = 0.28;
+      xrayMesh.material.opacity = 0.25;
+      xrayMesh.material.depthWrite = false;
       xrayMesh.material.roughness = 0.92;
     }
     xrayMesh.material.needsUpdate = true;
   });
-
   setNeedsRender(true);
 }
 function toggleXray() {
@@ -1491,8 +1498,9 @@ function toggleXray() {
   document.getElementById("xrayBtn").classList.toggle("active", xrayActive);
   if (!xrayActive) {
     meshMap.forEach(m => {
-      m.material.transparent = false;
+      m.material.transparent = true;
       m.material.opacity = 1;
+      m.material.depthWrite = true;
       m.material.roughness = 0.78;
       m.material.needsUpdate = true;
     });
