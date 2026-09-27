@@ -1133,50 +1133,16 @@ function selectPart(partId) {
   setNeedsRender(true);
 }
 function renderProcessingInfo(partData) {
-  const grooves = partData.grooves || [];
-  const holes2 = partData.holes || [];
-  const cutouts2 = partData.cutouts || [];
-  const pockets = partData.pockets || [];
-  // edges removed from display
-  const hasProcessing = grooves.length || holes2.length || cutouts2.length || pockets.length;
-  const relatedFasteners = fastenerData.filter(f => f.ownerCode && partData.code && f.ownerCode === partData.code);
-  if (!hasProcessing && !relatedFasteners.length) {
-    return "";
-  }
-  let html = "<div style=\"margin-top:4px;border-top:1px solid var(--border);padding-top:4px\">";
-  if (pockets.length) {
-    html += "<div style=\"font-size:9px;color:#7a4de8;margin-bottom:2px\">Пазы/карманы (" + pockets.length + "):</div>";
-    pockets.forEach(function(pk, idx) {
-      var shape = pk.t === 'circle' ? ('⌀' + ((pk.r || 0) * 2).toFixed(0)) : ('poly ' + (pk.pts ? pk.pts.length : 0) + ' вершин');
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + shape + " гл." + (pk.depth || 0) + " мм " + (pk.face === 'B' ? 'тыл' : 'лицо') + "</div>";
-    });
-  }
-  if (grooves.length) {
-    html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Пазы (" + grooves.length + "):</div>";
-    grooves.forEach((groove, idx) => {
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (groove.x || 0) + " y:" + (groove.y || 0) + " " + (groove.width || groove.w || 0) + "×" + (groove.length || groove.h || 0) + "×" + (groove.depth || groove.d || 0) + " мм</div>";
-    });
-  }
-  if (holes2.length) {
-    html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Отверстия (" + holes2.length + "):</div>";
-    holes2.forEach((hole, idx) => {
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (hole.x || 0) + " y:" + (hole.y || 0) + " ⌀" + (hole.diameter || hole.d || hole.r || "?") + " мм</div>";
-    });
-  }
-  if (cutouts2.length) {
-    html += "<div style=\"font-size:9px;color:var(--accent);margin-bottom:2px\">Вырезы (" + cutouts2.length + "):</div>";
-    cutouts2.forEach((cutout, idx) => {
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". x:" + (cutout.x || 0) + " y:" + (cutout.y || 0) + " " + (cutout.w || 0) + "×" + (cutout.h || 0) + " мм</div>";
-    });
-  }
-    if (relatedFasteners.length) {
-    html += "<div style=\"font-size:9px;color:#ff9800;margin-bottom:2px\">Фурнитура (" + relatedFasteners.length + "):</div>";
-    relatedFasteners.forEach((f, idx) => {
-      html += "<div style=\"font-size:8px;color:var(--text-secondary);padding-left:6px\">" + (idx + 1) + ". " + escapeHtml(f.name || "?") + " [" + escapeHtml(f.type || "?") + "]</div>";
-    });
-  }
-  html += "</div>";
-  return html;
+  // Show only summary counts — no detailed pocket/groove/hole/fastener lists
+  var pockets = partData.pockets || [];
+  var holes2 = partData.holes || [];
+  var cutouts2 = partData.cuts || partData.cutouts || [];
+  var counts = [];
+  if (pockets.length) counts.push("Пазы: " + pockets.length);
+  if (holes2.length) counts.push("Отверстия: " + holes2.length);
+  if (cutouts2.length) counts.push("Вырезы: " + cutouts2.length);
+  if (!counts.length) return "";
+  return '<div style="margin-top:6px;font-size:10px;color:var(--text-tertiary)">' + counts.join(" · ") + '</div>';
 }
 function findNeighbors(part) {
   if (!fastenerData.length || !part) return [];

@@ -456,23 +456,21 @@ export function createPartMaterial(partData, geoType) {
   //   2 = along W (panel width, local Y axis)
   //   0 = auto (fallback to 1)
   //
-  // Texture images: grain runs along image height = V axis in UV.
+  // Egger texture images: grain runs HORIZONTALLY (along image width = U axis in UV).
   // ExtrudeGeometry: shape X (L) → U axis, shape Y (W) → V axis.
+  // So default (no rotation): grain along U → along X → along L. ✓
   //
   // Rotation is applied in LOCAL panel space (before placement quaternion).
   // Do NOT add world-space orientation — the mesh's quaternion already handles it.
-  // DetalQR reference: grain = Number(panel.TextureOrientation) || 0 — no angle math.
   var grainAngle = 0;
   var grain = partData.grain || 0;
 
   if (grain === 2) {
-    // grain=2: along W. Texture V already along W (shape Y). No rotation needed.
-    grainAngle = 0;
-  } else {
-    // grain=0 or grain=1: along L = local X axis.
-    // Default: texture grain along V = W (shape Y).
-    // Rotate 90° to move grain from V(=W) to U(=L).
+    // grain=2: along W. Rotate 90° to move grain from U(=L) to V(=W).
     grainAngle = Math.PI / 2;
+  } else {
+    // grain=0 or grain=1: along L. Default grain already along U(=L). No rotation.
+    grainAngle = 0;
   }
 
   // Apply rot from texture editor (adds to grain angle)
