@@ -120,25 +120,25 @@ function applyTheme() {
     document.body.classList.remove("light-theme");
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
-      scene.background.setHex(0x141416);
-      edgeLineMap.forEach(e => { e.material.color.setHex(0x1a1a1a); });
-      if (floor) floor.material.color.setHex(0x3a3a3e);
-      if (wall) wall.material.color.setHex(0x444448);
+      scene.background.setHex(0x1a1e28);
+      edgeLineMap.forEach(e => { e.material.color.setHex(0x3a3e4a); });
+      if (floor) floor.material.color.setHex(0x2a2e38);
+      if (wall) wall.material.color.setHex(0x353a44);
     }
     if (scene) {
-      scene.fog.color.setHex(0x141416);
+      scene.fog.color.setHex(0x1a1e28);
     }
   } else {
     document.body.classList.add("light-theme");
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
     if (scene) {
-      scene.background.setHex(0xf0f0f2);
-      edgeLineMap.forEach(e => { e.material.color.setHex(0x888888); });
-      if (floor) floor.material.color.setHex(0xc0c0c4);
-      if (wall) wall.material.color.setHex(0xd0d0d4);
+      scene.background.setHex(0xf5f3f0);
+      edgeLineMap.forEach(e => { e.material.color.setHex(0x999999); });
+      if (floor) floor.material.color.setHex(0xd8d4ce);
+      if (wall) wall.material.color.setHex(0xe0dcd6);
     }
     if (scene) {
-      scene.fog.color.setHex(0xf0f0f2);
+      scene.fog.color.setHex(0xf5f3f0);
     }
   }
 }
@@ -177,32 +177,33 @@ function initThree() {
   window.renderer = _renderer;
   initMaterials(deviceQuality, _renderer);
   const _scene = new THREE.Scene();
-  _scene.background = new THREE.Color(isDarkTheme ? 0x141416 : 0xf0f0f2);
-  _scene.fog = new THREE.FogExp2(isDarkTheme ? 0x141416 : 0xf0f0f2, deviceQuality === 'low' ? 0.005 : 0.008);
+  var _bgColor = isDarkTheme ? 0x1a1e28 : 0xf5f3f0;
+  _scene.background = new THREE.Color(_bgColor);
+  _scene.fog = new THREE.FogExp2(_bgColor, deviceQuality === 'low' ? 0.004 : 0.006);
   setScene(_scene);
   const _camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
   _camera.position.set(3, 2.5, 3);
   setCamera(_camera);
   setTargetPosition(new THREE.Vector3(0, 0.5, 0));
   setZoomTarget(new THREE.Vector3());
-  // Lighting — DetalQR style: hemisphere as main, low-cost directional fill, NO shadows
-  var hemiLight = new THREE.HemisphereLight(0x8899cc, 0x443322, 0.8);
+  // Lighting — warm studio setup
+  var hemiLight = new THREE.HemisphereLight(0x9bb0d4, 0x5a4a3a, 0.85);
   _scene.add(hemiLight);
-  const mainLight = new THREE.DirectionalLight(0xfff5e6, 0.5);
+  const mainLight = new THREE.DirectionalLight(0xfff0e0, 0.6);
   mainLight.position.set(8, 18, 12);
   _scene.add(mainLight);
-  const fillLight = new THREE.DirectionalLight(0xaabbdd, 0.25);
+  const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.3);
   fillLight.position.set(-6, 3, -8);
   _scene.add(fillLight);
-  const bottomLight = new THREE.DirectionalLight(0xffffff, 0.12);
+  const bottomLight = new THREE.DirectionalLight(0xffffff, 0.15);
   bottomLight.position.set(0, -5, 0);
   _scene.add(bottomLight);
   // Room — floor
   var floorGeo = new THREE.PlaneGeometry(20, 10);
   var floorMat = new THREE.MeshStandardMaterial({
-    color: isDarkTheme ? 0x2a2a2e : 0xd0d0d4,
-    roughness: 0.85, metalness: 0, side: THREE.FrontSide,
-    transparent: true, opacity: 0.3
+    color: isDarkTheme ? 0x282c36 : 0xe0ddd8,
+    roughness: 0.8, metalness: 0, side: THREE.FrontSide,
+    transparent: true, opacity: 0.4
   });
   var _floor = new THREE.Mesh(floorGeo, floorMat);
   _floor.rotation.x = -Math.PI / 2;
@@ -231,18 +232,18 @@ function initThree() {
   _scene.add(shadowPlane);
 
   // Grid on the floor
-  var gridHelper = new THREE.GridHelper(20, 40, 0x00d4aa, 0x00d4aa);
+  var gridHelper = new THREE.GridHelper(20, 40, isDarkTheme ? 0x4a5060 : 0xc0bdb6, isDarkTheme ? 0x4a5060 : 0xc0bdb6);
   gridHelper.material.transparent = true;
-  gridHelper.material.opacity = 0.04;
+  gridHelper.material.opacity = 0.08;
   gridHelper.position.y = 0.001;
   if (deviceQuality !== 'low') _scene.add(gridHelper);
 
   // Room — back wall
   var wallGeo = new THREE.PlaneGeometry(20, 5);
   var wallMat = new THREE.MeshStandardMaterial({
-    color: isDarkTheme ? 0x444448 : 0xd0d0d4,
-    roughness: 0.9, metalness: 0, side: THREE.FrontSide,
-    transparent: true, opacity: 0.25
+    color: isDarkTheme ? 0x353a44 : 0xe0dcd6,
+    roughness: 0.85, metalness: 0, side: THREE.FrontSide,
+    transparent: true, opacity: 0.3
   });
   var _wall = new THREE.Mesh(wallGeo, wallMat);
   _wall.position.set(0, 2.5, -5);
@@ -858,7 +859,7 @@ async function buildSceneAsync() {
         meshMap.set(part.id, panelMesh);
         if (parts.length <= 500) {
         var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
-        var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x1a1a1a : 0x666666, transparent: true, opacity: 0.6 });
+        var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x3a3e4a : 0x999999, transparent: true, opacity: 0.75 });
         var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
         edgeLineObj.quaternion.copy(panelMesh.quaternion);
         edgeLineObj.position.copy(panelMesh.position);
@@ -913,7 +914,7 @@ async function buildSceneAsync() {
       meshMap.set(part.id, panelMesh);
       if (parts.length <= 500) {
       var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
-      var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x1a1a1a : 0x666666, transparent: true, opacity: 0.6 });
+      var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x3a3e4a : 0x999999, transparent: true, opacity: 0.75 });
       var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
       edgeLineObj.quaternion.copy(panelMesh.quaternion);
       edgeLineObj.position.copy(panelMesh.position);
@@ -960,7 +961,7 @@ async function buildSceneAsync() {
     meshMap.set(part.id, panelMesh);
     if (parts.length <= 500) {
     var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
-    var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x1a1a1a : 0x666666, transparent: true, opacity: 0.6 });
+    var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x3a3e4a : 0x999999, transparent: true, opacity: 0.75 });
     var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
     edgeLineObj.quaternion.copy(panelMesh.quaternion);
     edgeLineObj.position.copy(panelMesh.position);
