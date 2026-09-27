@@ -15,7 +15,7 @@ import { toggleAssembly, toggleAssemblyPlay, updateAssemblyStep } from './assemb
 export function initEvents(deps) {
   const {
     toggleTheme, toggleVisibility, showAllParts, toggleXray, toggleExplode,
-    toggleCSGVisibility, toggleDims, resetProgress, showStats, printSpecification,
+    toggleCSGVisibility, toggleDims, toggleRuler, resetProgress, showStats, printSpecification,
     selectPart, buildModuleMap, centerCamera, handleFileLoad
   } = deps;
 
@@ -82,6 +82,7 @@ export function initEvents(deps) {
   document.getElementById('statsBtn').addEventListener('click', showStats);
   document.getElementById('csgBtn').addEventListener('click', toggleCSGVisibility);
   document.getElementById('dimsBtn').addEventListener('click', toggleDims);
+  document.getElementById('rulerBtn').addEventListener('click', toggleRuler);
   document.getElementById('statsModal').addEventListener('click', function(e) { if (e.target === this) this.classList.add('hidden'); });
   document.getElementById('searchInput').addEventListener('input', renderPartsList);
   // Dismiss mobile keyboard on Enter
@@ -191,6 +192,7 @@ export function initEvents(deps) {
         }
         break;
       case 'd': case 'D': if (!e.ctrlKey && !e.metaKey) toggleDims(); break;
+      case 'm': case 'M': if (!e.ctrlKey && !e.metaKey) toggleRuler(); break;
       case 'ArrowLeft':
         if (assemblyMode && assemblyOrder.length > 0) {
           e.preventDefault();

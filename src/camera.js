@@ -15,7 +15,8 @@ import {
   mouseStartPos, mouseMovedDistance, isPanningMouse, panStartMouse,
   parts, selectedId, setSelectedId,
   meshMap, edgeLineMap, isDarkTheme,
-  xrayActive, fastenerMeshes, fastenerData, detailMeshes
+  xrayActive, fastenerMeshes, fastenerData, detailMeshes,
+  rulerMode, rulerPoints, rulerLine, setRulerLine, setRulerMode
 } from './state.js';
 
 // Dependencies injected via init()
@@ -75,6 +76,15 @@ export function animateSmoothZoom() {
 
 // === Raycasting ===
 let prevClickKey = null;
+// Pre-allocated raycast objects (avoid GC pressure per click)
+const _rcMouse = new THREE.Vector2();
+const _rcRaycaster = new THREE.Raycaster();
+let _rcVisibleCache = null;
+let _rcVisibleCacheDirty = true;
+
+export function invalidateVisibleCache() {
+  _rcVisibleCacheDirty = true;
+}
 
 export function deselectPart() {
   if (selectedId === null) return;
@@ -102,17 +112,19 @@ export function deselectPart() {
 }
 
 export function handleRaycast(clickX, clickY, rect) {
-  const mouse = new THREE.Vector2();
-  mouse.x = (clickX - rect.left) / rect.width * 2 - 1;
-  mouse.y = -((clickY - rect.top) / rect.height) * 2 + 1;
-  const rc = new THREE.Raycaster();
-  rc.setFromCamera(mouse, camera);
-  const meshes = Array.from(meshMap.values()).filter(m => m.visible === true);
+  _rcMouse.x = (clickX - rect.left) / rect.width * 2 - 1;
+  _rcMouse.y = -((clickY - rect.top) / rect.height) * 2 + 1;
+  _rcRaycaster.setFromCamera(_rcMouse, camera);
+  if (_rcVisibleCacheDirty || !_rcVisibleCache) {
+    _rcVisibleCache = Array.from(meshMap.values()).filter(m => m.visible === true);
+    _rcVisibleCacheDirty = false;
+  }
+  const meshes = _rcVisibleCache.slice();
   detailMeshes.forEach(arr => {
     arr.forEach(m => { if (m.visible && m.userData && m.userData.partId) meshes.push(m); });
   });
   fastenerMeshes.forEach(m => { if (m.visible && m.userData && m.userData.fastenerId !== undefined) meshes.push(m); });
-  const hits = rc.intersectObjects(meshes);
+  const hits = _rcRaycaster.intersectObjects(meshes);
   if (hits.length === 0) { deselectPart(); return; }
   for (let i = 0; i < hits.length; i++) {
     const ud = hits[i].object.userData;
@@ -157,6 +169,148 @@ export function handleRaycast(clickX, clickY, rect) {
   prevClickKey = clickKey;
   // Delegate to main app for selection logic (block mode, module highlight, etc.)
   if (_handleRaycast) _handleRaycast(bestId);
+}
+
+// === Ruler / Measurement ===
+function clearRulerVisuals() {
+  const _scene = rulerLine ? rulerLine.parent : null;
+  rulerPoints.forEach(function(p) {
+    if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh);
+    if (p.mesh && p.mesh.geometry) p.mesh.geometry.dispose();
+    if (p.mesh && p.mesh.material) p.mesh.material.dispose();
+  });
+  rulerPoints.length = 0;
+  if (rulerLine) {
+    if (rulerLine.parent) rulerLine.parent.remove(rulerLine);
+    if (rulerLine.geometry) rulerLine.geometry.dispose();
+    if (rulerLine.material) rulerLine.material.dispose();
+    setRulerLine(null);
+  }
+  // Remove ruler label sprite (stored on canvas as __rulerLabel)
+  if (_canvas && _canvas.__rulerLabel) {
+    var lbl = _canvas.__rulerLabel;
+    if (lbl.parent) lbl.parent.remove(lbl);
+    if (lbl.material && lbl.material.map) lbl.material.map.dispose();
+    if (lbl.material) lbl.material.dispose();
+    _canvas.__rulerLabel = null;
+  }
+  if (_scene) setNeedsRender(true);
+}
+
+function createRulerLabel(distance) {
+  var cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 128;
+  var ctx = cv.getContext('2d');
+  // Dark background pill
+  ctx.fillStyle = 'rgba(20,20,26,0.85)';
+  roundRect(ctx, 8, 20, 240, 88, 16);
+  ctx.fill();
+  // Orange border
+  ctx.strokeStyle = '#ff8a2a';
+  ctx.lineWidth = 3;
+  roundRect(ctx, 8, 20, 240, 88, 16);
+  ctx.stroke();
+  // Text
+  ctx.font = 'bold 48px system-ui, -apple-system, Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(distance.toFixed(0) + ' mm', 128, 64);
+  var tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter;
+  var spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, depthTest: true, depthWrite: false, transparent: true
+  }));
+  spr.scale.set(0.12, 0.06, 1);
+  return spr;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function getRulerHitPoint(clickX, clickY, rect) {
+  _rcMouse.x = (clickX - rect.left) / rect.width * 2 - 1;
+  _rcMouse.y = -((clickY - rect.top) / rect.height) * 2 + 1;
+  _rcRaycaster.setFromCamera(_rcMouse, camera);
+  if (_rcVisibleCacheDirty || !_rcVisibleCache) {
+    _rcVisibleCache = Array.from(meshMap.values()).filter(function(m) { return m.visible === true; });
+    _rcVisibleCacheDirty = false;
+  }
+  var meshes = _rcVisibleCache.slice();
+  detailMeshes.forEach(function(arr) {
+    arr.forEach(function(m) { if (m.visible && m.userData && m.userData.partId) meshes.push(m); });
+  });
+  var hits = _rcRaycaster.intersectObjects(meshes);
+  if (hits.length === 0) return null;
+  return hits[0].point.clone();
+}
+
+export function addRulerPoint(clickX, clickY, rect) {
+  var hitPt = getRulerHitPoint(clickX, clickY, rect);
+  if (!hitPt) return;
+
+  // If 2 points already, clear and start over
+  if (rulerPoints.length >= 2) {
+    clearRulerVisuals();
+  }
+
+  // Create marker sphere
+  var sphereGeo = new THREE.SphereGeometry(0.005, 12, 12);
+  var sphereMat = new THREE.MeshBasicMaterial({ color: 0xff8a2a });
+  var sphere = new THREE.Mesh(sphereGeo, sphereMat);
+  sphere.position.copy(hitPt);
+  scene.add(sphere);
+  rulerPoints.push({ point: hitPt, mesh: sphere });
+
+  if (rulerPoints.length === 2) {
+    var p1 = rulerPoints[0].point;
+    var p2 = rulerPoints[1].point;
+    // Create line
+    var lineGeo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+    var lineMat = new THREE.LineBasicMaterial({ color: 0xff8a2a, linewidth: 2 });
+    var line = new THREE.Line(lineGeo, lineMat);
+    scene.add(line);
+    setRulerLine(line);
+    // Distance in mm (model units are meters, scale 0.001)
+    var distM = p1.distanceTo(p2);
+    var distMm = distM * 1000;
+    // Label at midpoint
+    var mid = p1.clone().add(p2).multiplyScalar(0.5);
+    var label = createRulerLabel(distMm);
+    label.position.copy(mid);
+    label.position.y += 0.02;
+    scene.add(label);
+    if (_canvas) _canvas.__rulerLabel = label;
+    // Toast
+    if (_showToast) _showToast('📏 ' + distMm.toFixed(0) + ' мм');
+  } else {
+    if (_showToast) _showToast('📍 Точка 1 — нажмите вторую точку');
+  }
+  setNeedsRender(true);
+}
+
+export function startRulerMode() {
+  setRulerMode(true);
+  if (_canvas) _canvas.style.cursor = 'crosshair';
+  clearRulerVisuals();
+  if (_showToast) _showToast('📏 Режим линейки — нажмите на поверхность');
+}
+
+export function stopRulerMode() {
+  setRulerMode(false);
+  if (_canvas) _canvas.style.cursor = '';
+  clearRulerVisuals();
 }
 
 // === Touch Controls ===
@@ -221,7 +375,11 @@ export function onTouchEnd(endEvent) {
     const canvasRect = _canvas.getBoundingClientRect();
     const changedTouch = endEvent.changedTouches[0];
     if (Math.abs(changedTouch.clientX - touchStartPos.x) < 5 && Math.abs(changedTouch.clientY - touchStartPos.y) < 5) {
-      handleRaycast(changedTouch.clientX, changedTouch.clientY, canvasRect);
+      if (rulerMode) {
+        addRulerPoint(changedTouch.clientX, changedTouch.clientY, canvasRect);
+      } else {
+        handleRaycast(changedTouch.clientX, changedTouch.clientY, canvasRect);
+      }
     }
   }
   setIsDragging(false);
@@ -274,7 +432,11 @@ export function onMouseMove(moveEvt) {
 export function onMouseUp() {
   if (isDragging && mouseStartPos && mouseMovedDistance < 5) {
     const canvasRect = _canvas.getBoundingClientRect();
-    handleRaycast(mouseStartPos.x, mouseStartPos.y, canvasRect);
+    if (rulerMode) {
+      addRulerPoint(mouseStartPos.x, mouseStartPos.y, canvasRect);
+    } else {
+      handleRaycast(mouseStartPos.x, mouseStartPos.y, canvasRect);
+    }
   }
   setIsDragging(false);
   setIsPanningMouse(false);

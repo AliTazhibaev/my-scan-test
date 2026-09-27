@@ -250,10 +250,19 @@ export function findBestWoodTexture(name) {
   return null;
 }
 
+// Cache for guessColorInfo results
+var _guessColorCache = new Map();
+
 // Guess color from material name (fallback)
 // Returns { color, smooth } — smooth=true means no texture needed (ЛДСП, МДФ, HDF, белый, серый...)
 export function guessColorInfo(name) {
   if (!name) return { color: '#8a7f76', smooth: false };
+  if (_guessColorCache.has(name)) return _guessColorCache.get(name);
+  var result = _guessColorInfoCompute(name);
+  _guessColorCache.set(name, result);
+  return result;
+}
+function _guessColorInfoCompute(name) {
   var n = name.toLowerCase();
 
   // === ГЛАДКИЕ ПОВЕРХНОСТИ (ЛДСП, МДФ, HDF, пластик) — только цвет, без текстуры ===
@@ -442,38 +451,34 @@ export function createPartMaterial(partData, geoType) {
     return new THREE.MeshStandardMaterial(matProps);
   }
 
-  // Grain direction: ALWAYS along L (panel length) = local X axis of the shape.
-  // NOT the longer side — L is the texture direction from БАЗИС.
+  // Grain direction: TextureOrientation from БАЗИС.
+  //   1 = along L (panel length, local X axis)
+  //   2 = along W (panel width, local Y axis)
+  //   0 = auto (fallback to 1)
   //
   // Texture images: grain runs along image height = V axis in UV.
   // ExtrudeGeometry: shape X (L) → U axis, shape Y (W) → V axis.
   //
-  // We need UV rotation so texture grain (V) aligns with L (local X).
-  // Default: grain along V (=W). Rotate 90° → grain along U (=L).
-  //
-  // But we also need to account for panel orientation in world space:
-  // placement.ax = local X direction in world coords.
-  // Same panel rotated 90° → grain should still visually follow L.
-  //
-  // Formula: angle = atan2(ax.z, ax.x) — rotation of L axis in XZ plane.
+  // Rotation is applied in LOCAL panel space (before placement quaternion).
+  // Do NOT add world-space orientation — the mesh's quaternion already handles it.
+  // DetalQR reference: grain = Number(panel.TextureOrientation) || 0 — no angle math.
   var grainAngle = 0;
   var grain = partData.grain || 0;
-  var pl = partData.placement;
 
   if (grain === 2) {
-    // grain=2: force along W. Texture V already along W (shape Y). No rotation.
+    // grain=2: along W. Texture V already along W (shape Y). No rotation needed.
     grainAngle = 0;
   } else {
     // grain=0 or grain=1: along L = local X axis.
-    // Default texture: grain along V = W (shape Y).
-    // Need 90° base rotation to move grain from V(=W) to U(=L).
+    // Default: texture grain along V = W (shape Y).
+    // Rotate 90° to move grain from V(=W) to U(=L).
     grainAngle = Math.PI / 2;
-    // Then adjust for panel orientation in world space
-    if (pl && pl.ax) {
-      var ax = pl.ax;
-      var orientAngle = Math.atan2(ax.z, ax.x);
-      grainAngle += orientAngle;
-    }
+  }
+
+  // Apply rot from texture editor (adds to grain angle)
+  var texSettings = partData.texSettings;
+  if (texSettings && texSettings.rot) {
+    grainAngle += texSettings.rot * Math.PI / 180;
   }
 
   // Если есть реальная текстура — загружаем асинхронно
@@ -484,18 +489,45 @@ export function createPartMaterial(partData, geoType) {
       tex.center = new THREE.Vector2(0.5, 0.5);
     }
   };
+  var applyTexSettings = function(tex) {
+    if (!texSettings || !tex) return;
+    // Step (scale): БАЗИС step is mm for one texture tile
+    if (texSettings.stepX > 0 && partData.L) {
+      tex.repeat.x = (partData.L * 0.001) / (texSettings.stepX * 0.001);
+    }
+    if (texSettings.stepY > 0 && partData.W) {
+      tex.repeat.y = (partData.W * 0.001) / (texSettings.stepY * 0.001);
+    }
+    // Offset
+    if (texSettings.offX) tex.offset.x = texSettings.offX * 0.001;
+    if (texSettings.offY) tex.offset.y = texSettings.offY * 0.001;
+    // Angle (additional rotation in degrees)
+    if (texSettings.angle) {
+      tex.rotation += texSettings.angle * Math.PI / 180;
+    }
+    // Mirror
+    if (texSettings.mirror) {
+      tex.wrapS = THREE.MirroredRepeatWrapping;
+    }
+    // Stretch: override repeat to fill panel
+    if (texSettings.stretch) {
+      tex.repeat.set(1, 1);
+    }
+  };
 
   if (info.tex) {
     // Сначала ставим процедурную текстуру как fallback
     if (info.cat === 'wood') {
       var wt = createWoodTexture(baseColor, 4, matName);
       applyTexRotation(wt);
+      applyTexSettings(wt);
       mat.map = wt;
     }
     // Асинхронно загружаем реальную — обновляем САМ материал
     loadRealTexture(info.tex).then(function(realTex) {
       if (realTex) {
         applyTexRotation(realTex);
+        applyTexSettings(realTex);
         mat.map = realTex;
         mat.needsUpdate = true;
       }
@@ -503,6 +535,7 @@ export function createPartMaterial(partData, geoType) {
   } else if (info.cat === 'wood') {
     var pt = createWoodTexture(baseColor, 4, matName);
     applyTexRotation(pt);
+    applyTexSettings(pt);
     mat.map = pt;
   }
 

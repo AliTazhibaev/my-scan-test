@@ -2,11 +2,13 @@ import {
   init as initMaterials,
   createPartMaterial
 } from './src/materials.js';
+import { initAnimations, loadAnimations, toggleAnimation, animateFrame } from './src/animations.js';
 import { handleLogin, initAuth } from './src/auth.js';
-import { initQR, wireQRListeners } from './src/qr.js';
+import { initQR, wireQRListeners, openScanner } from './src/qr.js';
 import {
   initCamera, setupCameraControls, updateCamera,
-  startSmoothZoom, animateSmoothZoom
+  startSmoothZoom, animateSmoothZoom, invalidateVisibleCache,
+  startRulerMode, stopRulerMode
 } from './src/camera.js';
 import { initAssembly } from './src/assembly.js';
 import {
@@ -21,7 +23,7 @@ import {
   meshMap, edgeLineMap, originalPositions, moduleMap,
   isDarkTheme, needsRender, blockMode,
   xrayActive, explodeActive, explodeProgress, explodeModuleKey,
-  isolatedModule, csgEnabled, autoRotate,
+  isolatedModule, csgEnabled, autoRotate, animationPlaying,
   theta, phi, camDist,
   isDragging, prevMouse, isSmoothZoom,
   targetPosition, zoomTarget,
@@ -33,6 +35,7 @@ import {
   MODULE_COLORS, colorCache, colorIdx,
   detailMeshes, holeMeshes, pocketMeshes,
   deviceQuality,
+  rulerMode,
   getModulePrefix, getModuleKey, getModuleColor, getModuleName,
   // setters
   setParts, setSelectedId, setIdMode,
@@ -47,7 +50,8 @@ import {
   setFastenerData, setDimsData, setDimGroup, setDimsVisible,
   setScene, setCamera, setRenderer, setFloor, setWall,
   setWakeLock, setLayoutMinY, setColorIdx,
-  setDeviceQuality
+  setDeviceQuality,
+  setRulerMode
 } from './src/state.js';
 
 // === Wake Lock ===
@@ -692,6 +696,18 @@ function toggleDims() {
   showToast(dimsVisible ? "📐 Размеры показаны" : "📐 Размеры скрыты");
   setNeedsRender(true);
 }
+function toggleRuler() {
+  if (rulerMode) {
+    stopRulerMode();
+    var btn = document.getElementById("rulerBtn");
+    if (btn) btn.classList.remove("active");
+    showToast("📏 Линейка выключена");
+  } else {
+    startRulerMode();
+    var btn = document.getElementById("rulerBtn");
+    if (btn) btn.classList.add("active");
+  }
+}
 
 function buildContourShape(contour, sc) {
   var shape = new THREE.Shape();
@@ -1019,6 +1035,7 @@ function centerCamera() {
 }
 
 function selectModuleHighlight(moduleKey, clickedId) {
+  _currentSheetPartId = null;
   setSelectedId(clickedId);
   var moduleParts = moduleMap.get(moduleKey);
   if (!moduleParts) { selectPart(clickedId); return; }
@@ -1036,18 +1053,20 @@ function selectModuleHighlight(moduleKey, clickedId) {
       mesh.material.opacity = 0.3;
       mesh.material.depthWrite = false;
     }
-    mesh.material.needsUpdate = true;
   });
   edgeLineMap.forEach(function(e, id) {
     if (moduleIds.has(id)) {
       e.visible = true;
       e.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
       e.material.opacity = 0.55;
-      e.material.needsUpdate = true;
     } else {
       e.visible = false;
     }
   });
+  scene.traverse(function(obj) {
+    if (obj.isMesh && obj.material) obj.material.needsUpdate = true;
+  });
+  invalidateVisibleCache();
   updateSheet(parts.find(function(p) { return p.id === clickedId; }));
   // Add isolate button when in block mode
   var sheetContent = document.getElementById("sheetContent");
@@ -1177,7 +1196,10 @@ function navigateToNeighbor(code) {
   if (found) { selectPart(found.id); startSmoothZoom(found.id); }
 }
 var sheetCollapsed = false;
+var _currentSheetPartId = null;
 function updateSheet(part) {
+  if (part && _currentSheetPartId === part.id) return;
+  _currentSheetPartId = part ? part.id : null;
   var sheetEl = document.getElementById("sheetContent");
   var previewCodeEl = document.getElementById("sheetPreviewCode");
   var bottomSheet = document.getElementById("bottomSheet");
@@ -1199,48 +1221,48 @@ function updateSheet(part) {
     var dims = (part.L || '?') + '×' + (part.W || '?') + '×' + (part.T || '?');
     previewCodeEl.textContent = (displayCode || '—') + '  ' + dims + '  ' + (part.name || '');
   }
-  var html = '<div class="detail-card">';
-  html += '<div style="font-size:18px;font-weight:700;color:var(--code-color);font-family:Monaco,Menlo,monospace;margin-bottom:4px">' + escapeHtml(displayCode || '—') + '</div>';
+  var _h = ['<div class="detail-card">'];
+  _h.push('<div style="font-size:18px;font-weight:700;color:var(--code-color);font-family:Monaco,Menlo,monospace;margin-bottom:4px">' + escapeHtml(displayCode || '—') + '</div>');
   if (displayCode2) {
-    html += '<div style="font-size:11px;color:var(--text-tertiary);font-family:Monaco,Menlo,monospace;margin-bottom:6px">' + escapeHtml(displayCode2) + '</div>';
+    _h.push('<div style="font-size:11px;color:var(--text-tertiary);font-family:Monaco,Menlo,monospace;margin-bottom:6px">' + escapeHtml(displayCode2) + '</div>');
   }
-  html += '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px">' + escapeHtml(part.name || '—') + '</div>';
-  html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">';
-  html += '<div class="dim"><span class="dim-label">Д</span><span class="dim-value">' + (part.L || '—') + '</span></div>';
-  html += '<div class="dim"><span class="dim-label">Ш</span><span class="dim-value">' + (part.W || '—') + '</span></div>';
-  html += '<div class="dim"><span class="dim-label">Т</span><span class="dim-value">' + (part.T || '—') + '</span></div>';
-  html += '<span class="material-tag">' + escapeHtml(part.material || 'Материал') + '</span>';
-  html += '</div>';
-  html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">';
-  html += '<span class="status-badge ' + (isScanned ? 'scanned' : 'waiting') + '">' + (isScanned ? 'СОБРАНО' : 'ОЖИДАЕТ') + '</span>';
-  html += '<span class="module-badge" style="color:' + modColor + ';background:' + modColor + '18;border-color:' + modColor + '30">' + modName + '</span>';
-  html += '</div>';
+  _h.push('<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px">' + escapeHtml(part.name || '—') + '</div>');
+  _h.push('<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">');
+  _h.push('<div class="dim"><span class="dim-label">Д</span><span class="dim-value">' + (part.L || '—') + '</span></div>');
+  _h.push('<div class="dim"><span class="dim-label">Ш</span><span class="dim-value">' + (part.W || '—') + '</span></div>');
+  _h.push('<div class="dim"><span class="dim-label">Т</span><span class="dim-value">' + (part.T || '—') + '</span></div>');
+  _h.push('<span class="material-tag">' + escapeHtml(part.material || 'Материал') + '</span>');
+  _h.push('</div>');
+  _h.push('<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">');
+  _h.push('<span class="status-badge ' + (isScanned ? 'scanned' : 'waiting') + '">' + (isScanned ? 'СОБРАНО' : 'ОЖИДАЕТ') + '</span>');
+  _h.push('<span class="module-badge" style="color:' + modColor + ';background:' + modColor + '18;border-color:' + modColor + '30">' + modName + '</span>');
+  _h.push('</div>');
   if (modKey !== 'HARDWARE' && modKey !== 'OTHER') {
     var modParts = moduleMap.get(modKey) || [];
     var partIndex = modParts.indexOf(part) + 1;
     if (partIndex > 0) {
-      html += '<div class="assembly-hint">' + modName + ' — деталь ' + partIndex + ' из ' + modParts.length + ' в модуле</div>';
+      _h.push('<div class="assembly-hint">' + modName + ' — деталь ' + partIndex + ' из ' + modParts.length + ' в модуле</div>');
     }
   }
   if (neighbors.length) {
-    html += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">';
-    html += '<div style="font-size:10px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">Соседи</div>';
-    html += '<div style="display:flex;gap:4px;flex-wrap:wrap">';
+    _h.push('<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">');
+    _h.push('<div style="font-size:10px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">Соседи</div>');
+    _h.push('<div style="display:flex;gap:4px;flex-wrap:wrap">');
     neighbors.forEach(function(nb) {
       var safeNbAttr = JSON.stringify(nb || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      html += '<span onclick="navigateToNeighbor(' + safeNbAttr + ')" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--code-color);font-family:Monaco,Menlo,monospace;cursor:pointer">' + escapeHtml(nb) + '</span>';
+      _h.push('<span onclick="navigateToNeighbor(' + safeNbAttr + ')" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--code-color);font-family:Monaco,Menlo,monospace;cursor:pointer">' + escapeHtml(nb) + '</span>');
     });
-    html += '</div></div>';
+    _h.push('</div></div>');
   }
-  html += renderProcessingInfo(part);
-  html += '<div class="action-buttons">';
+  _h.push(renderProcessingInfo(part));
+  _h.push('<div class="action-buttons">');
   var safeCodeAttr = JSON.stringify(displayCode || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  html += '<div class="action-btn" onclick="handleScan(' + safeCodeAttr + ')">Скан</div>';
-  html += '<div class="action-btn" onclick="startSmoothZoom(' + part.id + ')">Фокус</div>';
-  html += '<div class="action-btn" onclick="toggleVisibility(' + part.id + ')">' + (hiddenSet.has(part.id) ? 'Показать' : 'Скрыть') + '</div>';
-  html += '</div>';
-  html += '</div>';
-  sheetEl.innerHTML = html;
+  _h.push('<div class="action-btn" onclick="handleScan(' + safeCodeAttr + ')">Скан</div>');
+  _h.push('<div class="action-btn" onclick="startSmoothZoom(' + part.id + ')">Фокус</div>');
+  _h.push('<div class="action-btn" onclick="toggleVisibility(' + part.id + ')">' + (hiddenSet.has(part.id) ? 'Показать' : 'Скрыть') + '</div>');
+  _h.push('</div>');
+  _h.push('</div>');
+  sheetEl.innerHTML = _h.join('');
   if (isMobileSheet() && !assemblyMode) {
     bottomSheet.setAttribute('data-state', 'collapsed');
     sheetCollapsed = true;
@@ -1275,6 +1297,7 @@ function toggleVisibility(partId) {
     }
   }
   renderPartsList();
+  invalidateVisibleCache();
   if (xrayActive) {
     applyXray();
   }
@@ -1327,7 +1350,6 @@ function showAllParts() {
     m.material.opacity = 1;
     m.material.depthWrite = true;
     m.material.roughness = 0.78;
-    m.material.needsUpdate = true;
   });
   edgeLineMap.forEach(e => {
     e.visible = true;
@@ -1337,6 +1359,10 @@ function showAllParts() {
   detailMeshes.forEach(arr => {
     arr.forEach(obj => { obj.visible = true; });
   });
+  scene.traverse(function(obj) {
+    if (obj.isMesh && obj.material) obj.material.needsUpdate = true;
+  });
+  invalidateVisibleCache();
   renderPartsList();
   if (xrayActive) { applyXray(); }
   if (explodeActive) {
@@ -1363,7 +1389,6 @@ function isolateModule(moduleKey) {
       m.material.opacity = 1;
       m.material.depthWrite = true;
       m.material.roughness = 0.78;
-      m.material.needsUpdate = true;
     } else {
       m.visible = false;
     }
@@ -1380,6 +1405,10 @@ function isolateModule(moduleKey) {
   detailMeshes.forEach((arr, id) => {
     arr.forEach(obj => { obj.visible = moduleIds.has(id); });
   });
+  scene.traverse(function(obj) {
+    if (obj.isMesh && obj.material) obj.material.needsUpdate = true;
+  });
+  invalidateVisibleCache();
   // Show isolation bar
   var bar = document.getElementById("isolationBar");
   var firstPart = moduleParts[0];
@@ -1404,17 +1433,19 @@ function exitIsolation() {
     m.material.opacity = 1;
     m.material.depthWrite = true;
     m.material.roughness = 0.78;
-    m.material.needsUpdate = true;
   });
   edgeLineMap.forEach(e => {
     e.visible = true;
     e.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
     e.material.opacity = 0.55;
-    e.material.needsUpdate = true;
   });
   detailMeshes.forEach(arr => {
     arr.forEach(obj => { obj.visible = true; });
   });
+  scene.traverse(function(obj) {
+    if (obj.isMesh && obj.material) obj.material.needsUpdate = true;
+  });
+  invalidateVisibleCache();
   if (explodeActive) {
     animateExplodeTo(0);
     setExplodeActive(false);
@@ -1473,7 +1504,6 @@ function applyXray() {
       xrayMesh.material.opacity = 1;
       xrayMesh.material.depthWrite = true;
       xrayMesh.material.roughness = 0.78;
-      xrayMesh.material.needsUpdate = true;
       return;
     }
     if (selectedId !== null && xrayId === selectedId) {
@@ -1489,7 +1519,9 @@ function applyXray() {
       xrayMesh.material.depthWrite = false;
       xrayMesh.material.roughness = 0.92;
     }
-    xrayMesh.material.needsUpdate = true;
+  });
+  scene.traverse(function(obj) {
+    if (obj.isMesh && obj.material) obj.material.needsUpdate = true;
   });
   setNeedsRender(true);
 }
@@ -1502,7 +1534,9 @@ function toggleXray() {
       m.material.opacity = 1;
       m.material.depthWrite = true;
       m.material.roughness = 0.78;
-      m.material.needsUpdate = true;
+    });
+    scene.traverse(function(obj) {
+      if (obj.isMesh && obj.material) obj.material.needsUpdate = true;
     });
   } else {
     applyXray();
@@ -1540,24 +1574,22 @@ function applyExplode() {
   if (!originalPositions.size) return;
   _tmpCenter.set(0, 0, 0);
   var count = 0;
+  var targetParts;
   if (explodeModuleKey && moduleMap.has(explodeModuleKey)) {
-    var modParts = moduleMap.get(explodeModuleKey);
-    modParts.forEach(p => {
+    targetParts = moduleMap.get(explodeModuleKey);
+    targetParts.forEach(p => {
       var pos = originalPositions.get(p.id);
       if (pos) { _tmpCenter.add(pos); count++; }
     });
   } else {
+    targetParts = parts;
     originalPositions.forEach(origCenter => {
       _tmpCenter.add(origCenter);
       count++;
     });
   }
   if (count > 0) _tmpCenter.divideScalar(count);
-  parts.forEach(part => {
-    if (explodeModuleKey) {
-      var partGroup = part.group || getModuleKey(part.code || "");
-      if (partGroup !== explodeModuleKey) return;
-    }
+  targetParts.forEach(part => {
     const explodeMesh = meshMap.get(part.id);
     const explodeEdge = edgeLineMap.get(part.id);
     const origPos = originalPositions.get(part.id);
@@ -1567,7 +1599,6 @@ function applyExplode() {
     if (dist > 0.001) _tmpDir.normalize();
     const offset = explodeProgress * dist * 0.8;
     _tmpNewPos.copy(origPos).addScaledVector(_tmpDir, offset);
-    _tmpDelta.subVectors(_tmpNewPos, origPos);
     explodeMesh.position.copy(_tmpNewPos);
     if (explodeEdge) explodeEdge.position.copy(_tmpNewPos);
     // Detail meshes are children of panel mesh — they move automatically
@@ -1684,12 +1715,16 @@ function handleScan(scanData) {
   saveProgress();
   renderPartsList();
 }
+var _saveProgressTimer = null;
 function saveProgress() {
-  localStorage.setItem("aivoProgress", JSON.stringify({
-    scanned: Array.from(scannedSet),
-    hidden: Array.from(hiddenSet),
-    projectTitle: document.getElementById("projectTitle").textContent
-  }));
+  clearTimeout(_saveProgressTimer);
+  _saveProgressTimer = setTimeout(function() {
+    localStorage.setItem("aivoProgress", JSON.stringify({
+      scanned: Array.from(scannedSet),
+      hidden: Array.from(hiddenSet),
+      projectTitle: document.getElementById("projectTitle").textContent
+    }));
+  }, 500);
 }
 function loadProgress() {
   const currentTitle = document.getElementById("projectTitle").textContent;
@@ -1715,6 +1750,7 @@ function resetProgress() {
     hiddenSet.clear();
     meshMap.forEach(m => m.visible = true);
     edgeLineMap.forEach(e => e.visible = true);
+    invalidateVisibleCache();
     setSelectedId(null);
     updateSheet(null);
     closeSheet();
@@ -1726,10 +1762,111 @@ function resetProgress() {
 }
 // UI functions handled by src/ui.js
 
+// === Checklist (ОТК / проверка сборки) ===
+var _checklistOpen = false;
+function openChecklist() {
+  if (parts.length === 0) { showToast("📁 Сначала загрузите JSON"); return; }
+  closeDrawer();
+  _checklistOpen = true;
+  document.getElementById("checklistPanel").style.display = "flex";
+  renderChecklist();
+}
+function closeChecklist() {
+  _checklistOpen = false;
+  document.getElementById("checklistPanel").style.display = "none";
+}
+function renderChecklist() {
+  var body = document.getElementById("checklistBody");
+  if (!body || parts.length === 0) return;
+  var total = parts.length;
+  var scanned = scannedSet.size;
+  document.getElementById("checklistScanned").textContent = scanned;
+  document.getElementById("checklistTotal").textContent = total;
+  document.getElementById("checklistBarFill").style.width = (total > 0 ? Math.round(scanned / total * 100) : 0) + "%";
+  document.getElementById("checklistDone").style.display = (scanned >= total && total > 0) ? "block" : "none";
+  var frag = document.createDocumentFragment();
+  parts.forEach(function(part) {
+    var displayCode = idMode === "position" ? part.position || part.code || "—" : part.code || "—";
+    var isChecked = scannedSet.has(part.id);
+    var row = document.createElement("div");
+    row.className = "checklist-row" + (isChecked ? " checked" : "");
+    row.innerHTML = '<div class="cl-status">' + (isChecked ? "✅" : "○") + '</div>' +
+      '<div class="cl-code">' + escapeHtml(displayCode) + '</div>' +
+      '<div class="cl-name">' + escapeHtml(part.name || "—") + '</div>';
+    row.addEventListener("click", function() { selectPart(part.id); startSmoothZoom(part.id); });
+    frag.appendChild(row);
+  });
+  body.innerHTML = "";
+  body.appendChild(frag);
+}
+function handleChecklistScan(scanData) {
+  var foundPart;
+  if (idMode === "position") {
+    foundPart = parts.find(function(p) { return p.position === scanData || (p.position || "").trim().toLowerCase() === scanData.trim().toLowerCase(); });
+    if (!foundPart) foundPart = parts.find(function(p) { return scanData.indexOf(p.position) >= 0 || (p.position || "").indexOf(scanData) >= 0; });
+  } else {
+    foundPart = parts.find(function(p) { return p.code === scanData || (p.code || "").trim().toLowerCase() === scanData.trim().toLowerCase(); });
+    if (!foundPart) foundPart = parts.find(function(p) { return scanData.indexOf(p.code) >= 0 || (p.code || "").indexOf(scanData) >= 0; });
+  }
+  if (!foundPart) {
+    showChecklistFlash(null, true);
+    return;
+  }
+  scannedSet.add(foundPart.id);
+  updateStats();
+  saveProgress();
+  selectPart(foundPart.id);
+  startSmoothZoom(foundPart.id);
+  showChecklistFlash(foundPart, false);
+  if (_checklistOpen) renderChecklist();
+}
+function showChecklistFlash(part, isError) {
+  var flash = document.getElementById("checklistFlash");
+  var icon = flash.querySelector(".flash-icon");
+  var name = document.getElementById("flashName");
+  var sub = document.getElementById("flashSub");
+  flash.classList.toggle("error", isError);
+  if (isError) {
+    icon.textContent = "✕";
+    name.textContent = "Деталь не найдена";
+    sub.textContent = "";
+  } else {
+    icon.textContent = "✓";
+    name.textContent = part.name || part.code || "Деталь";
+    sub.textContent = (part.code || "") + "  •  " + scannedSet.size + " / " + parts.length;
+  }
+  flash.style.display = "flex";
+  clearTimeout(flash._timer);
+  flash._timer = setTimeout(function() { flash.style.display = "none"; }, 800);
+}
+function resetChecklist() {
+  if (!confirm("Сбросить прогресс проверки?")) return;
+  scannedSet.clear();
+  hiddenSet.clear();
+  meshMap.forEach(function(m) { m.visible = true; });
+  edgeLineMap.forEach(function(e) { e.visible = true; });
+  setSelectedId(null);
+  updateSheet(null);
+  closeSheet();
+  updateStats();
+  renderChecklist();
+  renderPartsList();
+  localStorage.removeItem("aivoProgress");
+  showToast("🔄 Чеклист сброшен");
+}
+// Open checklist scanner (reuses QR scanner with checklist callback)
+function openChecklistScanner() {
+  // Temporarily swap the QR scan callback
+  var origScan = window._checklistScanActive;
+  window._checklistScanActive = true;
+  openScanner();
+  // The QR scanner will call handleScan normally, but we intercept in the scanner close
+}
+
 // Event wiring handled by src/events.js
 initEvents({
   toggleTheme, toggleVisibility, showAllParts, toggleXray, toggleExplode,
-  toggleCSGVisibility, toggleDims, resetProgress, showStats, printSpecification,
+  toggleCSGVisibility, toggleDims, toggleRuler, resetProgress, showStats, printSpecification,
   selectPart, buildModuleMap, centerCamera, handleFileLoad: function(file) {
     if (!file.name.endsWith('.json')) {
       showToast("❌ Только JSON файлы поддерживаются");
@@ -1760,6 +1897,7 @@ initEvents({
         setParts(loadedParts);
         setFastenerData(data.fasteners || []);
         setDimsData(data.dims || []);
+        loadAnimations(data.anims || []);
         window._loadedHoles = data.holes || [];
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         if (loadText) loadText.textContent = "Подготовка данных...";
@@ -1812,9 +1950,16 @@ initEvents({
 // Drag-and-drop handled by initEvents
 
 
-function animate() {
+var _lastAnimTime = 0;
+function animate(now) {
   requestAnimationFrame(animate);
   if (document.hidden) return;
+  var dt = _lastAnimTime ? Math.min((now - _lastAnimTime) / 1000, 0.1) : 0;
+  _lastAnimTime = now;
+  if (animationPlaying) {
+    animateFrame(dt);
+    setNeedsRender(true);
+  }
   if (autoRotate && !isDragging && !isSmoothZoom) {
     setTheta(theta + 0.0025);
     updateCamera();
@@ -1876,6 +2021,9 @@ window.init3D = init3D;
 document.getElementById("isolationExitBtn").addEventListener("click", exitIsolation);
 document.getElementById("isolationExplodeBtn").addEventListener("click", explodeIsolatedModule);
 
+// === Animation button ===
+document.getElementById("animBtn").addEventListener("click", toggleAnimation);
+
 
 // Camera controls — wire dependencies
 initCamera({
@@ -1925,6 +2073,37 @@ window.startSmoothZoom = startSmoothZoom;
 window.toggleVisibility = toggleVisibility;
 window.navigateToNeighbor = navigateToNeighbor;
 
-// QR scanner handled by src/qr.js
-initQR(handleScan, showToast);
+// QR scanner — routes to checklist or normal mode
+window._checklistScanActive = false;
+initQR(function(code) {
+  if (window._checklistScanActive) {
+    window._checklistScanActive = false;
+    handleChecklistScan(code);
+  } else {
+    handleScan(code);
+  }
+}, showToast);
 wireQRListeners();
+
+// === Checklist event wiring ===
+document.getElementById("checklistBtn").addEventListener("click", function() {
+  closeDrawer();
+  openChecklist();
+});
+document.getElementById("checklistCloseBtn").addEventListener("click", closeChecklist);
+document.getElementById("checklistScanBtn").addEventListener("click", function() {
+  window._checklistScanActive = true;
+  openScanner();
+});
+document.getElementById("checklistResetBtn").addEventListener("click", resetChecklist);
+// Keyboard shortcut: C to toggle checklist
+document.addEventListener("keydown", function(e) {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === "c" || e.key === "C") {
+    if (!e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      if (_checklistOpen) closeChecklist();
+      else openChecklist();
+    }
+  }
+});

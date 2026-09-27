@@ -26,6 +26,7 @@ export function initUI(deps) {
   _centerCamera = deps.centerCamera;
   _exitIsolation = deps.exitIsolation;
   _animateExplodeTo = deps.animateExplodeTo;
+  initSheetSwipe();
 }
 
 export function escapeHtml(str) {
@@ -70,9 +71,21 @@ export function updateStats() {
   document.getElementById('progressFill').style.width = percent + '%';
 }
 
+var _summaryCacheHtml = null;
+var _summaryCacheScanned = -1;
+var _summaryCachePartCount = -1;
+
 export function updateSummary() {
   if (parts.length === 0) {
     document.getElementById('materialSummary').style.display = 'none';
+    _summaryCacheHtml = null;
+    _summaryCacheScanned = -1;
+    _summaryCachePartCount = -1;
+    return;
+  }
+  if (_summaryCacheHtml !== null && scannedSet.size === _summaryCacheScanned && parts.length === _summaryCachePartCount) {
+    document.getElementById('materialSummary').style.display = 'block';
+    document.getElementById('summaryContent').innerHTML = _summaryCacheHtml;
     return;
   }
   document.getElementById('materialSummary').style.display = 'block';
@@ -95,12 +108,41 @@ export function updateSummary() {
   });
   html += '</div>';
   document.getElementById('summaryContent').innerHTML = html;
+  _summaryCacheHtml = html;
+  _summaryCacheScanned = scannedSet.size;
+  _summaryCachePartCount = parts.length;
 }
 
 // === Parts List Rendering ===
 let _renderPartsScheduled = false;
 let _deferredPartsTimer = null;
 var _expandedModules = null;
+var _partListDelegated = false;
+var _modulePartsObserver = null;
+
+function _getPartsObserver() {
+  if (!_modulePartsObserver) {
+    _modulePartsObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var el = entry.target;
+          if (el.dataset.pending === 'true') {
+            el.dataset.pending = 'false';
+            var mk = el.dataset.moduleParts;
+            var mp = moduleMap.get(mk);
+            if (mp && !el.hasChildNodes()) {
+              var frag = document.createDocumentFragment();
+              mp.forEach(function(p) { frag.appendChild(createPartItem(p)); });
+              el.appendChild(frag);
+            }
+            _modulePartsObserver.unobserve(el);
+          }
+        }
+      });
+    }, { rootMargin: '200px' });
+  }
+  return _modulePartsObserver;
+}
 
 export function renderPartsList() {
   if (_renderPartsScheduled) return;
@@ -117,6 +159,17 @@ function _doRenderPartsList() {
   _renderPartsScheduled = false;
   const container = document.getElementById('partsList');
   if (!container) return;
+  // Event delegation for part item clicks (avoids per-item closures)
+  if (!_partListDelegated) {
+    _partListDelegated = true;
+    container.addEventListener('click', function(e) {
+      var partItem = e.target.closest('.part-item');
+      if (partItem && partItem.dataset.partId !== undefined) {
+        var pid = Number(partItem.dataset.partId);
+        if (_selectPart) _selectPart(isNaN(pid) ? partItem.dataset.partId : pid);
+      }
+    });
+  }
   const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || '';
   if (parts.length === 0) {
     container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:11px">📁 Загрузите JSON файл для начала</div>';
@@ -170,22 +223,27 @@ function _doRenderPartsList() {
     const partsContainer = groupEl.querySelector('.module-parts');
     headerEl.addEventListener('click', (e) => {
       if (e.target.closest('.module-isolate-btn')) return;
-      const nowExpanded = !partsContainer.classList.contains('collapsed') ? false : true;
+      const nowExpanded = partsContainer.classList.contains('collapsed');
       partsContainer.classList.toggle('collapsed');
       headerEl.querySelector('.module-arrow').classList.toggle('open');
-      if (nowExpanded && !partsContainer.hasChildNodes()) {
-        const frag = document.createDocumentFragment();
-        moduleParts.forEach(part => frag.appendChild(createPartItem(part)));
-        partsContainer.appendChild(frag);
+      if (nowExpanded) {
+        _expandedModules.add(moduleKey);
+        if (!partsContainer.hasChildNodes()) {
+          partsContainer.dataset.pending = 'true';
+          _getPartsObserver().observe(partsContainer);
+        }
+      } else {
+        _expandedModules.delete(moduleKey);
       }
-      if (nowExpanded) _expandedModules.add(moduleKey);
-      else _expandedModules.delete(moduleKey);
     });
     var pressTimer = null;
     headerEl.addEventListener('touchstart', () => { pressTimer = setTimeout(() => { if (_isolateModule) _isolateModule(moduleKey); }, 500); }, { passive: true });
     headerEl.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
     headerEl.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
-    if (isExpanded) moduleParts.forEach(part => partsContainer.appendChild(createPartItem(part)));
+    if (isExpanded) {
+      partsContainer.dataset.pending = 'true';
+      _getPartsObserver().observe(partsContainer);
+    }
     fragment.appendChild(groupEl);
   });
   container.innerHTML = '';
@@ -211,11 +269,96 @@ function createPartItem(part) {
     '<div class="part-code">' + escapeHtml(displayId) + '</div>' +
     '<div class="part-dims">' + (part.gab ? part.gab.w + '×' + part.gab.h + '×' + part.gab.d + ' мм' : '') + '</div></div>' +
     '<div class="check ' + (isScanned ? 'done' : '') + '">' + (isScanned ? '✅' : '○') + '</div>';
-  itemEl.addEventListener('click', () => { if (_selectPart) _selectPart(part.id); });
+  itemEl.dataset.partId = part.id;
   return itemEl;
 }
 
 export function isMobileSheet() { return window.innerWidth <= 600; }
+
+function initSheetSwipe() {
+  var sheet = document.getElementById('bottomSheet');
+  if (!sheet || !isMobileSheet()) return;
+
+  var COLLAPSED = 48;
+  var startY = 0, baseH = 0, dragging = false, startTime = 0;
+
+  function halfH() { return window.innerHeight * 0.40; }
+  function fullH() { return window.innerHeight * 0.70; }
+
+  function onStart(e) {
+    if (!sheet.classList.contains('open') || e.touches.length !== 1) return;
+    // If collapsed, expand to show content for dragging
+    if (sheet.dataset.state === 'collapsed') {
+      delete sheet.dataset.state;
+      sheet.offsetHeight; // force reflow
+    }
+    startY = e.touches[0].clientY;
+    startTime = Date.now();
+    baseH = sheet.offsetHeight || halfH();
+    dragging = true;
+    sheet.style.transition = 'none';
+  }
+
+  function onMove(e) {
+    if (!dragging) return;
+    var dy = startY - e.touches[0].clientY;
+    var h = Math.max(COLLAPSED * 0.5, Math.min(fullH() + 30, baseH + dy));
+    sheet.style.maxHeight = h + 'px';
+    sheet.style.minHeight = h + 'px';
+    e.preventDefault();
+  }
+
+  function onEnd(e) {
+    if (!dragging) return;
+    dragging = false;
+    var touch = e.changedTouches[0];
+    var dy = startY - touch.clientY;
+    var elapsed = Date.now() - startTime;
+    var velocity = dy / Math.max(elapsed, 1);
+    var h = baseH + dy;
+
+    sheet.style.transition = '';
+    sheet.style.maxHeight = '';
+    sheet.style.minHeight = '';
+
+    // Fast flick overrides position-based snap
+    if (Math.abs(velocity) > 0.5) {
+      var s = sheet.dataset.state;
+      if (velocity < 0) {
+        // Fast swipe down
+        if (s === 'full') { delete sheet.dataset.state; return; }
+        if (!s) { sheet.dataset.state = 'collapsed'; return; }
+        closeSheet(); return;
+      } else {
+        // Fast swipe up
+        if (s === 'collapsed') { delete sheet.dataset.state; return; }
+        if (!s) { sheet.dataset.state = 'full'; return; }
+        return;
+      }
+    }
+
+    // Position-based snap
+    var midCH = (COLLAPSED + halfH()) / 2;
+    var midHF = (halfH() + fullH()) / 2;
+    delete sheet.dataset.state;
+    if (h < COLLAPSED * 0.3) {
+      closeSheet();
+    } else if (h < midCH) {
+      sheet.dataset.state = 'collapsed';
+    } else if (h >= midHF) {
+      sheet.dataset.state = 'full';
+    }
+  }
+
+  ['.sheet-handle', '.sheet-header', '.sheet-preview'].forEach(function(sel) {
+    var el = sheet.querySelector(sel);
+    if (el) {
+      el.addEventListener('touchstart', onStart, { passive: true });
+      el.addEventListener('touchmove', onMove, { passive: false });
+      el.addEventListener('touchend', onEnd, { passive: true });
+    }
+  });
+}
 
 export function resetExpandedModules() {
   if (_expandedModules) _expandedModules.clear();
