@@ -1989,7 +1989,8 @@ document.getElementById("isolationExitBtn").addEventListener("click", exitIsolat
 document.getElementById("isolationExplodeBtn").addEventListener("click", explodeIsolatedModule);
 
 // === Animation button ===
-document.getElementById("animBtn").addEventListener("click", toggleAnimation);
+var animBtnEl = document.getElementById("animBtn");
+if (animBtnEl) animBtnEl.addEventListener("click", toggleAnimation);
 
 
 // Camera controls — wire dependencies
