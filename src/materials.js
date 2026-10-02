@@ -77,6 +77,44 @@ function _varyColor(result, fullName) {
   return { color: '#' + toHex(rr) + toHex(gg) + toHex(bb), smooth: result.smooth };
 }
 
+// Shift a hex color's hue by `deg` degrees (for collision resolution)
+function _shiftHex(hex, deg) {
+  var r = parseInt(hex.substring(1, 3), 16) / 255;
+  var g = parseInt(hex.substring(3, 5), 16) / 255;
+  var b = parseInt(hex.substring(5, 7), 16) / 255;
+  var max = Math.max(r, g, b), min = Math.min(r, g, b);
+  var hh = 0, ss = 0, ll = (max + min) / 2;
+  if (max !== min) {
+    var d = max - min;
+    ss = ll > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) hh = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) hh = ((b - r) / d + 2) / 6;
+    else hh = ((r - g) / d + 4) / 6;
+  }
+  return _hslToHex(((hh * 360 + deg) % 360 + 360) % 360 / 360, ss, ll);
+}
+
+function _hslToHex(h, s, l) {
+  function hue2rgb(p, q, t) {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  }
+  var r, g, b;
+  if (s === 0) { r = g = b = l; }
+  else {
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  var toHex = function(v) { var sv = Math.round(v * 255).toString(16); return sv.length < 2 ? '0' + sv : sv; };
+  return '#' + toHex(r) + toHex(g) + toHex(b);
+}
+
 export function createWoodTexture(baseColor, scale, materialName) {
   var key = (materialName || baseColor) + '_' + (scale || 1);
   if (woodTextureCache.has(key)) return woodTextureCache.get(key);
@@ -298,16 +336,38 @@ export function findBestWoodTexture(name) {
 
 // Cache for guessColorInfo results
 var _guessColorCache = new Map();
+// GUARANTEE: each unique material name gets a unique color — NEVER collide
+var _usedColors = new Map(); // hex → first materialName that claimed it
+var _nameColorMap = new Map(); // materialName → final assigned hex
 
 // Guess color from material name (fallback)
 // Returns { color, smooth } — smooth=true means no texture needed (ЛДСП, МДФ, HDF, белый, серый...)
 export function guessColorInfo(name) {
   if (!name) return { color: '#8a7f76', smooth: false };
-  if (_guessColorCache.has(name)) return _guessColorCache.get(name);
+  if (_nameColorMap.has(name)) return { color: _nameColorMap.get(name), smooth: _guessColorCache.get(name).smooth };
   var result = _guessColorInfoCompute(name);
-  // Add deterministic color variation so different materials with the same
-  // keyword (e.g. "ЛДСП серый" vs "Серый кашемир") get visually distinct colors.
+  // Apply hash-based variation so same-keyword materials differ
   result = _varyColor(result, name);
+  var hex = result.color;
+  // GUARANTEE UNIQUE: if this hex is already taken by a DIFFERENT material, shift until free
+  var tries = 0;
+  while (_usedColors.has(hex) && _usedColors.get(hex) !== name && tries < 200) {
+    tries++;
+    hex = _shiftHex(hex, tries * 31);
+  }
+  // Fallback: direct hue from name hash
+  if (_usedColors.has(hex) && _usedColors.get(hex) !== name) {
+    var h2 = _hashStr(name.toLowerCase());
+    hex = _hslToHex((h2 % 360) / 360, 0.35 + (h2 % 40) / 100, 0.3 + (h2 % 35) / 100);
+    var t2 = 0;
+    while (_usedColors.has(hex) && _usedColors.get(hex) !== name && t2 < 360) {
+      t2++;
+      hex = _hslToHex(((h2 + t2 * 7) % 360) / 360, 0.35 + (h2 % 40) / 100, 0.3 + (h2 % 35) / 100);
+    }
+  }
+  _usedColors.set(hex, name);
+  _nameColorMap.set(name, hex);
+  result.color = hex;
   _guessColorCache.set(name, result);
   return result;
 }
