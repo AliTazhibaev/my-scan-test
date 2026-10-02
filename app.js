@@ -121,7 +121,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
       scene.background.setHex(0x1a1e28);
-      _setAllEdgesHex(0x88aacc);
+      _setAllEdgesHex(0x222222);
       if (floor) floor.material.color.setHex(0x2a2e38);
       if (wall) wall.material.color.setHex(0x353a44);
     }
@@ -133,7 +133,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
     if (scene) {
       scene.background.setHex(0xf5f3f0);
-      _setAllEdgesHex(0x999999);
+      _setAllEdgesHex(0x111111);
       if (floor) floor.material.color.setHex(0xd8d4ce);
       if (wall) wall.material.color.setHex(0xe0dcd6);
     }
@@ -772,7 +772,7 @@ function _setAllEdgesHex(hex) {
   _mergedEdgeColors.needsUpdate = true;
 }
 function _resetAllEdges() {
-  _setAllEdgesHex(isDarkTheme ? 0x88aacc : 0x666666);
+  _setAllEdgesHex(isDarkTheme ? 0x222222 : 0x111111);
 }
 function _hideEdgePart(partId) {
   if (!_mergedEdgeColors || !_mergedEdgePartRanges.has(partId)) return;
@@ -780,7 +780,7 @@ function _hideEdgePart(partId) {
   _setEdgeColor(partId, bg.r, bg.g, bg.b);
 }
 function _dimEdgePart(partId) {
-  _setEdgeHex(partId, isDarkTheme ? 0x556677 : 0x999999);
+  _setEdgeHex(partId, isDarkTheme ? 0x444444 : 0x888888);
 }
 
 const sc = 0.001;
@@ -845,7 +845,7 @@ async function buildSceneAsync() {
   var _edgePositions = [];
   var _edgeColors = [];
   var _edgeCurVertex = 0;
-  var _defaultEdgeColor = new THREE.Color(isDarkTheme ? 0x88aacc : 0x666666);
+  var _defaultEdgeColor = new THREE.Color(isDarkTheme ? 0x222222 : 0x111111);
   function _collectEdgeVerts(panelGeo, partId, position, quaternion) {
     var edgeGeo = new THREE.EdgesGeometry(panelGeo, parts.length > 2000 ? 30 : 15);
     var pos = edgeGeo.attributes.position;

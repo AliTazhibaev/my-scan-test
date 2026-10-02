@@ -32,7 +32,7 @@ function _hashStr(str) {
 }
 
 // Deterministic color variation: shift hue/saturation/lightness based on full material name
-// so "ЛДСП Серый" and "Серый кашемир" get different colors.
+// so "ЛДСП Серый" and "Серый кашемир" and "Алюминий" get different colors.
 function _varyColor(result, fullName) {
   if (!fullName || !result || !result.color) return result;
   var hex = result.color;
@@ -51,10 +51,11 @@ function _varyColor(result, fullName) {
     else if (max === g) hh = ((b - r) / d + 2) / 6;
     else hh = ((r - g) / d + 4) / 6;
   }
-  // Shift hue ±18°, saturation ±12%, lightness ±8%
-  hh = (hh + ((h % 37) - 18) / 360 + 1) % 1;
-  ss = Math.max(0.08, Math.min(1, ss + ((h % 25) - 12) / 100));
-  ll = Math.max(0.15, Math.min(0.85, ll + ((h % 17) - 8) / 100));
+  // Large shifts so different materials are clearly distinct:
+  // hue ±45°, saturation ±25%, lightness ±15%
+  hh = (hh + ((h % 91) - 45) / 360 + 1) % 1;
+  ss = Math.max(0.08, Math.min(1, ss + ((h % 51) - 25) / 100));
+  ll = Math.max(0.2, Math.min(0.8, ll + ((h % 31) - 15) / 100));
   // HSL back to RGB
   function hue2rgb(p, q, t) {
     if (t < 0) t += 1; if (t > 1) t -= 1;
@@ -312,6 +313,29 @@ export function guessColorInfo(name) {
 }
 function _guessColorInfoCompute(name) {
   var n = name.toLowerCase();
+
+  // === ТКАНИ / ФАКТУРЫ — проверяем ПЕРЕД общими цветами ===
+  // (чтобы "Кашемир серый" ≠ "ЛДСП серый")
+  if (n.match(/кашемир|cashmere/)) return { color: '#a09898', smooth: true };
+  if (n.match(/шёлк|silk/)) return { color: '#d8d0c0', smooth: true };
+  if (n.match(/бархат|velvet/)) return { color: '#604850', smooth: true };
+  if (n.match(/фетр|felt/)) return { color: '#888080', smooth: true };
+  if (n.match(/джинс|denim/)) return { color: '#4060a0', smooth: true };
+  if (n.match(/замш|suede/)) return { color: '#a08060', smooth: true };
+  if (n.match(/кожа|leather/)) return { color: '#704828', smooth: true };
+  if (n.match(/лён|linen|ткань|fabric|текстиль|textile/)) return { color: '#c0b8a0', smooth: true };
+  if (n.match(/пробк|cork/)) return { color: '#b09870', smooth: true };
+
+  // === МЕТАЛЛЫ — проверяем ПЕРЕД общими серыми ===
+  if (n.match(/алюмин|aluminum/)) return { color: '#c0c8d0', smooth: true };
+  if (n.match(/хром|chrome/)) return { color: '#d0d8e0', smooth: true };
+  if (n.match(/нержаве|stainless|сталь|steel/)) return { color: '#a8b0b8', smooth: true };
+  if (n.match(/медь|copper/)) return { color: '#b07040', smooth: true };
+  if (n.match(/бронз|bronze/)) return { color: '#8a7040', smooth: true };
+  if (n.match(/серебр|silver/)) return { color: '#c0c0c8', smooth: true };
+  if (n.match(/никел|nickel/)) return { color: '#a0a0a8', smooth: true };
+  if (n.match(/металл|metal|железо|iron/)) return { color: '#b0b0b8', smooth: true };
+  if (n.match(/золот|gold/)) return { color: '#c8a030', smooth: true };
 
   // === ГЛАДКИЕ ПОВЕРХНОСТИ (ЛДСП, МДФ, HDF, пластик) — только цвет, без текстуры ===
   // Белые

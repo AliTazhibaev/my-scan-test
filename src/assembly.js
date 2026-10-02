@@ -105,7 +105,7 @@ export function updateAssemblyStep() {
       asmMesh.material.needsUpdate = true;
     });
     // First step — dim all edges
-    _setEdgeHex(null, isDarkTheme ? 0x556677 : 0x999999);
+    _setEdgeHex(null, isDarkTheme ? 0x444444 : 0x888888);
   }
   setAssemblyPrevIndex(assemblyIndex);
 
