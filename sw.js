@@ -1,8 +1,9 @@
-const CACHE_NAME = 'aivo-scan-v10';
+const CACHE_NAME = 'aivo-scan-v11';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/app.html',
+  '/styles.css',
   '/manifest.json',
   '/favicon.svg',
   '/logo.svg',
@@ -55,8 +56,8 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // HTML and JS — network-first (always get latest code)
-  if (url.pathname.endsWith('.html') || url.pathname.endsWith('.js')) {
+  // HTML, JS, and module files — network-first (always get latest code)
+  if (url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname.startsWith('/src/')) {
     event.respondWith(
       fetch(event.request)
         .then(resp => {

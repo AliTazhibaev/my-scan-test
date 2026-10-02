@@ -31,6 +31,51 @@ function _hashStr(str) {
   return Math.abs(h);
 }
 
+// Deterministic color variation: shift hue/saturation/lightness based on full material name
+// so "ЛДСП Серый" and "Серый кашемир" get different colors.
+function _varyColor(result, fullName) {
+  if (!fullName || !result || !result.color) return result;
+  var hex = result.color;
+  if (hex.charAt(0) !== '#' || hex.length < 7) return result;
+  var h = _hashStr(fullName.toLowerCase());
+  // Parse hex to RGB then HSL
+  var r = parseInt(hex.substring(1, 3), 16) / 255;
+  var g = parseInt(hex.substring(3, 5), 16) / 255;
+  var b = parseInt(hex.substring(5, 7), 16) / 255;
+  var max = Math.max(r, g, b), min = Math.min(r, g, b);
+  var hh = 0, ss = 0, ll = (max + min) / 2;
+  if (max !== min) {
+    var d = max - min;
+    ss = ll > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) hh = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) hh = ((b - r) / d + 2) / 6;
+    else hh = ((r - g) / d + 4) / 6;
+  }
+  // Shift hue ±18°, saturation ±12%, lightness ±8%
+  hh = (hh + ((h % 37) - 18) / 360 + 1) % 1;
+  ss = Math.max(0.08, Math.min(1, ss + ((h % 25) - 12) / 100));
+  ll = Math.max(0.15, Math.min(0.85, ll + ((h % 17) - 8) / 100));
+  // HSL back to RGB
+  function hue2rgb(p, q, t) {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  }
+  var rr, gg, bb;
+  if (ss === 0) { rr = gg = bb = ll; }
+  else {
+    var q = ll < 0.5 ? ll * (1 + ss) : ll + ss - ll * ss;
+    var p = 2 * ll - q;
+    rr = hue2rgb(p, q, hh + 1/3);
+    gg = hue2rgb(p, q, hh);
+    bb = hue2rgb(p, q, hh - 1/3);
+  }
+  var toHex = function(v) { var s = Math.round(v * 255).toString(16); return s.length < 2 ? '0' + s : s; };
+  return { color: '#' + toHex(rr) + toHex(gg) + toHex(bb), smooth: result.smooth };
+}
+
 export function createWoodTexture(baseColor, scale, materialName) {
   var key = (materialName || baseColor) + '_' + (scale || 1);
   if (woodTextureCache.has(key)) return woodTextureCache.get(key);
@@ -259,6 +304,9 @@ export function guessColorInfo(name) {
   if (!name) return { color: '#8a7f76', smooth: false };
   if (_guessColorCache.has(name)) return _guessColorCache.get(name);
   var result = _guessColorInfoCompute(name);
+  // Add deterministic color variation so different materials with the same
+  // keyword (e.g. "ЛДСП серый" vs "Серый кашемир") get visually distinct colors.
+  result = _varyColor(result, name);
   _guessColorCache.set(name, result);
   return result;
 }
@@ -435,6 +483,7 @@ export function createPartMaterial(partData, geoType) {
   var isSmooth = info.smooth || false;
 
   // All panels transparent:true for xray, fully opaque by default
+  // polygonOffset prevents z-fighting between adjacent panels of the same color
   var matProps = {
     color: baseColor,
     roughness: isSmooth ? 0.85 : (info.cat === 'material' ? 0.6 : 0.78),
@@ -443,7 +492,10 @@ export function createPartMaterial(partData, geoType) {
     emissiveIntensity: 0,
     transparent: true,
     opacity: 1,
-    depthWrite: true
+    depthWrite: true,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
   };
 
   // Гладкие — сразу возвращаем без текстуры

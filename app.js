@@ -121,7 +121,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
       scene.background.setHex(0x1a1e28);
-      edgeLineMap.forEach(e => { e.material.color.setHex(0x3a3e4a); });
+      _setAllEdgesHex(0x88aacc);
       if (floor) floor.material.color.setHex(0x2a2e38);
       if (wall) wall.material.color.setHex(0x353a44);
     }
@@ -133,7 +133,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
     if (scene) {
       scene.background.setHex(0xf5f3f0);
-      edgeLineMap.forEach(e => { e.material.color.setHex(0x999999); });
+      _setAllEdgesHex(0x999999);
       if (floor) floor.material.color.setHex(0xd8d4ce);
       if (wall) wall.material.color.setHex(0xe0dcd6);
     }
@@ -179,22 +179,26 @@ function initThree() {
   const _scene = new THREE.Scene();
   var _bgColor = isDarkTheme ? 0x1a1e28 : 0xf5f3f0;
   _scene.background = new THREE.Color(_bgColor);
-  _scene.fog = new THREE.FogExp2(_bgColor, deviceQuality === 'low' ? 0.004 : 0.006);
+  _scene.fog = new THREE.FogExp2(_bgColor, deviceQuality === 'low' ? 0.002 : 0.003);
   setScene(_scene);
   const _camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
   _camera.position.set(3, 2.5, 3);
   setCamera(_camera);
   setTargetPosition(new THREE.Vector3(0, 0.5, 0));
   setZoomTarget(new THREE.Vector3());
-  // Lighting — warm studio setup
-  var hemiLight = new THREE.HemisphereLight(0x9bb0d4, 0x5a4a3a, 0.85);
+  // Lighting — warm studio setup with rim light for edge separation
+  var hemiLight = new THREE.HemisphereLight(0x9bb0d4, 0x5a4a3a, 0.9);
   _scene.add(hemiLight);
-  const mainLight = new THREE.DirectionalLight(0xfff0e0, 0.6);
+  const mainLight = new THREE.DirectionalLight(0xfff0e0, 0.65);
   mainLight.position.set(8, 18, 12);
   _scene.add(mainLight);
-  const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.3);
+  const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.35);
   fillLight.position.set(-6, 3, -8);
   _scene.add(fillLight);
+  // Rim light from behind — catches panel edges and creates depth separation
+  const rimLight = new THREE.DirectionalLight(0xc0d8ff, 0.25);
+  rimLight.position.set(-4, 10, -12);
+  _scene.add(rimLight);
   const bottomLight = new THREE.DirectionalLight(0xffffff, 0.15);
   bottomLight.position.set(0, -5, 0);
   _scene.add(bottomLight);
@@ -744,11 +748,50 @@ function buildContourShape(contour, sc) {
   return shape;
 }
 
+// === Merged Edge Helpers ===
+function _setEdgeColor(partId, r, g, b) {
+  if (!_mergedEdgeColors || !_mergedEdgePartRanges.has(partId)) return;
+  var range = _mergedEdgePartRanges.get(partId);
+  for (var i = range.start; i < range.start + range.count; i++) {
+    _mergedEdgeColors.setXYZ(i, r, g, b);
+  }
+  _mergedEdgeColors.needsUpdate = true;
+  setNeedsRender(true);
+}
+function _setEdgeHex(partId, hex) {
+  var c = new THREE.Color(hex);
+  _setEdgeColor(partId, c.r, c.g, c.b);
+}
+function _setAllEdgesHex(hex) {
+  if (!_mergedEdgeColors) return;
+  var c = new THREE.Color(hex);
+  var arr = _mergedEdgeColors.array;
+  for (var i = 0; i < arr.length; i += 3) {
+    arr[i] = c.r; arr[i+1] = c.g; arr[i+2] = c.b;
+  }
+  _mergedEdgeColors.needsUpdate = true;
+}
+function _resetAllEdges() {
+  _setAllEdgesHex(isDarkTheme ? 0x88aacc : 0x666666);
+}
+function _hideEdgePart(partId) {
+  if (!_mergedEdgeColors || !_mergedEdgePartRanges.has(partId)) return;
+  var bg = isDarkTheme ? new THREE.Color(0x1a1e28) : new THREE.Color(0xf5f3f0);
+  _setEdgeColor(partId, bg.r, bg.g, bg.b);
+}
+function _dimEdgePart(partId) {
+  _setEdgeHex(partId, isDarkTheme ? 0x556677 : 0x999999);
+}
+
 const sc = 0.001;
 // Lazy CSG build flags — fasteners, holes, pockets built on first CSG toggle, not during initial build
 var _fastenersBuilt = false;
 var _holesBuilt = false;
 var _pocketsBuilt = false;
+// Merged edge line system — single draw call for all edges
+var _mergedEdgeLine = null;
+var _mergedEdgePartRanges = new Map(); // partId → { start, count }
+var _mergedEdgeColors = null; // Float32Array reference for color updates
 async function buildSceneAsync() {
   // Reset module color assignment for new project
   colorCache.clear();
@@ -760,7 +803,7 @@ async function buildSceneAsync() {
     oldMesh.geometry.dispose();
     scene.remove(oldMesh);
   });
-  edgeLineMap.forEach(function(oldLine) { oldLine.geometry.dispose(); oldLine.material.dispose(); scene.remove(oldLine); });
+  // edgeLineMap cleanup (now handled by merged edge cleanup above)
   detailMeshes.forEach(function(oldArr) { oldArr.forEach(function(oldObj) { if (oldObj.geometry) oldObj.geometry.dispose(); if (oldObj.material) oldObj.material.dispose(); scene.remove(oldObj); }); });
   // Clean up fastener meshes
   fastenerMeshes.forEach(function(fm) {
@@ -782,12 +825,43 @@ async function buildSceneAsync() {
   }
   meshMap.clear();
   edgeLineMap.clear();
+  _mergedEdgePartRanges.clear();
   detailMeshes.clear();
   originalPositions.clear();
   // Reset lazy CSG build flags
   _fastenersBuilt = false;
   _holesBuilt = false;
   _pocketsBuilt = false;
+  // Cleanup merged edge line
+  if (_mergedEdgeLine) {
+    _mergedEdgeLine.geometry.dispose();
+    _mergedEdgeLine.material.dispose();
+    scene.remove(_mergedEdgeLine);
+    _mergedEdgeLine = null;
+  }
+  _mergedEdgePartRanges.clear();
+  _mergedEdgeColors = null;
+  // Edge vertex collection for merged edge line
+  var _edgePositions = [];
+  var _edgeColors = [];
+  var _edgeCurVertex = 0;
+  var _defaultEdgeColor = new THREE.Color(isDarkTheme ? 0x88aacc : 0x666666);
+  function _collectEdgeVerts(panelGeo, partId, position, quaternion) {
+    var edgeGeo = new THREE.EdgesGeometry(panelGeo, parts.length > 2000 ? 30 : 15);
+    var pos = edgeGeo.attributes.position;
+    var verts = pos.count;
+    _mergedEdgePartRanges.set(partId, { start: _edgeCurVertex, count: verts });
+    var v = new THREE.Vector3();
+    for (var ev = 0; ev < verts; ev++) {
+      v.set(pos.getX(ev), pos.getY(ev), pos.getZ(ev));
+      if (quaternion) v.applyQuaternion(quaternion);
+      if (position) v.add(position);
+      _edgePositions.push(v.x, v.y, v.z);
+      _edgeColors.push(_defaultEdgeColor.r, _defaultEdgeColor.g, _defaultEdgeColor.b);
+    }
+    _edgeCurVertex += verts;
+    edgeGeo.dispose();
+  }
   // Async per-part build — yield to browser every 50 parts
   var _totalParts = parts.length;
   var _loadText = document.querySelector("#loadingOverlay .load-text");
@@ -857,73 +931,12 @@ async function buildSceneAsync() {
         scene.add(panelMesh);
         originalPositions.set(part.id, panelMesh.position.clone());
         meshMap.set(part.id, panelMesh);
-        if (parts.length <= 500) {
-        var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
-        var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x3a3e4a : 0x999999, transparent: true, opacity: 0.75 });
-        var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
-        edgeLineObj.quaternion.copy(panelMesh.quaternion);
-        edgeLineObj.position.copy(panelMesh.position);
-        scene.add(edgeLineObj);
-        edgeLineMap.set(part.id, edgeLineObj);
-        }
+        _collectEdgeVerts(panelGeo, part.id, panelMesh.position, panelMesh.quaternion);
         var details = buildPartDetails(part, panelMesh);
         if (details.length) detailMeshes.set(part.id, details);
         continue; // Skip the ExtrudeGeometry path
       }
-      // Has cutouts — use Shape + ExtrudeGeometry
-      shape = new THREE.Shape();
-      if (part.placement) {
-        shape.moveTo(0, 0);
-        shape.lineTo(shapeW, 0);
-        shape.lineTo(shapeW, shapeH);
-        shape.lineTo(0, shapeH);
-      } else {
-        shape.moveTo(-shapeW / 2, -shapeH / 2);
-        shape.lineTo(shapeW / 2, -shapeH / 2);
-        shape.lineTo(shapeW / 2, shapeH / 2);
-        shape.lineTo(-shapeW / 2, shapeH / 2);
-      }
-      shape.closePath();
-      cutouts.forEach(function(cut) {
-        var pth = new THREE.Path();
-        if (cut.t === 'circle' && cut.r > 0) {
-          pth.absarc(cut.x * sc, cut.y * sc, cut.r * sc, 0, Math.PI * 2, true);
-          shape.holes.push(pth);
-        } else if (cut.pts && cut.pts.length >= 3) {
-          pth.moveTo(cut.pts[0][0] * sc, cut.pts[0][1] * sc);
-          for (var ci = 1; ci < cut.pts.length; ci++) {
-            pth.lineTo(cut.pts[ci][0] * sc, cut.pts[ci][1] * sc);
-          }
-          pth.closePath();
-          shape.holes.push(pth);
-        }
-      });
-      var extrudeSettings = { depth: panelT, bevelEnabled: false };
-      var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-      // Fall through to the common mesh creation code below
-      var panelMat = createPartMaterial(part, 'extrude');
-      var panelMesh = new THREE.Mesh(panelGeo, panelMat);
-      panelMesh.position.set(part._pos.x, part._pos.y, part._pos.z);
-      if (part._quat) panelMesh.quaternion.copy(part._quat);
-      panelMesh.userData = { partId: part.id };
-      panelMesh.castShadow = false;
-      panelMesh.receiveShadow = false;
-      // Material already transparent:true from createPartMaterial
-      scene.add(panelMesh);
-      originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
-      meshMap.set(part.id, panelMesh);
-      if (parts.length <= 500) {
-      var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
-      var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x3a3e4a : 0x999999, transparent: true, opacity: 0.75 });
-      var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
-      edgeLineObj.quaternion.copy(panelMesh.quaternion);
-      edgeLineObj.position.copy(panelMesh.position);
-      scene.add(edgeLineObj);
-      edgeLineMap.set(part.id, edgeLineObj);
-      }
-      var details = buildPartDetails(part, panelMesh);
-      if (details.length) detailMeshes.set(part.id, details);
-      continue;
+      // Has cutouts — continue to ExtrudeGeometry below
     }
     // Вырезы (для poly и contour форм)
     var cutouts = part.cuts || part.cutouts || [];
@@ -956,18 +969,10 @@ async function buildSceneAsync() {
     panelMesh.castShadow = false;
     panelMesh.receiveShadow = false;
     scene.add(panelMesh);
-    // Wireframe edges — skip for large models (DetalQR pattern)
+    // Wireframe edges — collect for merged edge line
     originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
     meshMap.set(part.id, panelMesh);
-    if (parts.length <= 500) {
-    var edgeGeo = new THREE.EdgesGeometry(panelGeo, 15);
-    var edgeMat = new THREE.LineBasicMaterial({ color: isDarkTheme ? 0x3a3e4a : 0x999999, transparent: true, opacity: 0.75 });
-    var edgeLineObj = new THREE.LineSegments(edgeGeo, edgeMat);
-    edgeLineObj.quaternion.copy(panelMesh.quaternion);
-    edgeLineObj.position.copy(panelMesh.position);
-    scene.add(edgeLineObj);
-    edgeLineMap.set(part.id, edgeLineObj);
-    }
+    _collectEdgeVerts(panelGeo, part.id, panelMesh.position, panelMesh.quaternion);
     // Build detail overlays (grooves, holes, edges — cutouts are now in the shape)
     var details = buildPartDetails(part, panelMesh);
     if (details.length) {
@@ -983,6 +988,17 @@ async function buildSceneAsync() {
       if (_loadProg) _loadProg.style.width = Math.round(20 + ((_pi + 1) / _totalParts) * 75) + "%";
       await new Promise(function(r) { requestAnimationFrame(r); });
     }
+  }
+  // Create merged edge line — single draw call for ALL edges
+  if (_edgePositions.length > 0) {
+    var mergedGeo = new THREE.BufferGeometry();
+    mergedGeo.setAttribute('position', new THREE.Float32BufferAttribute(_edgePositions, 3));
+    mergedGeo.setAttribute('color', new THREE.Float32BufferAttribute(_edgeColors, 3));
+    var mergedMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.92 });
+    _mergedEdgeLine = new THREE.LineSegments(mergedGeo, mergedMat);
+    _mergedEdgeLine.frustumCulled = false;
+    scene.add(_mergedEdgeLine);
+    _mergedEdgeColors = mergedGeo.attributes.color;
   }
   centerCamera();
   setNeedsRender(true);
@@ -1055,13 +1071,12 @@ function selectModuleHighlight(moduleKey, clickedId) {
       mesh.material.depthWrite = false;
     }
   });
-  edgeLineMap.forEach(function(e, id) {
+  // Update merged edge colors for module highlight
+  meshMap.forEach(function(mesh, id) {
     if (moduleIds.has(id)) {
-      e.visible = true;
-      e.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-      e.material.opacity = 0.55;
+      _setEdgeHex(id, isDarkTheme ? 0x556677 : 0x999999);
     } else {
-      e.visible = false;
+      _hideEdgePart(id);
     }
   });
   scene.traverse(function(obj) {
@@ -1092,7 +1107,6 @@ function selectPart(partId) {
   // Only reset previous selected (not all meshes — saves O(N) per click)
   if (prevId !== null && prevId !== partId) {
     var prevMesh = meshMap.get(prevId);
-    var prevEdge = edgeLineMap.get(prevId);
     if (prevMesh) {
       prevMesh.material.emissive.setHex(0);
       prevMesh.material.emissiveIntensity = 0;
@@ -1101,15 +1115,9 @@ function selectPart(partId) {
       prevMesh.material.depthWrite = true;
       prevMesh.material.needsUpdate = true;
     }
-    if (prevEdge) {
-      prevEdge.visible = true;
-      prevEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-      prevEdge.material.opacity = 0.55;
-      prevEdge.material.transparent = true;
-    }
+    _dimEdgePart(prevId);
   }
   var selectedMesh = meshMap.get(partId);
-  var selectedEdge = edgeLineMap.get(partId);
   if (selectedMesh) {
     selectedMesh.material.emissive.setHex(0x00D4AA);
     selectedMesh.material.emissiveIntensity = 0.25;
@@ -1117,13 +1125,7 @@ function selectPart(partId) {
     selectedMesh.material.opacity = 0.85;
     selectedMesh.material.needsUpdate = true;
   }
-  if (selectedEdge) {
-    selectedEdge.visible = true;
-    selectedEdge.material.color.setHex(0x00D4AA);
-    selectedEdge.material.opacity = 0.8;
-    selectedEdge.material.transparent = true;
-    selectedEdge.material.needsUpdate = true;
-  }
+  _setEdgeHex(partId, 0x00D4AA);
   if (xrayActive) {
     applyXray();
   }
@@ -1241,22 +1243,17 @@ function updateSheet(part) {
 
 function toggleVisibility(partId) {
   const visMesh = meshMap.get(partId);
-  const visEdge = edgeLineMap.get(partId);
   if (!visMesh) {
     return;
   }
   if (hiddenSet.has(partId)) {
     hiddenSet.delete(partId);
     visMesh.visible = true;
-    if (visEdge) {
-      visEdge.visible = true;
-    }
+    _resetAllEdges();
   } else {
     hiddenSet.add(partId);
     visMesh.visible = false;
-    if (visEdge) {
-      visEdge.visible = false;
-    }
+    _hideEdgePart(partId);
     if (selectedId === partId) {
       setSelectedId(null);
       updateSheet(null);
@@ -1318,11 +1315,7 @@ function showAllParts() {
     m.material.depthWrite = true;
     m.material.roughness = 0.78;
   });
-  edgeLineMap.forEach(e => {
-    e.visible = true;
-    e.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-    e.material.opacity = 0.55;
-  });
+  _resetAllEdges();
   detailMeshes.forEach(arr => {
     arr.forEach(obj => { obj.visible = true; });
   });
@@ -1360,13 +1353,11 @@ function isolateModule(moduleKey) {
       m.visible = false;
     }
   });
-  edgeLineMap.forEach((e, id) => {
+  meshMap.forEach((m, id) => {
     if (moduleIds.has(id)) {
-      e.visible = true;
-      e.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-      e.material.opacity = 0.55;
+      _setEdgeHex(id, isDarkTheme ? 0x556677 : 0x999999);
     } else {
-      e.visible = false;
+      _hideEdgePart(id);
     }
   });
   detailMeshes.forEach((arr, id) => {
@@ -1401,11 +1392,7 @@ function exitIsolation() {
     m.material.depthWrite = true;
     m.material.roughness = 0.78;
   });
-  edgeLineMap.forEach(e => {
-    e.visible = true;
-    e.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-    e.material.opacity = 0.55;
-  });
+  _resetAllEdges();
   detailMeshes.forEach(arr => {
     arr.forEach(obj => { obj.visible = true; });
   });
@@ -1454,10 +1441,8 @@ function explodeIsolatedModule() {
     var pg = p.group || getModuleKey(p.code || "");
     if (pg !== explodeModuleKey) {
       var m = meshMap.get(p.id);
-      var e = edgeLineMap.get(p.id);
       var orig = originalPositions.get(p.id);
       if (m && orig) m.position.copy(orig);
-      if (e && orig) e.position.copy(orig);
     }
   });
   setExplodeProgress(0);
@@ -1558,7 +1543,6 @@ function applyExplode() {
   if (count > 0) _tmpCenter.divideScalar(count);
   targetParts.forEach(part => {
     const explodeMesh = meshMap.get(part.id);
-    const explodeEdge = edgeLineMap.get(part.id);
     const origPos = originalPositions.get(part.id);
     if (!explodeMesh || !origPos) return;
     _tmpDir.subVectors(origPos, _tmpCenter);
@@ -1567,7 +1551,6 @@ function applyExplode() {
     const offset = explodeProgress * dist * 0.8;
     _tmpNewPos.copy(origPos).addScaledVector(_tmpDir, offset);
     explodeMesh.position.copy(_tmpNewPos);
-    if (explodeEdge) explodeEdge.position.copy(_tmpNewPos);
     // Detail meshes are children of panel mesh — they move automatically
   });
 
@@ -1716,7 +1699,7 @@ function resetProgress() {
     scannedSet.clear();
     hiddenSet.clear();
     meshMap.forEach(m => m.visible = true);
-    edgeLineMap.forEach(e => e.visible = true);
+    _resetAllEdges();
     invalidateVisibleCache();
     setSelectedId(null);
     updateSheet(null);
@@ -1811,7 +1794,7 @@ function resetChecklist() {
   scannedSet.clear();
   hiddenSet.clear();
   meshMap.forEach(function(m) { m.visible = true; });
-  edgeLineMap.forEach(function(e) { e.visible = true; });
+  _resetAllEdges();
   setSelectedId(null);
   updateSheet(null);
   closeSheet();
@@ -2011,7 +1994,8 @@ initCamera({
   renderPartsList: renderPartsList,
   applyXray: applyXray,
   showToast: showToast,
-  canvas: document.getElementById('canvas3d')
+  canvas: document.getElementById('canvas3d'),
+  dimEdgePart: _dimEdgePart
 });
 
 // Assembly mode — wire dependencies
@@ -2020,7 +2004,11 @@ initAssembly({
   updateSheet: updateSheet,
   openSheet: openSheet,
   renderPartsListDeferred: renderPartsListDeferred,
-  showToast: showToast
+  showToast: showToast,
+  resetAllEdges: _resetAllEdges,
+  setEdgeHex: function(id, hex) { if (id === null) _setAllEdgesHex(hex); else _setEdgeHex(id, hex); },
+  dimEdgePart: _dimEdgePart,
+  hideEdgePart: _hideEdgePart
 });
 
 // UI — wire dependencies for parts list click handlers and module isolate buttons

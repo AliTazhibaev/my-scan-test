@@ -27,6 +27,7 @@ let _renderPartsList = null;
 let _applyXray = null;
 let _showToast = null;
 let _canvas = null;
+let _dimEdgePart = null;
 
 export function initCamera(deps) {
   _handleRaycast = deps.handleRaycast;
@@ -36,6 +37,7 @@ export function initCamera(deps) {
   _applyXray = deps.applyXray;
   _showToast = deps.showToast;
   _canvas = deps.canvas;
+  _dimEdgePart = deps.dimEdgePart || null;
 }
 
 export function updateCamera() {
@@ -89,7 +91,6 @@ export function invalidateVisibleCache() {
 export function deselectPart() {
   if (selectedId === null) return;
   var prevMesh = meshMap.get(selectedId);
-  var prevEdge = edgeLineMap.get(selectedId);
   if (prevMesh) {
     prevMesh.material.emissive.setHex(0);
     prevMesh.material.emissiveIntensity = 0;
@@ -97,12 +98,7 @@ export function deselectPart() {
     prevMesh.material.opacity = 1;
     prevMesh.material.needsUpdate = true;
   }
-  if (prevEdge) {
-    prevEdge.visible = true;
-    prevEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-    prevEdge.material.opacity = 0.55;
-    prevEdge.material.needsUpdate = true;
-  }
+  if (_dimEdgePart) _dimEdgePart(selectedId);
   setSelectedId(null);
   if (xrayActive && _applyXray) _applyXray();
   if (_updateSheet) _updateSheet(null);

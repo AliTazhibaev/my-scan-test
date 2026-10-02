@@ -8,7 +8,7 @@ import {
   assemblyOrder, setAssemblyOrder,
   assemblyPlaying, setAssemblyPlaying,
   assemblyTimer, setAssemblyTimer,
-  parts, moduleMap, meshMap, edgeLineMap,
+  parts, moduleMap, meshMap,
   isDarkTheme, setAutoRotate, setNeedsRender
 } from './state.js';
 
@@ -17,6 +17,10 @@ let _updateSheet = null;
 let _openSheet = null;
 let _renderPartsListDeferred = null;
 let _showToast = null;
+let _resetAllEdges = null;
+let _setEdgeHex = null;
+let _dimEdgePart = null;
+let _hideEdgePart = null;
 
 export function initAssembly(deps) {
   _startSmoothZoom = deps.startSmoothZoom;
@@ -24,6 +28,10 @@ export function initAssembly(deps) {
   _openSheet = deps.openSheet;
   _renderPartsListDeferred = deps.renderPartsListDeferred;
   _showToast = deps.showToast;
+  _resetAllEdges = deps.resetAllEdges || function(){};
+  _setEdgeHex = deps.setEdgeHex || function(){};
+  _dimEdgePart = deps.dimEdgePart || function(){};
+  _hideEdgePart = deps.hideEdgePart || function(){};
 }
 
 export function toggleAssembly() {
@@ -47,12 +55,7 @@ export function toggleAssembly() {
       m.material.depthWrite = true;
       m.material.needsUpdate = true;
     });
-    edgeLineMap.forEach(e => {
-      e.visible = true;
-      e.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-      e.material.opacity = 0.55;
-      e.material.needsUpdate = true;
-    });
+    _resetAllEdges();
     setNeedsRender(true);
   }
 }
@@ -81,7 +84,6 @@ export function updateAssemblyStep() {
     var prevPart = assemblyOrder[assemblyPrevIndex];
     if (prevPart) {
       var prevAsmMesh = meshMap.get(prevPart.id);
-      var prevAsmEdge = edgeLineMap.get(prevPart.id);
       if (prevAsmMesh) {
         prevAsmMesh.material.emissive.setHex(0);
         prevAsmMesh.material.emissiveIntensity = 0;
@@ -90,13 +92,7 @@ export function updateAssemblyStep() {
         prevAsmMesh.material.depthWrite = false;
         prevAsmMesh.material.needsUpdate = true;
       }
-      if (prevAsmEdge) {
-        prevAsmEdge.visible = true;
-        prevAsmEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-        prevAsmEdge.material.opacity = 0.15;
-        prevAsmEdge.material.transparent = true;
-        prevAsmEdge.material.needsUpdate = true;
-      }
+      _dimEdgePart(prevPart.id);
     }
   } else if (assemblyPrevIndex === -1) {
     // First step — dim all meshes once
@@ -108,18 +104,12 @@ export function updateAssemblyStep() {
       asmMesh.material.depthWrite = false;
       asmMesh.material.needsUpdate = true;
     });
-    edgeLineMap.forEach(asmEdge => {
-      asmEdge.visible = true;
-      asmEdge.material.color.setHex(isDarkTheme ? 0x1a1a1a : 0x888888);
-      asmEdge.material.opacity = 0.15;
-      asmEdge.material.transparent = true;
-      asmEdge.material.needsUpdate = true;
-    });
+    // First step — dim all edges
+    _setEdgeHex(null, isDarkTheme ? 0x556677 : 0x999999);
   }
   setAssemblyPrevIndex(assemblyIndex);
 
   const highlightMesh = meshMap.get(currentPart.id);
-  const highlightEdge = edgeLineMap.get(currentPart.id);
   if (highlightMesh) {
     highlightMesh.material.emissive.setHex(0x00D4AA);
     highlightMesh.material.emissiveIntensity = 0.25;
@@ -128,13 +118,7 @@ export function updateAssemblyStep() {
     highlightMesh.material.depthWrite = true;
     highlightMesh.material.needsUpdate = true;
   }
-  if (highlightEdge) {
-    highlightEdge.visible = true;
-    highlightEdge.material.color.setHex(0x00D4AA);
-    highlightEdge.material.opacity = 0.8;
-    highlightEdge.material.transparent = true;
-    highlightEdge.material.needsUpdate = true;
-  }
+  _setEdgeHex(currentPart.id, 0x00D4AA);
   if (_startSmoothZoom) _startSmoothZoom(currentPart.id);
   if (_updateSheet) _updateSheet(currentPart);
   if (_openSheet) _openSheet();
