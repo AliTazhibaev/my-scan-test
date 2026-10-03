@@ -559,6 +559,34 @@ export function loadRealTexture(url) {
   });
 }
 
+// sRGB→Linear color fix (DetalQR pattern).
+// When renderer.outputEncoding = sRGBEncoding, material colors must be in linear space.
+// A HEX value from БАЗИС is sRGB — converting it to linear prevents 20-30% darkening.
+export function sRGBFix(mat) {
+  if (!mat || !mat.color) return mat;
+  if (mat.color.convertSRGBToLinear) mat.color.convertSRGBToLinear();
+  return mat;
+}
+
+// Bake UV coordinates into geometry based on real texture dimensions (DetalQR pattern).
+// This ensures textures tile correctly at real-world scale instead of stretching.
+//   tw/th  — texture tile size in mm (e.g., 1000×1000 for Egger decor)
+//   swap   — if true, rotate UV 90° (grain direction along Y instead of X)
+export function bakeUV(geo, tw, th, swap, isBox) {
+  if (!geo || !geo.attributes || !geo.attributes.position) return;
+  var uv = geo.attributes.uv;
+  if (!uv) return;
+  var pos = geo.attributes.position;
+  // DetalQR pattern: iterate ALL vertices using position XY → UV.
+  // Side faces get UV from their edge positions — texture continues naturally.
+  for (var i = 0; i < uv.count; i++) {
+    var x = pos.getX(i), y = pos.getY(i);
+    if (swap) { uv.setXY(i, y * tw, x * th); }
+    else      { uv.setXY(i, x * tw, y * th); }
+  }
+  uv.needsUpdate = true;
+}
+
 // Создание материала для детали (с учётом типа и направления текстуры)
 export function createPartMaterial(partData, geoType) {
   var matName = partData.material || '';
@@ -674,5 +702,11 @@ export function createPartMaterial(partData, geoType) {
     mat.map = pt;
   }
 
+  // Apply sRGB→linear color correction (DetalQR pattern)
+  sRGBFix(mat);
+  // Environment map intensity — control reflection strength per material type
+  if (info.cat === 'material') mat.envMapIntensity = 0.35;
+  else if (info.cat === 'wood') mat.envMapIntensity = 0.14;
+  else mat.envMapIntensity = 0.1;
   return mat;
 }

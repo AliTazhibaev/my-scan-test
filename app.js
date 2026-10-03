@@ -1,6 +1,8 @@
 import {
   init as initMaterials,
-  createPartMaterial
+  createPartMaterial,
+  sRGBFix,
+  bakeUV
 } from './src/materials.js';
 import { initAnimations, loadAnimations, toggleAnimation, animateFrame } from './src/animations.js';
 import { handleLogin, initAuth } from './src/auth.js';
@@ -121,7 +123,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
       scene.background.setHex(0x1a1e28);
-      _setAllEdgesHex(0x222222);
+      _setAllEdgesHex(0x000000);
       if (floor) floor.material.color.setHex(0x2a2e38);
       if (wall) wall.material.color.setHex(0x353a44);
     }
@@ -133,7 +135,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
     if (scene) {
       scene.background.setHex(0xf5f3f0);
-      _setAllEdgesHex(0x111111);
+      _setAllEdgesHex(0x000000);
       if (floor) floor.material.color.setHex(0xd8d4ce);
       if (wall) wall.material.color.setHex(0xe0dcd6);
     }
@@ -253,6 +255,29 @@ function initThree() {
   _wall.position.set(0, 2.5, -5);
   if (deviceQuality !== 'low') _scene.add(_wall);
   setWall(_wall);
+  // === Environment Map (DetalQR pattern) — realistic reflections on glossy/metal surfaces ===
+  if (deviceQuality !== 'low') {
+    var pmrem = new THREE.PMREMGenerator(_renderer);
+    pmrem.compileEquirectangularShader();
+    var envCanvas = document.createElement('canvas');
+    envCanvas.width = 64; envCanvas.height = 64;
+    var ectx = envCanvas.getContext('2d');
+    var envGrad = ectx.createLinearGradient(0, 0, 0, 64);
+    envGrad.addColorStop(0, '#d0d8e0');
+    envGrad.addColorStop(0.3, '#c0c8d0');
+    envGrad.addColorStop(0.7, '#b0b8c0');
+    envGrad.addColorStop(1, '#a0a8b0');
+    ectx.fillStyle = envGrad;
+    ectx.fillRect(0, 0, 64, 64);
+    ectx.fillStyle = 'rgba(255,255,255,0.12)';
+    ectx.fillRect(0, 0, 64, 16);
+    var envTex = new THREE.CanvasTexture(envCanvas);
+    envTex.mapping = THREE.EquirectangularReflectionMapping;
+    var envRT = pmrem.fromEquirectangular(envTex);
+    _scene.environment = envRT.texture;
+    envTex.dispose();
+    pmrem.dispose();
+  }
   setupCameraControls(canvas);
   animate();
 }
@@ -484,6 +509,7 @@ function buildFasteners(fasteners) {
       color: grp.color, roughness: 0.35, metalness: 0.6,
       emissive: grp.color, emissiveIntensity: grp.emissiveIntensity
     });
+    sRGBFix(mat);
     if (count === 1) {
       var inst = grp.instances[0];
       var mesh = new THREE.Mesh(grp.geo, mat);
@@ -772,7 +798,7 @@ function _setAllEdgesHex(hex) {
   _mergedEdgeColors.needsUpdate = true;
 }
 function _resetAllEdges() {
-  _setAllEdgesHex(isDarkTheme ? 0x222222 : 0x111111);
+  _setAllEdgesHex(0x000000);
 }
 function _hideEdgePart(partId) {
   if (!_mergedEdgeColors || !_mergedEdgePartRanges.has(partId)) return;
@@ -780,7 +806,7 @@ function _hideEdgePart(partId) {
   _setEdgeColor(partId, bg.r, bg.g, bg.b);
 }
 function _dimEdgePart(partId) {
-  _setEdgeHex(partId, isDarkTheme ? 0x444444 : 0x888888);
+  _setEdgeHex(partId, isDarkTheme ? 0x333333 : 0x888888);
 }
 
 const sc = 0.001;
@@ -845,7 +871,7 @@ async function buildSceneAsync() {
   var _edgePositions = [];
   var _edgeColors = [];
   var _edgeCurVertex = 0;
-  var _defaultEdgeColor = new THREE.Color(isDarkTheme ? 0x222222 : 0x111111);
+  var _defaultEdgeColor = new THREE.Color(isDarkTheme ? 0x000000 : 0x000000);
   function _collectEdgeVerts(panelGeo, partId, position, quaternion) {
     var edgeGeo = new THREE.EdgesGeometry(panelGeo, parts.length > 2000 ? 30 : 15);
     var pos = edgeGeo.attributes.position;
@@ -910,6 +936,10 @@ async function buildSceneAsync() {
       if (!hasCutouts) {
         // Simple rectangle — use BoxGeometry (much faster than ExtrudeGeometry)
         var panelGeo = new THREE.BoxGeometry(shapeW, shapeH, panelT);
+        // Bake UV for correct texture tiling (DetalQR pattern)
+        var bGrain = part.grain || 0;
+        var bSwapUV = (bGrain === 2);
+        bakeUV(panelGeo, 1/1000, 1/1000, bSwapUV, true);
         var panelMat = createPartMaterial(part, 'box');
         var panelMesh = new THREE.Mesh(panelGeo, panelMat);
         if (part.placement) {
@@ -958,6 +988,10 @@ async function buildSceneAsync() {
     }
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
     var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    // Bake UV for correct texture tiling (DetalQR pattern)
+    var grain = part.grain || 0;
+    var swapUV = (grain === 2);
+    bakeUV(panelGeo, 1/1000, 1/1000, swapUV, false);
     var panelMat = createPartMaterial(part);
     var panelMesh = new THREE.Mesh(panelGeo, panelMat);
     // Позиция + поворот (DetalQR: pos + quat)
@@ -994,7 +1028,7 @@ async function buildSceneAsync() {
     var mergedGeo = new THREE.BufferGeometry();
     mergedGeo.setAttribute('position', new THREE.Float32BufferAttribute(_edgePositions, 3));
     mergedGeo.setAttribute('color', new THREE.Float32BufferAttribute(_edgeColors, 3));
-    var mergedMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.92 });
+    var mergedMat = new THREE.LineBasicMaterial({ vertexColors: true });
     _mergedEdgeLine = new THREE.LineSegments(mergedGeo, mergedMat);
     _mergedEdgeLine.frustumCulled = false;
     scene.add(_mergedEdgeLine);
