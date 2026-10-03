@@ -4,6 +4,7 @@ import {
   sRGBFix,
   bakeUV
 } from './src/materials.js';
+import { applyPockets as csgApplyPockets, buildPocketDecals, clearPocketCache } from './src/csg.js';
 import { initAnimations, loadAnimations, toggleAnimation, animateFrame } from './src/animations.js';
 import { handleLogin, initAuth } from './src/auth.js';
 import { initQR, wireQRListeners, openScanner } from './src/qr.js';
@@ -567,43 +568,18 @@ function clearHoles() {
   holeMeshes.length = 0;
 }
 
-// --- Визуализация карманов/пазов (pockets) как decals на поверхности ---
-// Following DetalQR approach: pockets are added as children of the panel mesh,
-// using local panel coordinates. Face 'A' = front (Z=0 side), 'B' = back (Z=panelT side).
+// --- Визуализация карманов/пазов (pockets) ---
+// CSG cutting is now done during buildSceneAsync for ExtrudeGeometry panels.
+// This function handles BoxGeometry panels (decals) as fallback.
 function buildPockets(partsArr) {
   partsArr.forEach(function(part) {
     if (!part.pockets || !part.pockets.length) return;
-    var panelT = Math.max(part.T || 16, 1) * sc;
     var parentMesh = meshMap.get(part.id);
     if (!parentMesh) return;
-    part.pockets.forEach(function(pk) {
-      var sh;
-      if (pk.t === 'circle' && pk.r > 0) {
-        sh = new THREE.Shape();
-        sh.absarc(pk.x * sc, pk.y * sc, pk.r * sc, 0, Math.PI * 2, false);
-      } else if (pk.t === 'poly' && pk.pts && pk.pts.length >= 3) {
-        sh = new THREE.Shape();
-        sh.moveTo(pk.pts[0][0] * sc, pk.pts[0][1] * sc);
-        for (var i = 1; i < pk.pts.length; i++) sh.lineTo(pk.pts[i][0] * sc, pk.pts[i][1] * sc);
-        sh.closePath();
-      }
-      if (!sh) return;
-      var geo = new THREE.ShapeGeometry(sh);
-      // DetalQR: face A => Z = -0.2mm (front), face B => Z = panelT +0.2mm (back)
-      var isBack = pk.face === 'B';
-      geo.translate(0, 0, isBack ? panelT + 0.0002 : -0.0002);
-      var mat = new THREE.MeshStandardMaterial({
-        color: 0x2b2f35, roughness: 0.95, metalness: 0.05,
-        transparent: true, opacity: 0.85, side: THREE.DoubleSide,
-        depthWrite: false, polygonOffset: true,
-        polygonOffsetFactor: -2, polygonOffsetUnits: -2
-      });
-      var mesh = new THREE.Mesh(geo, mat);
-      mesh.renderOrder = 1;
-      mesh.userData = { partId: part.id, pocket: true };
-      parentMesh.add(mesh);
-      pocketMeshes.push(mesh);
-    });
+    // If CSG was already applied (ExtrudeGeometry), skip decals
+    if (parentMesh.geometry._crease || (part.poly && part.poly.length >= 3)) return;
+    // BoxGeometry fallback: use decals
+    buildPocketDecals(parentMesh, part);
   });
 }
 function clearPockets() {
@@ -858,6 +834,7 @@ async function buildSceneAsync() {
   _fastenersBuilt = false;
   _holesBuilt = false;
   _pocketsBuilt = false;
+  clearPocketCache();
   // Cleanup merged edge line
   if (_mergedEdgeLine) {
     _mergedEdgeLine.geometry.dispose();
@@ -887,6 +864,29 @@ async function buildSceneAsync() {
     }
     _edgeCurVertex += verts;
     edgeGeo.dispose();
+  }
+  // Collect CSG crease edges (pocket outlines) into merged edge buffer
+  function _collectCreaseVerts(creaseGeo, partId, position, quaternion) {
+    if (!creaseGeo || !creaseGeo.attributes || !creaseGeo.attributes.position) return;
+    var pos = creaseGeo.attributes.position;
+    var verts = pos.count;
+    if (verts === 0) return;
+    // Extend the existing range for this part
+    var range = _mergedEdgePartRanges.get(partId);
+    if (range) {
+      range.count += verts;
+    } else {
+      _mergedEdgePartRanges.set(partId, { start: _edgeCurVertex, count: verts });
+    }
+    var v = new THREE.Vector3();
+    for (var i = 0; i < verts; i++) {
+      v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+      if (quaternion) v.applyQuaternion(quaternion);
+      if (position) v.add(position);
+      _edgePositions.push(v.x, v.y, v.z);
+      _edgeColors.push(_defaultEdgeColor.r, _defaultEdgeColor.g, _defaultEdgeColor.b);
+    }
+    _edgeCurVertex += verts;
   }
   // Async per-part build — yield to browser every 50 parts
   var _totalParts = parts.length;
@@ -988,6 +988,10 @@ async function buildSceneAsync() {
     }
     var extrudeSettings = { depth: panelT, bevelEnabled: false };
     var panelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    // CSG pocket cutting — real 3D depth (DetalQR pattern)
+    if (part.pockets && part.pockets.length) {
+      panelGeo = csgApplyPockets(panelGeo, part, panelT);
+    }
     // Bake UV for correct texture tiling (DetalQR pattern)
     var grain = part.grain || 0;
     var swapUV = (grain === 2);
@@ -1007,6 +1011,10 @@ async function buildSceneAsync() {
     originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
     meshMap.set(part.id, panelMesh);
     _collectEdgeVerts(panelGeo, part.id, panelMesh.position, panelMesh.quaternion);
+    // Collect CSG crease edges (pocket outlines)
+    if (panelGeo._crease) {
+      _collectCreaseVerts(panelGeo._crease, part.id, panelMesh.position, panelMesh.quaternion);
+    }
     // Build detail overlays (grooves, holes, edges — cutouts are now in the shape)
     var details = buildPartDetails(part, panelMesh);
     if (details.length) {
