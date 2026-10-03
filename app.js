@@ -123,25 +123,21 @@ function applyTheme() {
     document.body.classList.remove("light-theme");
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
-      scene.background.setHex(0x1a1e28);
+      scene.background.setHex(0x232830);
       _setAllEdgesHex(0x000000);
-      if (floor) floor.material.color.setHex(0x2a2e38);
-      if (wall) wall.material.color.setHex(0x353a44);
     }
     if (scene) {
-      scene.fog.color.setHex(0x1a1e28);
+      scene.fog.color.setHex(0x232830);
     }
   } else {
     document.body.classList.add("light-theme");
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
     if (scene) {
-      scene.background.setHex(0xf5f3f0);
+      scene.background.setHex(0xf1f4f8);
       _setAllEdgesHex(0x000000);
-      if (floor) floor.material.color.setHex(0xd8d4ce);
-      if (wall) wall.material.color.setHex(0xe0dcd6);
     }
     if (scene) {
-      scene.fog.color.setHex(0xf5f3f0);
+      scene.fog.color.setHex(0xf1f4f8);
     }
   }
 }
@@ -180,83 +176,36 @@ function initThree() {
   window.renderer = _renderer;
   initMaterials(deviceQuality, _renderer);
   const _scene = new THREE.Scene();
-  var _bgColor = isDarkTheme ? 0x1a1e28 : 0xf5f3f0;
+  // DetalQR-style: neutral light background, no colored gradients
+  var _bgColor = isDarkTheme ? 0x232830 : 0xf1f4f8;
   _scene.background = new THREE.Color(_bgColor);
-  _scene.fog = new THREE.FogExp2(_bgColor, deviceQuality === 'low' ? 0.002 : 0.003);
+  // Minimal fog — just enough to fade distant parts, not obscure the model
+  _scene.fog = new THREE.FogExp2(_bgColor, deviceQuality === 'low' ? 0.001 : 0.0015);
   setScene(_scene);
-  const _camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
+  const _camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 500);
   _camera.position.set(3, 2.5, 3);
   setCamera(_camera);
   setTargetPosition(new THREE.Vector3(0, 0.5, 0));
   setZoomTarget(new THREE.Vector3());
-  // Lighting — warm studio setup with rim light for edge separation
-  var hemiLight = new THREE.HemisphereLight(0x9bb0d4, 0x5a4a3a, 0.9);
+  // === Lighting — DetalQR pattern: flat, even studio illumination ===
+  // HemisphereLight provides ambient fill so NO surface is fully dark
+  var hemiLight = new THREE.HemisphereLight(0xffffff, 0xc2c8ce, 0.92);
   _scene.add(hemiLight);
-  const mainLight = new THREE.DirectionalLight(0xfff0e0, 0.65);
-  mainLight.position.set(8, 18, 12);
+  // Main light — moderate, from upper-right-front
+  const mainLight = new THREE.DirectionalLight(0xffffff, 0.42);
+  mainLight.position.set(1, 2, 1.5);
   _scene.add(mainLight);
-  const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.35);
-  fillLight.position.set(-6, 3, -8);
+  // Fill light — softer, from left-back
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.24);
+  fillLight.position.set(-1.5, 0.6, -1);
   _scene.add(fillLight);
-  // Rim light from behind — catches panel edges and creates depth separation
-  const rimLight = new THREE.DirectionalLight(0xc0d8ff, 0.25);
-  rimLight.position.set(-4, 10, -12);
-  _scene.add(rimLight);
-  const bottomLight = new THREE.DirectionalLight(0xffffff, 0.15);
-  bottomLight.position.set(0, -5, 0);
+  // Bottom fill — prevents dark undersides (DetalQR pattern)
+  const bottomLight = new THREE.DirectionalLight(0xffffff, 0.16);
+  bottomLight.position.set(0.2, -1.5, 0.4);
   _scene.add(bottomLight);
-  // Room — floor
-  var floorGeo = new THREE.PlaneGeometry(20, 10);
-  var floorMat = new THREE.MeshStandardMaterial({
-    color: isDarkTheme ? 0x282c36 : 0xe0ddd8,
-    roughness: 0.8, metalness: 0, side: THREE.FrontSide,
-    transparent: true, opacity: 0.4
-  });
-  var _floor = new THREE.Mesh(floorGeo, floorMat);
-  _floor.rotation.x = -Math.PI / 2;
-  _floor.position.set(0, 0, 0);
-  _scene.add(_floor);
-  setFloor(_floor);
-
-  // Fake contact shadow (DetalQR pattern) — zero GPU cost
-  var shadowCanvas = document.createElement('canvas');
-  shadowCanvas.width = 256; shadowCanvas.height = 256;
-  var sCtx = shadowCanvas.getContext('2d');
-  var grad = sCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
-  grad.addColorStop(0, 'rgba(0,0,0,0.35)');
-  grad.addColorStop(0.5, 'rgba(0,0,0,0.15)');
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  sCtx.fillStyle = grad;
-  sCtx.fillRect(0, 0, 256, 256);
-  var shadowTex = new THREE.CanvasTexture(shadowCanvas);
-  var shadowPlane = new THREE.Mesh(
-    new THREE.PlaneGeometry(6, 6),
-    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.8 })
-  );
-  shadowPlane.rotation.x = -Math.PI / 2;
-  shadowPlane.position.y = 0.002;
-  shadowPlane.renderOrder = -1;
-  _scene.add(shadowPlane);
-
-  // Grid on the floor
-  var gridHelper = new THREE.GridHelper(20, 40, isDarkTheme ? 0x4a5060 : 0xc0bdb6, isDarkTheme ? 0x4a5060 : 0xc0bdb6);
-  gridHelper.material.transparent = true;
-  gridHelper.material.opacity = 0.08;
-  gridHelper.position.y = 0.001;
-  if (deviceQuality !== 'low') _scene.add(gridHelper);
-
-  // Room — back wall
-  var wallGeo = new THREE.PlaneGeometry(20, 5);
-  var wallMat = new THREE.MeshStandardMaterial({
-    color: isDarkTheme ? 0x353a44 : 0xe0dcd6,
-    roughness: 0.85, metalness: 0, side: THREE.FrontSide,
-    transparent: true, opacity: 0.3
-  });
-  var _wall = new THREE.Mesh(wallGeo, wallMat);
-  _wall.position.set(0, 2.5, -5);
-  if (deviceQuality !== 'low') _scene.add(_wall);
-  setWall(_wall);
-  // === Environment Map (DetalQR pattern) — realistic reflections on glossy/metal surfaces ===
+  setFloor(null);
+  setWall(null);
+  // === Environment Map — realistic reflections on glossy/metal surfaces ===
   if (deviceQuality !== 'low') {
     var pmrem = new THREE.PMREMGenerator(_renderer);
     pmrem.compileEquirectangularShader();
@@ -778,7 +727,7 @@ function _resetAllEdges() {
 }
 function _hideEdgePart(partId) {
   if (!_mergedEdgeColors || !_mergedEdgePartRanges.has(partId)) return;
-  var bg = isDarkTheme ? new THREE.Color(0x1a1e28) : new THREE.Color(0xf5f3f0);
+  var bg = isDarkTheme ? new THREE.Color(0x232830) : new THREE.Color(0xf1f4f8);
   _setEdgeColor(partId, bg.r, bg.g, bg.b);
 }
 function _dimEdgePart(partId) {
