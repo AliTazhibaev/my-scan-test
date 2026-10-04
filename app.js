@@ -5,7 +5,6 @@ import {
   bakeUV
 } from './src/materials.js';
 import { applyPockets as csgApplyPockets, buildPocketDecals, clearPocketCache } from './src/csg.js';
-import { initAnimations, loadAnimations, toggleAnimation, animateFrame } from './src/animations.js';
 import { handleLogin, initAuth } from './src/auth.js';
 import { initQR, wireQRListeners, openScanner } from './src/qr.js';
 import {
@@ -26,7 +25,7 @@ import {
   meshMap, edgeLineMap, originalPositions, moduleMap,
   isDarkTheme, needsRender, blockMode,
   xrayActive, explodeActive, explodeProgress, explodeModuleKey,
-  isolatedModule, csgEnabled, autoRotate, animationPlaying,
+  isolatedModule, csgEnabled, autoRotate,
   theta, phi, camDist,
   isDragging, prevMouse, isSmoothZoom,
   targetPosition, zoomTarget,
@@ -118,27 +117,78 @@ function toggleTheme() {
   localStorage.setItem("aivoTheme", isDarkTheme ? "dark" : "light");
   applyTheme();
 }
+// Gradient sky background (DetalQR pattern): vertical gradient zenith→horizon→ground
+// plus a soft radial "sun halo" near the top. Flat Color() looked like a boxed-in void —
+// the gradient reads as an environment, and its horizon stop doubles as the fog color.
+var _bgTexDark = null, _bgTexLight = null;
+var FOG_COLOR_DARK = 0x3d4650;  // horizon-zone stop of the dark gradient
+var FOG_COLOR_LIGHT = 0xc8d2da; // horizon-zone stop of the light gradient
+function _buildBgTexture(stops, haloAlpha) {
+  var cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 512;
+  var x = cv.getContext('2d');
+  var g = x.createLinearGradient(0, 0, 0, 512);
+  stops.forEach(function(s) { g.addColorStop(s[0], s[1]); });
+  x.fillStyle = g;
+  x.fillRect(0, 0, 512, 512);
+  var h = x.createRadialGradient(256, 30, 0, 256, 30, 320);
+  h.addColorStop(0, 'rgba(255,255,255,' + haloAlpha + ')');
+  h.addColorStop(0.35, 'rgba(255,255,255,' + (haloAlpha * 0.35) + ')');
+  h.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = h;
+  x.fillRect(0, 0, 512, 512);
+  var tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace || undefined;
+  return tex;
+}
+function _darkBgTexture() {
+  if (!_bgTexDark) {
+    _bgTexDark = _buildBgTexture([
+      [0, '#30383f'],
+      [0.28, '#363f47'],
+      [0.46, '#3d4650'], // = FOG_COLOR_DARK
+      [0.64, '#363c42'],
+      [0.84, '#282e33'],
+      [1, '#1f2429']
+    ], 0.06);
+  }
+  return _bgTexDark;
+}
+function _lightBgTexture() {
+  if (!_bgTexLight) {
+    _bgTexLight = _buildBgTexture([
+      [0, '#dbe4ea'],
+      [0.28, '#d2dce3'],
+      [0.46, '#c8d2da'], // = FOG_COLOR_LIGHT
+      [0.64, '#ccd4da'],
+      [0.84, '#d6dce1'],
+      [1, '#e3e7ea']
+    ], 0.5);
+  }
+  return _bgTexLight;
+}
 function applyTheme() {
   if (isDarkTheme) {
     document.body.classList.remove("light-theme");
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
-      scene.background.setHex(0x232830);
-      _setAllEdgesHex(0x000000);
+      scene.background = _darkBgTexture();
+      _setAllEdgesHex(0xb0b6bd); // light gray border — reads against dark panels, unlike black
     }
     if (scene) {
-      scene.fog.color.setHex(0x232830);
+      scene.fog.color.setHex(FOG_COLOR_DARK);
     }
   } else {
     document.body.classList.add("light-theme");
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
     if (scene) {
-      scene.background.setHex(0xf1f4f8);
+      scene.background = _lightBgTexture();
       _setAllEdgesHex(0x000000);
     }
     if (scene) {
-      scene.fog.color.setHex(0xf1f4f8);
+      scene.fog.color.setHex(FOG_COLOR_LIGHT);
     }
+
   }
 }
 const canvas = document.getElementById("canvas3d");
@@ -176,11 +226,11 @@ function initThree() {
   window.renderer = _renderer;
   initMaterials(deviceQuality, _renderer);
   const _scene = new THREE.Scene();
-  // DetalQR-style: neutral light background, no colored gradients
-  var _bgColor = isDarkTheme ? 0x232830 : 0xf1f4f8;
-  _scene.background = new THREE.Color(_bgColor);
+  // Gradient sky background (DetalQR pattern) — reads as an environment instead of a flat void
+  var _fogColor = isDarkTheme ? FOG_COLOR_DARK : FOG_COLOR_LIGHT;
+  _scene.background = isDarkTheme ? _darkBgTexture() : _lightBgTexture();
   // Minimal fog — just enough to fade distant parts, not obscure the model
-  _scene.fog = new THREE.FogExp2(_bgColor, deviceQuality === 'low' ? 0.001 : 0.0015);
+  _scene.fog = new THREE.FogExp2(_fogColor, deviceQuality === 'low' ? 0.001 : 0.0015);
   setScene(_scene);
   const _camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 500);
   _camera.position.set(3, 2.5, 3);
@@ -723,12 +773,56 @@ function _setAllEdgesHex(hex) {
   _mergedEdgeColors.needsUpdate = true;
 }
 function _resetAllEdges() {
-  _setAllEdgesHex(0x000000);
+  _setAllEdgesHex(isDarkTheme ? 0xb0b6bd : 0x000000);
+  _showAllEdgeGeometry();
+}
+// Collapse a part's edge segments to zero length (both endpoints -> same point) so they
+// draw nothing, in BOTH the plain-border line and the accent (cuts/pockets) line. This is
+// true geometric hiding, unlike the old approach of recoloring lines to match the scene
+// background — that left a visibly wrong-colored line whenever anything else (another
+// panel, a different-colored background region) was behind it.
+function _collapseEdgeRange(positionAttr, range) {
+  if (!positionAttr || !range || range.count === 0) return;
+  var x = positionAttr.getX(range.start), y = positionAttr.getY(range.start), z = positionAttr.getZ(range.start);
+  for (var i = range.start; i < range.start + range.count; i++) {
+    positionAttr.setXYZ(i, x, y, z);
+  }
+  positionAttr.needsUpdate = true;
+}
+function _restoreEdgeRange(positionAttr, originalArray, range) {
+  if (!positionAttr || !originalArray || !range || range.count === 0) return;
+  for (var i = range.start; i < range.start + range.count; i++) {
+    positionAttr.setXYZ(i, originalArray[i * 3], originalArray[i * 3 + 1], originalArray[i * 3 + 2]);
+  }
+  positionAttr.needsUpdate = true;
 }
 function _hideEdgePart(partId) {
-  if (!_mergedEdgeColors || !_mergedEdgePartRanges.has(partId)) return;
-  var bg = isDarkTheme ? new THREE.Color(0x232830) : new THREE.Color(0xf1f4f8);
-  _setEdgeColor(partId, bg.r, bg.g, bg.b);
+  if (_mergedEdgeLine && _mergedEdgePartRanges.has(partId)) {
+    _collapseEdgeRange(_mergedEdgeLine.geometry.attributes.position, _mergedEdgePartRanges.get(partId));
+  }
+  if (_accentEdgeLine && _accentEdgePartRanges.has(partId)) {
+    _collapseEdgeRange(_accentEdgeLine.geometry.attributes.position, _accentEdgePartRanges.get(partId));
+  }
+  setNeedsRender(true);
+}
+function _showEdgePart(partId) {
+  if (_mergedEdgeLine && _mergedEdgeOriginalPositions && _mergedEdgePartRanges.has(partId)) {
+    _restoreEdgeRange(_mergedEdgeLine.geometry.attributes.position, _mergedEdgeOriginalPositions, _mergedEdgePartRanges.get(partId));
+  }
+  if (_accentEdgeLine && _accentEdgeOriginalPositions && _accentEdgePartRanges.has(partId)) {
+    _restoreEdgeRange(_accentEdgeLine.geometry.attributes.position, _accentEdgeOriginalPositions, _accentEdgePartRanges.get(partId));
+  }
+  setNeedsRender(true);
+}
+// Bulk restore — used by "show all" / isolate-module flows which previously relied on
+// _resetAllEdges() only touching colors (and thus leaving collapsed geometry hidden).
+function _showAllEdgeGeometry() {
+  if (_mergedEdgeLine && _mergedEdgeOriginalPositions) {
+    _restoreEdgeRange(_mergedEdgeLine.geometry.attributes.position, _mergedEdgeOriginalPositions, { start: 0, count: _mergedEdgeOriginalPositions.length / 3 });
+  }
+  if (_accentEdgeLine && _accentEdgeOriginalPositions) {
+    _restoreEdgeRange(_accentEdgeLine.geometry.attributes.position, _accentEdgeOriginalPositions, { start: 0, count: _accentEdgeOriginalPositions.length / 3 });
+  }
 }
 function _dimEdgePart(partId) {
   _setEdgeHex(partId, isDarkTheme ? 0x333333 : 0x888888);
@@ -743,6 +837,18 @@ var _pocketsBuilt = false;
 var _mergedEdgeLine = null;
 var _mergedEdgePartRanges = new Map(); // partId → { start, count }
 var _mergedEdgeColors = null; // Float32Array reference for color updates
+// Accent edge line (cuts/вырезы + pocket contours) — separate draw call, fixed color,
+// so cuts/grooves stay visually distinct from the plain panel border and are NOT
+// overwritten by theme/selection recoloring of _mergedEdgeLine.
+var _accentEdgeLine = null;
+var ACCENT_EDGE_COLOR = 0x00D4AA;
+var _accentEdgePartRanges = new Map(); // partId → { start, count }
+// Backups of original (un-collapsed) vertex positions, captured right after build, so
+// hiding a part can collapse its segments to zero length and showing it can restore
+// the exact original coordinates — real hide/show instead of color-matching the
+// background (which left lines visible whenever something else was behind them).
+var _mergedEdgeOriginalPositions = null;
+var _accentEdgeOriginalPositions = null;
 async function buildSceneAsync() {
   // Reset module color assignment for new project
   colorCache.clear();
@@ -791,13 +897,53 @@ async function buildSceneAsync() {
     scene.remove(_mergedEdgeLine);
     _mergedEdgeLine = null;
   }
+  if (_accentEdgeLine) {
+    _accentEdgeLine.geometry.dispose();
+    _accentEdgeLine.material.dispose();
+    scene.remove(_accentEdgeLine);
+    _accentEdgeLine = null;
+  }
   _mergedEdgePartRanges.clear();
   _mergedEdgeColors = null;
   // Edge vertex collection for merged edge line
   var _edgePositions = [];
   var _edgeColors = [];
   var _edgeCurVertex = 0;
-  var _defaultEdgeColor = new THREE.Color(isDarkTheme ? 0x000000 : 0x000000);
+  // Dark theme: light gray border reads clearly against dark panels (pure black
+  // disappeared into dark material tones). Light theme keeps crisp black.
+  var _defaultEdgeColor = new THREE.Color(isDarkTheme ? 0xb0b6bd : 0x000000);
+  // Accent-colored contours (cuts/вырезы + CSG pocket outlines) — collected separately
+  // so they read as "this is a cut/groove", not just more panel border.
+  var _accentEdgePositions = [];
+  var _accentEdgeCurVertex = 0;
+  _accentEdgePartRanges.clear();
+  function _pushAccentVerts(partId, pos, position, quaternion) {
+    var v = new THREE.Vector3();
+    var verts = pos.count;
+    var range = _accentEdgePartRanges.get(partId);
+    if (range) range.count += verts;
+    else _accentEdgePartRanges.set(partId, { start: _accentEdgeCurVertex, count: verts });
+    for (var ev = 0; ev < verts; ev++) {
+      v.set(pos.getX(ev), pos.getY(ev), pos.getZ(ev));
+      if (quaternion) v.applyQuaternion(quaternion);
+      if (position) v.add(position);
+      _accentEdgePositions.push(v.x, v.y, v.z);
+    }
+    _accentEdgeCurVertex += verts;
+  }
+  // For a solid shape geometry (e.g. a tiny extrude built from a cut's own hole path) —
+  // derive its outline via EdgesGeometry.
+  function _collectAccentMeshEdges(partId, geo, position, quaternion) {
+    if (!geo) return;
+    var edgeGeo = new THREE.EdgesGeometry(geo, 15);
+    _pushAccentVerts(partId, edgeGeo.attributes.position, position, quaternion);
+    edgeGeo.dispose();
+  }
+  // For an already-segmented line geometry (CSG pocket crease: raw position pairs, no faces).
+  function _collectAccentRawSegments(partId, geo, position, quaternion) {
+    if (!geo || !geo.attributes || !geo.attributes.position) return;
+    _pushAccentVerts(partId, geo.attributes.position, position, quaternion);
+  }
   function _collectEdgeVerts(panelGeo, partId, position, quaternion) {
     var edgeGeo = new THREE.EdgesGeometry(panelGeo, parts.length > 2000 ? 30 : 15);
     var pos = edgeGeo.attributes.position;
@@ -915,7 +1061,15 @@ async function buildSceneAsync() {
         if (details.length) detailMeshes.set(part.id, details);
         continue; // Skip the ExtrudeGeometry path
       }
-      // Has cutouts — continue to ExtrudeGeometry below
+      // Has cutouts but no poly/contour — build a plain rectangle shape so the
+      // ExtrudeGeometry path below has something to extrude (previously `shape` was
+      // left undefined here and the part silently failed to render).
+      shape = new THREE.Shape();
+      shape.moveTo(0, 0);
+      shape.lineTo(shapeW, 0);
+      shape.lineTo(shapeW, shapeH);
+      shape.lineTo(0, shapeH);
+      shape.closePath();
     }
     // Вырезы (для poly и contour форм)
     var cutouts = part.cuts || part.cutouts || [];
@@ -960,9 +1114,26 @@ async function buildSceneAsync() {
     originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
     meshMap.set(part.id, panelMesh);
     _collectEdgeVerts(panelGeo, part.id, panelMesh.position, panelMesh.quaternion);
-    // Collect CSG crease edges (pocket outlines)
+    // Collect CSG crease edges (pocket outlines) — accent color, not plain border color
     if (panelGeo._crease) {
-      _collectCreaseVerts(panelGeo._crease, part.id, panelMesh.position, panelMesh.quaternion);
+      _collectAccentRawSegments(part.id, panelGeo._crease, panelMesh.position, panelMesh.quaternion);
+    }
+    // Collect cut/вырез contours (shape.holes) with the accent color so they read as
+    // "this is a cut", distinct from the plain panel border (same color otherwise).
+    if (shape && shape.holes && shape.holes.length) {
+      shape.holes.forEach(function(holePath) {
+        try {
+          var hpts = holePath.getPoints(32);
+          if (hpts.length < 3) return;
+          var hShape = new THREE.Shape();
+          hShape.moveTo(hpts[0].x, hpts[0].y);
+          for (var hpi = 1; hpi < hpts.length; hpi++) hShape.lineTo(hpts[hpi].x, hpts[hpi].y);
+          hShape.closePath();
+          var hGeo = new THREE.ExtrudeGeometry(hShape, { depth: panelT, bevelEnabled: false });
+          _collectAccentMeshEdges(part.id, hGeo, panelMesh.position, panelMesh.quaternion);
+          hGeo.dispose();
+        } catch (eHole) { /* malformed hole path — skip accent outline, panel still renders */ }
+      });
     }
     // Build detail overlays (grooves, holes, edges — cutouts are now in the shape)
     var details = buildPartDetails(part, panelMesh);
@@ -990,6 +1161,23 @@ async function buildSceneAsync() {
     _mergedEdgeLine.frustumCulled = false;
     scene.add(_mergedEdgeLine);
     _mergedEdgeColors = mergedGeo.attributes.color;
+    _mergedEdgeOriginalPositions = mergedGeo.attributes.position.array.slice();
+  } else {
+    _mergedEdgeOriginalPositions = null;
+  }
+  // Accent edge line — cuts/вырезы + pocket contours, fixed color, drawn on top of the
+  // plain border line so they stay readable regardless of theme/selection recoloring.
+  if (_accentEdgePositions.length > 0) {
+    var accentGeo = new THREE.BufferGeometry();
+    accentGeo.setAttribute('position', new THREE.Float32BufferAttribute(_accentEdgePositions, 3));
+    var accentMat = new THREE.LineBasicMaterial({ color: ACCENT_EDGE_COLOR, transparent: true, opacity: 0.85, depthTest: true });
+    _accentEdgeLine = new THREE.LineSegments(accentGeo, accentMat);
+    _accentEdgeLine.frustumCulled = false;
+    _accentEdgeLine.renderOrder = 2;
+    scene.add(_accentEdgeLine);
+    _accentEdgeOriginalPositions = accentGeo.attributes.position.array.slice();
+  } else {
+    _accentEdgeOriginalPositions = null;
   }
   centerCamera();
   setNeedsRender(true);
@@ -1015,6 +1203,44 @@ function buildModuleMap() {
     moduleMap.get(groupName).push(part);
   });
 }
+// === Fake contact shadow — soft dark blob under the model so it doesn't look like it's
+// floating (real shadow maps are disabled for performance, see initThree()). ===
+var _contactShadow = null;
+var _contactShadowTex = null;
+function _getContactShadowTexture() {
+  if (_contactShadowTex) return _contactShadowTex;
+  var cv = document.createElement('canvas');
+  cv.width = cv.height = 256;
+  var g = cv.getContext('2d');
+  var grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(0,0,0,0.38)');
+  grad.addColorStop(0.6, 'rgba(0,0,0,0.18)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
+  _contactShadowTex = new THREE.CanvasTexture(cv);
+  return _contactShadowTex;
+}
+function _ensureContactShadow() {
+  if (_contactShadow || !scene) return;
+  var geo = new THREE.PlaneGeometry(1, 1);
+  var mat = new THREE.MeshBasicMaterial({
+    map: _getContactShadowTexture(), transparent: true, depthWrite: false,
+    toneMapped: false
+  });
+  _contactShadow = new THREE.Mesh(geo, mat);
+  _contactShadow.rotation.x = -Math.PI / 2;
+  _contactShadow.renderOrder = -1;
+  scene.add(_contactShadow);
+}
+// Resize/reposition the shadow blob to sit under the current model's footprint.
+function _updateContactShadow(minX, maxX, minY, minZ, maxZ, cx, cz) {
+  _ensureContactShadow();
+  if (!_contactShadow) return;
+  var footprint = Math.max(maxX - minX, maxZ - minZ, 0.2);
+  _contactShadow.scale.set(footprint * 1.6, footprint * 1.6, 1);
+  _contactShadow.position.set(cx, minY + 0.001, cz);
+}
 function centerCamera() {
   if (!parts.length) {
     return;
@@ -1039,6 +1265,7 @@ function centerCamera() {
   targetPosition.set((minX + maxX) / 2, (minY2 + maxY) / 2, (minZ + maxZ) / 2);
   const maxExtent = Math.max(maxX - minX, maxY - minY2, maxZ - minZ);
   setCamDist(Math.max(maxExtent * 1.5, 2));
+  _updateContactShadow(minX, maxX, minY2, minZ, maxZ, (minX + maxX) / 2, (minZ + maxZ) / 2);
   updateCamera();
 }
 
@@ -1065,6 +1292,7 @@ function selectModuleHighlight(moduleKey, clickedId) {
   // Update merged edge colors for module highlight
   meshMap.forEach(function(mesh, id) {
     if (moduleIds.has(id)) {
+      if (!hiddenSet.has(id)) _showEdgePart(id);
       _setEdgeHex(id, isDarkTheme ? 0x556677 : 0x999999);
     } else {
       _hideEdgePart(id);
@@ -1240,7 +1468,7 @@ function toggleVisibility(partId) {
   if (hiddenSet.has(partId)) {
     hiddenSet.delete(partId);
     visMesh.visible = true;
-    _resetAllEdges();
+    _showEdgePart(partId);
   } else {
     hiddenSet.add(partId);
     visMesh.visible = false;
@@ -1346,6 +1574,7 @@ function isolateModule(moduleKey) {
   });
   meshMap.forEach((m, id) => {
     if (moduleIds.has(id)) {
+      if (!hiddenSet.has(id)) _showEdgePart(id);
       _setEdgeHex(id, isDarkTheme ? 0x556677 : 0x999999);
     } else {
       _hideEdgePart(id);
@@ -1838,7 +2067,6 @@ initEvents({
         setParts(loadedParts);
         setFastenerData(data.fasteners || []);
         setDimsData(data.dims || []);
-        loadAnimations(data.anims || []);
         window._loadedHoles = data.holes || [];
         parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
         if (loadText) loadText.textContent = "Подготовка данных...";
@@ -1891,16 +2119,9 @@ initEvents({
 // Drag-and-drop handled by initEvents
 
 
-var _lastAnimTime = 0;
 function animate(now) {
   requestAnimationFrame(animate);
   if (document.hidden) return;
-  var dt = _lastAnimTime ? Math.min((now - _lastAnimTime) / 1000, 0.1) : 0;
-  _lastAnimTime = now;
-  if (animationPlaying) {
-    animateFrame(dt);
-    setNeedsRender(true);
-  }
   if (autoRotate && !isDragging && !isSmoothZoom) {
     setTheta(theta + 0.0025);
     updateCamera();
@@ -1961,11 +2182,6 @@ window.init3D = init3D;
 // === Isolation bar handlers ===
 document.getElementById("isolationExitBtn").addEventListener("click", exitIsolation);
 document.getElementById("isolationExplodeBtn").addEventListener("click", explodeIsolatedModule);
-
-// === Animation button ===
-var animBtnEl = document.getElementById("animBtn");
-if (animBtnEl) animBtnEl.addEventListener("click", toggleAnimation);
-
 
 // Camera controls — wire dependencies
 initCamera({
