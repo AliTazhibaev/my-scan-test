@@ -76,6 +76,72 @@ function _varyColor(result, fullName) {
   return { color: '#' + toHex(rr) + toHex(gg) + toHex(bb), smooth: result.smooth };
 }
 
+// ---- Distinct colours: any two different materials must be visibly different ----
+function _hexToHsl(hex) {
+  var r = parseInt(hex.substring(1, 3), 16) / 255, g = parseInt(hex.substring(3, 5), 16) / 255, b = parseInt(hex.substring(5, 7), 16) / 255;
+  var max = Math.max(r, g, b), min = Math.min(r, g, b), hh = 0, ss = 0, ll = (max + min) / 2;
+  if (max !== min) {
+    var d = max - min;
+    ss = ll > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) hh = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) hh = ((b - r) / d + 2) / 6;
+    else hh = ((r - g) / d + 4) / 6;
+  }
+  return [hh, ss, ll];
+}
+function _hexToLab(hex) {
+  function lin(v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+  var r = lin(parseInt(hex.substring(1, 3), 16)), g = lin(parseInt(hex.substring(3, 5), 16)), b = lin(parseInt(hex.substring(5, 7), 16));
+  var x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047, y = (r * 0.2126 + g * 0.7152 + b * 0.0722), z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  function f(t) { return t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116; }
+  var fx = f(x), fy = f(y), fz = f(z);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+function _dE(a, b) { var dl = a[0] - b[0], da = a[1] - b[1], db = a[2] - b[2]; return Math.sqrt(dl * dl + da * da + db * db); }
+var MIN_DELTA_E = 13; // perceptual distance guaranteed between any two different materials
+var _usedLabs = []; // [{lab, name}]
+// Candidate shifts around the base colour, nearest first: lightness mostly, small hue/saturation nudges.
+var _shiftCands = (function() {
+  var c = [];
+  for (var li = -9; li <= 9; li++) for (var hi = -4; hi <= 4; hi++) for (var si = -2; si <= 2; si++) {
+    c.push({ dl: li * 0.04, dh: hi * 7, ds: si * 0.06, cost: Math.abs(li) * 4 + Math.abs(hi) * 1.2 + Math.abs(si) * 1.5 });
+  }
+  c.sort(function(a, b) { return a.cost - b.cost; });
+  return c;
+})();
+function _pickDistinct(hex, name) {
+  var hsl = _hexToHsl(hex), best = hex, bestMin = -1;
+  for (var i = 0; i < _shiftCands.length; i++) {
+    var sc = _shiftCands[i];
+    var h = ((hsl[0] * 360 + sc.dh) % 360 + 360) % 360 / 360;
+    var s = Math.max(0.0, Math.min(1, hsl[1] + (hsl[1] < 0.05 ? 0 : sc.ds)));
+    var l = Math.max(0.12, Math.min(0.92, hsl[2] + sc.dl));
+    var cand = _hslToHex(h, s, l), lab = _hexToLab(cand), mn = Infinity;
+    for (var k = 0; k < _usedLabs.length; k++) { var d = _dE(lab, _usedLabs[k].lab); if (d < mn) mn = d; }
+    if (mn >= MIN_DELTA_E) { _usedLabs.push({ lab: lab, name: name }); return cand; }
+    if (mn > bestMin) { bestMin = mn; best = cand; }
+  }
+  // Overflow: the colour family has no free slot left (e.g. a dozen near-identical grays). Rather than
+  // show two materials alike, spread over the whole hue wheel, with enough chroma to tell apart.
+  for (var oi = 0; oi < _overflowCands.length; oi++) {
+    var oc = _overflowCands[oi], ocand = _hslToHex(oc[0], oc[1], oc[2]), olab = _hexToLab(ocand), omn = Infinity;
+    for (var ok = 0; ok < _usedLabs.length; ok++) { var od = _dE(olab, _usedLabs[ok].lab); if (od < omn) omn = od; }
+    if (omn >= MIN_DELTA_E) { _usedLabs.push({ lab: olab, name: name }); return ocand; }
+    if (omn > bestMin) { bestMin = omn; best = ocand; }
+  }
+  _usedLabs.push({ lab: _hexToLab(best), name: name });
+  return best;
+}
+var _overflowCands = (function() {
+  var c = [];
+  for (var hi = 0; hi < 24; hi++) for (var si = 0; si < 3; si++) for (var li = 0; li < 6; li++) {
+    c.push([hi / 24, 0.32 + si * 0.22, 0.28 + li * 0.1, hi]);
+  }
+  // interleave hues so consecutive overflow materials are far apart on the wheel
+  c.sort(function(a, b) { return ((a[3] * 7) % 24) - ((b[3] * 7) % 24) || a[1] - b[1] || a[2] - b[2]; });
+  return c;
+})();
+
 // Shift lightness in alternating +/- steps (collision resolution that keeps the colour family)
 function _shiftLightness(hex, tries) {
   var r = parseInt(hex.substring(1, 3), 16) / 255;
@@ -270,6 +336,9 @@ export var MATERIAL_KEYWORDS = [
   'бетон', ' concrete', 'ферро', 'ferro'
 ];
 
+// Shared Texture instances per (photo, rotation, mirror) — see createPartMaterial
+var _texInstances = new Map();
+
 // Cache for loaded textures
 export var _realTexCache = new Map();
 
@@ -287,15 +356,71 @@ export var MANUFACTURER_MAP = {
 // "ЛДСП Красно-коричневый" is a plain color.
 export var WOOD_SPECIES_RE = /дуб|(^|[^a-z])oak|орех|walnut|ясень|(^|[^a-z])ash([^a-z]|$)|(^|[^а-яё])бук|beech|сосн|(^|[^a-z])pine|берёз|берез|birch|клён|клен|maple|вишн|cherry|махагон|mahogany|венге|wenge|teak|лиственниц|larch|каселл|casella|тенор|tenor|сонома|sonoma|бардолино|bardolino|галифакс|halifax|давос|davos|пацифик|pacific|шпон|veneer|фанер|plywood/i;
 
+// Textured decors. Any two different materials must LOOK different, so a decor is chosen by its
+// perceived colour (photo mean colour x tint), not just by (photo, tint) being unique: several photos
+// have almost the same mean colour (e.g. Галифакс vs Орех Пацифик differ by dE ~4).
+// Mean sRGB colours of /textures photos, measured once.
+var PHOTO_MEAN = {
+  H1145: [196, 168, 137], H1180: [171, 142, 109], H3131: [181, 171, 144], H3700: [175, 138, 104],
+  F028: [76, 71, 70], F029: [99, 93, 91], F160: [63, 61, 62], F186: [140, 138, 139]
+};
+function _photoMean(url) {
+  var m = /([HF]\d{3,4})/.exec(decodeURIComponent(url || ''));
+  return (m && PHOTO_MEAN[m[1]]) || [150, 150, 150];
+}
+function _displayLab(mean, tint) {   // tint multiplies the (linear) photo colour on the GPU
+  function lin(v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+  function enc(v) { v = Math.max(0, Math.min(1, v)); return Math.round(255 * (v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055)); }
+  var h = function(n) { var x = n.toString(16); return x.length < 2 ? '0' + x : x; };
+  var r = enc(lin(mean[0]) * tint[0]), g = enc(lin(mean[1]) * tint[1]), b = enc(lin(mean[2]) * tint[2]);
+  return _hexToLab('#' + h(r) + h(g) + h(b));
+}
+// Tint candidates, cheapest (least visible change) first: identity, darkening, then hue casts.
+var DECOR_TINTS = (function() {
+  var casts = [[1, 1, 1], [1, 0.86, 0.72], [0.78, 0.88, 1], [1, 0.74, 0.74], [0.76, 1, 0.80], [0.88, 0.76, 1], [1, 0.96, 0.62]];
+  var out = [];
+  for (var ci = 0; ci < casts.length; ci++) for (var di = 0; di < 7; di++) {
+    var k = 1 - di * 0.1;          // 1.0 .. 0.4
+    out.push({ t: [casts[ci][0] * k, casts[ci][1] * k, casts[ci][2] * k], cost: ci * 2.2 + di * 1.0 });
+  }
+  out.sort(function(a, b) { return a.cost - b.cost; });
+  return out;
+})();
+var _decorByName = new Map();   // name -> { tex, tint }
+function _assignDecor(name, preferredUrls) {
+  if (_decorByName.has(name)) return _decorByName.get(name);
+  var best = null, bestMin = -1;
+  // Candidates = every (photo, tint). Cost keeps tone fidelity: preferred photo first, untinted first;
+  // the cheapest candidate that is perceptually distinct from everything already used wins.
+  var cands = [];
+  for (var pi = 0; pi < preferredUrls.length; pi++) {
+    var mean = _photoMean(preferredUrls[pi]);
+    for (var ti = 0; ti < DECOR_TINTS.length; ti++) {
+      cands.push({ url: preferredUrls[pi], mean: mean, tint: DECOR_TINTS[ti].t, cost: pi * 9 + DECOR_TINTS[ti].cost });   // switching photo changes the decor's tone more than tinting does
+    }
+  }
+  cands.sort(function(a, b) { return a.cost - b.cost; });
+  for (var i = 0; i < cands.length; i++) {
+    var c = cands[i], lab = _displayLab(c.mean, c.tint), mn = Infinity;
+    for (var k = 0; k < _usedLabs.length; k++) { var d = _dE(lab, _usedLabs[k].lab); if (d < mn) mn = d; }
+    if (mn >= MIN_DELTA_E) { best = c; bestMin = mn; break; }
+    if (mn > bestMin) { bestMin = mn; best = c; }
+  }
+  _usedLabs.push({ lab: _displayLab(best.mean, best.tint), name: name });
+  var res = { tex: best.url, tint: best.tint.slice() };
+  _decorByName.set(name, res);
+  return res;
+}
+
 // Pick the real decor photo that is closest in tone/species to the name.
 export function pickWoodTexture(name) {
   var n = String(name || '').toLowerCase();
-  var code = 'H1145'; // Дуб Бардолино — light natural oak
-  if (/орех|walnut|венге|wenge|махагон|mahogany|тёмн|темн|dark|корич|корчнев|brown|каселл|casella|табак|мокка|вишн|cherry/.test(n)) code = 'H3700'; // Орех Пацифик — dark
-  else if (/сер|grey|gray|галифакс|halifax|тенор|tenor|g711|g715|k370|graphite|графит/.test(n)) code = 'H1180';   // Дуб Галифакс — grey oak
-  else if (/давос|davos|мёд|honey|тёпл|warm|сонома|sonoma|золот/.test(n)) code = 'H3131';                         // Дуб Давос — warm oak
-  var e = EGGER_DB[code];
-  return TEX_BASE + '/' + e.dir + '/' + encodeURIComponent(e.file);
+  var order = ['H1145', 'H3131', 'H1180', 'H3700'];                       // Бардолино — light natural oak
+  if (/орех|walnut|венге|wenge|махагон|mahogany|тёмн|темн|dark|корич|корчнев|brown|каселл|casella|табак|мокка|вишн|cherry/.test(n)) order = ['H3700', 'H3131', 'H1180', 'H1145']; // Орех Пацифик — dark
+  else if (/сер|grey|gray|галифакс|halifax|тенор|tenor|g711|g715|k370|graphite|графит/.test(n)) order = ['H1180', 'H1145', 'H3131', 'H3700']; // Дуб Галифакс — grey oak
+  else if (/давос|davos|мёд|honey|тёпл|warm|сонома|sonoma|золот/.test(n)) order = ['H3131', 'H1145', 'H1180', 'H3700'];                         // Дуб Давос — warm oak
+  var urls = order.map(function(code) { var e = EGGER_DB[code]; return TEX_BASE + '/' + e.dir + '/' + encodeURIComponent(e.file); });
+  return _assignDecor(String(name || ''), urls);   // { tex, tint }
 }
 
 // Классификация материала по имени
@@ -311,7 +436,8 @@ export function classifyMaterial(matName) {
     if (EGGER_DB[code]) {
       var entry = EGGER_DB[code];
       var url = entry.file ? (TEX_BASE + '/' + entry.dir + '/' + encodeURIComponent(entry.file)) : null;
-      return { cat: entry.cat, tex: url, color: entry.color || ci.color, smooth: false };
+      var dEg = url ? _assignDecor(matName, [url]) : null;
+      return { cat: entry.cat, tex: url, tint: dEg ? dEg.tint : null, color: entry.color || ci.color, smooth: false };
     }
   }
 
@@ -322,13 +448,15 @@ export function classifyMaterial(matName) {
     if (MANUFACTURER_MAP[mfgCode] && EGGER_DB[MANUFACTURER_MAP[mfgCode]]) {
       var mappedEntry = EGGER_DB[MANUFACTURER_MAP[mfgCode]];
       var mappedUrl = mappedEntry.file ? (TEX_BASE + '/' + mappedEntry.dir + '/' + encodeURIComponent(mappedEntry.file)) : null;
-      return { cat: mappedEntry.cat, tex: mappedUrl, color: mappedEntry.color || ci.color, smooth: false };
+      var dMp = mappedUrl ? _assignDecor(matName, [mappedUrl]) : null;
+      return { cat: mappedEntry.cat, tex: mappedUrl, tint: dMp ? dMp.tint : null, color: mappedEntry.color || ci.color, smooth: false };
     }
   }
 
   // 2a. Wood decor name (даже у ЛДСП/МДФ) → реальное фото дерева подходящего тона
   if (WOOD_SPECIES_RE.test(name)) {
-    return { cat: 'wood', tex: pickWoodTexture(name), color: ci.color, smooth: false, photo: true };
+    var dec = pickWoodTexture(matName);
+    return { cat: 'wood', tex: dec.tex, tint: dec.tint, color: ci.color, smooth: false, photo: true };
   }
   // 2. Ключевые слова — SOLID (ЛДСП/МДФ без названия декора — гладкие)
   for (var s = 0; s < SOLID_KEYWORDS.length; s++) {
@@ -386,22 +514,9 @@ export function guessColorInfo(name) {
   // Apply hash-based variation so same-keyword materials differ
   result = _varyColor(result, name);
   var hex = result.color;
-  // GUARANTEE UNIQUE: if this hex is already taken by a DIFFERENT material, shift until free
-  var tries = 0;
-  while (_usedColors.has(hex) && _usedColors.get(hex) !== name && tries < 200) {
-    tries++;
-    hex = _shiftLightness(hex, tries);
-  }
-  // Fallback: direct hue from name hash
-  if (_usedColors.has(hex) && _usedColors.get(hex) !== name) {
-    var h2 = _hashStr(name.toLowerCase());
-    hex = _hslToHex((h2 % 360) / 360, 0.35 + (h2 % 40) / 100, 0.3 + (h2 % 35) / 100);
-    var t2 = 0;
-    while (_usedColors.has(hex) && _usedColors.get(hex) !== name && t2 < 360) {
-      t2++;
-      hex = _hslToHex(((h2 + t2 * 7) % 360) / 360, 0.35 + (h2 % 40) / 100, 0.3 + (h2 % 35) / 100);
-    }
-  }
+  // Wood decors are drawn from a photo (distinctness handled in _assignDecor); everything else must be
+  // perceptually distinct from every other material colour.
+  if (hex.charAt(0) === '#' && hex.length >= 7 && !WOOD_SPECIES_RE.test(name)) hex = _pickDistinct(hex, name);
   _usedColors.set(hex, name);
   _nameColorMap.set(name, hex);
   result.color = hex;
@@ -698,14 +813,23 @@ export function createPartMaterial(partData, geoType) {
     // Асинхронно загружаем реальную — обновляем САМ материал
     loadRealTexture(info.tex).then(function(realTex) {
       if (realTex) {
-        // Per-material clone: rotation/wrap differ per part but the image is shared.
-        var t = realTex.clone();
-        t.needsUpdate = true;
-        applyTexRotation(t);
-        applyTexSettings(t);
+        // One Texture object per (photo, rotation, mirror): every Texture is uploaded to the GPU on its
+        // own (~19 MB with mipmaps for a 1300x2800 photo), so a clone per part used gigabytes on big
+        // projects. Per-part variety comes from the baked UV offset, not from the texture object.
+        var ts = texSettings || {};
+        var tkey = info.tex + '|' + (ts.rot || 0) + '|' + (ts.angle || 0) + '|' + (ts.mirror ? 1 : 0);
+        var t = _texInstances.get(tkey);
+        if (!t) {
+          t = realTex.clone();
+          t.needsUpdate = true;
+          applyTexRotation(t);
+          applyTexSettings(t);
+          _texInstances.set(tkey, t);
+        }
         mat.map = t;
         // Photo is the colour: a tinted base colour would multiply and dirty it.
-        mat.color.setRGB(1, 1, 1);
+        var tn = info.tint || [1, 1, 1];
+        mat.color.setRGB(tn[0], tn[1], tn[2]);
         mat.needsUpdate = true;
       }
     });
