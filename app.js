@@ -173,7 +173,7 @@ function applyTheme() {
     document.getElementById("themeToggle").innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     if (scene) {
       scene.background = _darkBgTexture();
-      _setAllEdgesHex(0xb0b6bd); // light gray border — reads against dark panels, unlike black
+      _setAllEdgesHex(0x000000); // black outlines in both themes (DetalQR look)
     }
     if (scene) {
       scene.fog.color.setHex(FOG_COLOR_DARK);
@@ -773,7 +773,7 @@ function _setAllEdgesHex(hex) {
   _mergedEdgeColors.needsUpdate = true;
 }
 function _resetAllEdges() {
-  _setAllEdgesHex(isDarkTheme ? 0xb0b6bd : 0x000000);
+  _setAllEdgesHex(0x000000);
   _showAllEdgeGeometry();
 }
 // Collapse a part's edge segments to zero length (both endpoints -> same point) so they
@@ -841,7 +841,7 @@ var _mergedEdgeColors = null; // Float32Array reference for color updates
 // so cuts/grooves stay visually distinct from the plain panel border and are NOT
 // overwritten by theme/selection recoloring of _mergedEdgeLine.
 var _accentEdgeLine = null;
-var ACCENT_EDGE_COLOR = 0x00D4AA;
+var ACCENT_EDGE_COLOR = 0x000000; // groove/cut contours: black like the panel outlines
 var _accentEdgePartRanges = new Map(); // partId → { start, count }
 // Backups of original (un-collapsed) vertex positions, captured right after build, so
 // hiding a part can collapse its segments to zero length and showing it can restore
@@ -911,7 +911,7 @@ async function buildSceneAsync() {
   var _edgeCurVertex = 0;
   // Dark theme: light gray border reads clearly against dark panels (pure black
   // disappeared into dark material tones). Light theme keeps crisp black.
-  var _defaultEdgeColor = new THREE.Color(isDarkTheme ? 0xb0b6bd : 0x000000);
+  var _defaultEdgeColor = new THREE.Color(0x000000);
   // Accent-colored contours (cuts/вырезы + CSG pocket outlines) — collected separately
   // so they read as "this is a cut/groove", not just more panel border.
   var _accentEdgePositions = [];
@@ -1170,7 +1170,7 @@ async function buildSceneAsync() {
   if (_accentEdgePositions.length > 0) {
     var accentGeo = new THREE.BufferGeometry();
     accentGeo.setAttribute('position', new THREE.Float32BufferAttribute(_accentEdgePositions, 3));
-    var accentMat = new THREE.LineBasicMaterial({ color: ACCENT_EDGE_COLOR, transparent: true, opacity: 0.85, depthTest: true });
+    var accentMat = new THREE.LineBasicMaterial({ color: ACCENT_EDGE_COLOR, transparent: false, depthTest: true });
     _accentEdgeLine = new THREE.LineSegments(accentGeo, accentMat);
     _accentEdgeLine.frustumCulled = false;
     _accentEdgeLine.renderOrder = 2;
@@ -1213,8 +1213,8 @@ function _getContactShadowTexture() {
   cv.width = cv.height = 256;
   var g = cv.getContext('2d');
   var grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-  grad.addColorStop(0, 'rgba(0,0,0,0.38)');
-  grad.addColorStop(0.6, 'rgba(0,0,0,0.18)');
+  grad.addColorStop(0, 'rgba(0,0,0,0.30)');
+  grad.addColorStop(0.6, 'rgba(0,0,0,0.14)');
   grad.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = grad;
   g.fillRect(0, 0, 256, 256);
@@ -1237,8 +1237,10 @@ function _ensureContactShadow() {
 function _updateContactShadow(minX, maxX, minY, minZ, maxZ, cx, cz) {
   _ensureContactShadow();
   if (!_contactShadow) return;
-  var footprint = Math.max(maxX - minX, maxZ - minZ, 0.2);
-  _contactShadow.scale.set(footprint * 1.6, footprint * 1.6, 1);
+  // Ellipse sized to the real footprint (a square sized by the longer side put a huge
+  // disc under long, shallow models like kitchens).
+  var w = Math.max(maxX - minX, 0.2), d = Math.max(maxZ - minZ, 0.2);
+  _contactShadow.scale.set(w * 1.15 + 0.3, d * 1.3 + 0.3, 1);
   _contactShadow.position.set(cx, minY + 0.001, cz);
 }
 function centerCamera() {
