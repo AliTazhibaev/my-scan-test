@@ -530,21 +530,15 @@
     .step-content h3 { font-size: 19px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.3px; }
     .step-content p { font-size: 14px; color: var(--text2); line-height: 1.65; }
 
+    /* Phone: keep the vertical timeline (a hidden horizontal carousel made steps 2-3 invisible) */
     @media (max-width: 600px) {
-      .steps-wrapper {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scroll-snap-type: x mandatory;
-        display: flex; gap: 24px;
-        padding-bottom: 16px;
-      }
-      .steps-wrapper::before, .steps-wrapper::after { display: none; }
-      .step {
-        flex-direction: column; gap: 14px;
-        min-width: 260px;
-        scroll-snap-align: center;
-        padding-bottom: 8px;
-      }
+      .steps-wrapper::before { left: 22px; top: 22px; bottom: 22px; }
+      .steps-wrapper::after { left: 14px; }
+      .step { gap: 16px; padding-bottom: 32px; }
+      .step-num { width: 46px; height: 46px; border-radius: 14px; font-size: 18px; }
+      .step-content { padding-top: 6px; }
+      .step-content h3 { font-size: 17px; }
+      .step-content p { font-size: 13.5px; }
     }
 
     /* ===== QR SECTION ===== */

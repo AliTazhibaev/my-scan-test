@@ -10,7 +10,7 @@ function copyStaticAssets() {
   const assetsToCopy = [
     'favicon.svg', 'logo.svg', 'qr-logo.svg',
     'manifest.json', 'robots.txt', 'sitemap.xml', 'CNAME',
-    'mbank-qr.jpg', 'bg-dark.png', 'bg-light.png',
+    'mbank-qr.jpg', 'bg-dark.png', 'bg-light.png', 'og-image.png',
     'sw.js',
   ];
   return {
@@ -22,6 +22,10 @@ function copyStaticAssets() {
           copyFileSync(file, join(outDir, file));
         }
       });
+      // Landing screenshots (the site is served from the repo root; dist mirrors it)
+      if (existsSync('img')) {
+        copyDirSync('img', join(outDir, 'img'));
+      }
       // Copy textures directory recursively
       if (existsSync('textures')) {
         copyDirSync('textures', join(outDir, 'textures'));
