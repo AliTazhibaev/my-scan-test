@@ -53,9 +53,8 @@ function _varyColor(result, fullName) {
   }
   // Large shifts so different materials are clearly distinct:
   // hue ±45°, saturation ±25%, lightness ±15%
-  hh = (hh + ((h % 91) - 45) / 360 + 1) % 1;
-  ss = Math.max(0.08, Math.min(1, ss + ((h % 51) - 25) / 100));
-  ll = Math.max(0.2, Math.min(0.8, ll + ((h % 31) - 15) / 100));
+  // Lightness only: grays stay gray, woods stay brown, reds stay red.
+  ll = Math.max(0.15, Math.min(0.9, ll + ((h % 17) - 8) / 100));
   // HSL back to RGB
   function hue2rgb(p, q, t) {
     if (t < 0) t += 1; if (t > 1) t -= 1;
@@ -75,6 +74,24 @@ function _varyColor(result, fullName) {
   }
   var toHex = function(v) { var s = Math.round(v * 255).toString(16); return s.length < 2 ? '0' + s : s; };
   return { color: '#' + toHex(rr) + toHex(gg) + toHex(bb), smooth: result.smooth };
+}
+
+// Shift lightness in alternating +/- steps (collision resolution that keeps the colour family)
+function _shiftLightness(hex, tries) {
+  var r = parseInt(hex.substring(1, 3), 16) / 255;
+  var g = parseInt(hex.substring(3, 5), 16) / 255;
+  var b = parseInt(hex.substring(5, 7), 16) / 255;
+  var max = Math.max(r, g, b), min = Math.min(r, g, b);
+  var hh = 0, ss = 0, ll = (max + min) / 2;
+  if (max !== min) {
+    var d = max - min;
+    ss = ll > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) hh = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) hh = ((b - r) / d + 2) / 6;
+    else hh = ((r - g) / d + 4) / 6;
+  }
+  var step = Math.ceil(tries / 2) * 0.035 * (tries % 2 ? 1 : -1);
+  return _hslToHex(hh, ss, Math.max(0.12, Math.min(0.92, ll + step)));
 }
 
 // Shift a hex color's hue by `deg` degrees (for collision resolution)
@@ -259,11 +276,27 @@ export var _realTexCache = new Map();
 // Маппинг кодов других производителей → Egger текстуры
 // G-серия (Ультрадекор/Sonae), K-серия, Kronospan и др.
 export var MANUFACTURER_MAP = {
-  'G711': 'H1145',   // Ультрадекор → Дуб Бардолино натуральный
+  'G711': 'H1180',   // Ультрадекор (Дуб Тенор, серо-коричневый) → Дуб Галифакс
   'G715': 'H1180',   // Ультрадекор → Дуб Галифакс натуральный
   'K370': 'H1180',   // Kronospan → Дуб Галифакс натуральный
   'K526': 'H1145',   // Kronospan → Дуб Бардолино
 };
+
+// Wood species / decor names. A laminated board (ЛДСП/МДФ) named after a wood decor must look like
+// wood, not like a flat color. Deliberately NOT generic words such as 'коричн'/'brown'/'natural' —
+// "ЛДСП Красно-коричневый" is a plain color.
+export var WOOD_SPECIES_RE = /дуб|(^|[^a-z])oak|орех|walnut|ясень|(^|[^a-z])ash([^a-z]|$)|(^|[^а-яё])бук|beech|сосн|(^|[^a-z])pine|берёз|берез|birch|клён|клен|maple|вишн|cherry|махагон|mahogany|венге|wenge|teak|лиственниц|larch|каселл|casella|тенор|tenor|сонома|sonoma|бардолино|bardolino|галифакс|halifax|давос|davos|пацифик|pacific|шпон|veneer|фанер|plywood/i;
+
+// Pick the real decor photo that is closest in tone/species to the name.
+export function pickWoodTexture(name) {
+  var n = String(name || '').toLowerCase();
+  var code = 'H1145'; // Дуб Бардолино — light natural oak
+  if (/орех|walnut|венге|wenge|махагон|mahogany|тёмн|темн|dark|корич|корчнев|brown|каселл|casella|табак|мокка|вишн|cherry/.test(n)) code = 'H3700'; // Орех Пацифик — dark
+  else if (/сер|grey|gray|галифакс|halifax|тенор|tenor|g711|g715|k370|graphite|графит/.test(n)) code = 'H1180';   // Дуб Галифакс — grey oak
+  else if (/давос|davos|мёд|honey|тёпл|warm|сонома|sonoma|золот/.test(n)) code = 'H3131';                         // Дуб Давос — warm oak
+  var e = EGGER_DB[code];
+  return TEX_BASE + '/' + e.dir + '/' + encodeURIComponent(e.file);
+}
 
 // Классификация материала по имени
 export function classifyMaterial(matName) {
@@ -293,7 +326,11 @@ export function classifyMaterial(matName) {
     }
   }
 
-  // 2. Ключевые слова — SOLID FIRST (ЛДСП/МДФ — гладкие, без текстуры, даже если в имени "дуб")
+  // 2a. Wood decor name (даже у ЛДСП/МДФ) → реальное фото дерева подходящего тона
+  if (WOOD_SPECIES_RE.test(name)) {
+    return { cat: 'wood', tex: pickWoodTexture(name), color: ci.color, smooth: false, photo: true };
+  }
+  // 2. Ключевые слова — SOLID (ЛДСП/МДФ без названия декора — гладкие)
   for (var s = 0; s < SOLID_KEYWORDS.length; s++) {
     if (name.indexOf(SOLID_KEYWORDS[s]) >= 0) {
       return { cat: 'solid', tex: null, color: ci.color, smooth: ci.smooth };
@@ -353,7 +390,7 @@ export function guessColorInfo(name) {
   var tries = 0;
   while (_usedColors.has(hex) && _usedColors.get(hex) !== name && tries < 200) {
     tries++;
-    hex = _shiftHex(hex, tries * 31);
+    hex = _shiftLightness(hex, tries);
   }
   // Fallback: direct hue from name hash
   if (_usedColors.has(hex) && _usedColors.get(hex) !== name) {
@@ -480,14 +517,10 @@ function _guessColorInfoCompute(name) {
   if (n.match(/белый|white|альпийск|полярн|арктик/)) { /* fall through to white check above */ }
   else if (n.match(/чёрный|черный|black/)) { /* fall through */ }
   else if (n.match(/серый|grey|gray|графит|антрацит/)) { /* fall through */ }
-  else if (n.match(/ЛДСП|лдсп|ЛМДФ|лмдф|ДСП|дсп|мдф|МДФ|HDF|hdf|ламинир|laminate|пластик|plastic|акрил|acrylic/)) {
-    // Генерируем уникальный цвет на основе хеша имени
-    var hash = 0;
-    for (var hi = 0; hi < n.length; hi++) hash = ((hash << 5) - hash + n.charCodeAt(hi)) | 0;
-    var hue = Math.abs(hash) % 360;
-    var sat = 15 + (Math.abs(hash >> 8) % 25); // 15-40%
-    var lit = 45 + (Math.abs(hash >> 16) % 25); // 45-70%
-    return { color: 'hsl(' + hue + ',' + sat + '%,' + lit + '%)', smooth: true };
+  else if (!WOOD_SPECIES_RE.test(n) && n.match(/ЛДСП|лдсп|ЛМДФ|лмдф|ДСП|дсп|мдф|МДФ|HDF|hdf|ламинир|laminate|пластик|plastic|акрил|acrylic/)) {
+    // Unknown decor: neutral warm light gray (was a hash-random hue -> candy green/blue/orange).
+    // Distinct materials are told apart by lightness in guessColorInfo, not by hue.
+    return { color: '#cbc4b8', smooth: true };
   }
 
   // === ДРЕВЕСНЫЕ — с текстурой ===
@@ -543,6 +576,7 @@ export function loadRealTexture(url) {
     img.onload = function() {
       var tex = new THREE.Texture(img);
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      if (THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding; // photos are sRGB; output is sRGB
       tex.needsUpdate = true;
       tex.generateMipmaps = true;
       tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -572,17 +606,23 @@ export function sRGBFix(mat) {
 // This ensures textures tile correctly at real-world scale instead of stretching.
 //   tw/th  — texture tile size in mm (e.g., 1000×1000 for Egger decor)
 //   swap   — if true, rotate UV 90° (grain direction along Y instead of X)
-export function bakeUV(geo, tw, th, swap, isBox) {
+// Positions are in METERS, so tw/th must be 1 / (tile size in meters) — passing 1/1000 (a mm value)
+// stretched the photo ~1000x and every decor collapsed into a flat colour.
+// swap: grain (the photo's V axis) runs along local X instead of local Y.
+// seed: per-part offset so neighbouring panels of one decor don't show identical grain.
+export function bakeUV(geo, tw, th, swap, isBox, seed) {
   if (!geo || !geo.attributes || !geo.attributes.position) return;
   var uv = geo.attributes.uv;
   if (!uv) return;
   var pos = geo.attributes.position;
+  var s = (typeof seed === 'number') ? seed : 0;
+  var ou = (s * 0.6180339887) % 1, ov = (s * 0.3819660113) % 1;
   // DetalQR pattern: iterate ALL vertices using position XY → UV.
   // Side faces get UV from their edge positions — texture continues naturally.
   for (var i = 0; i < uv.count; i++) {
     var x = pos.getX(i), y = pos.getY(i);
-    if (swap) { uv.setXY(i, y * tw, x * th); }
-    else      { uv.setXY(i, x * tw, y * th); }
+    if (swap) { uv.setXY(i, y * tw + ou, x * th + ov); }
+    else      { uv.setXY(i, x * tw + ou, y * th + ov); }
   }
   uv.needsUpdate = true;
 }
@@ -621,28 +661,10 @@ export function createPartMaterial(partData, geoType) {
     return smoothMat;
   }
 
-  // Grain direction: TextureOrientation from БАЗИС.
-  //   1 = along L (panel length, local X axis)
-  //   2 = along W (panel width, local Y axis)
-  //   0 = auto (fallback to 1)
-  //
-  // Texture images: grain runs along image height = V axis in UV.
-  // ExtrudeGeometry: shape X (L) → U axis, shape Y (W) → V axis.
-  //
-  // Rotation is applied in LOCAL panel space (before placement quaternion).
-  // Do NOT add world-space orientation — the mesh's quaternion already handles it.
+  // Grain direction is handled in the UVs (bakeUV): TextureOrientation 2 = along W (local Y),
+  // otherwise along L (local X). The photo's own grain runs along its V axis. Here we only add the
+  // optional manual rotation from the texture editor.
   var grainAngle = 0;
-  var grain = partData.grain || 0;
-
-  if (grain === 2) {
-    // grain=2: along W. Texture V already along W (shape Y). No rotation needed.
-    grainAngle = 0;
-  } else {
-    // grain=0 or grain=1: along L = local X axis.
-    // Default: texture grain along V = W (shape Y).
-    // Rotate 90° to move grain from V(=W) to U(=L).
-    grainAngle = Math.PI / 2;
-  }
 
   // Apply rot from texture editor (adds to grain angle)
   var texSettings = partData.texSettings;
@@ -660,28 +682,9 @@ export function createPartMaterial(partData, geoType) {
   };
   var applyTexSettings = function(tex) {
     if (!texSettings || !tex) return;
-    // Step (scale): БАЗИС step is mm for one texture tile
-    if (texSettings.stepX > 0 && partData.L) {
-      tex.repeat.x = (partData.L * 0.001) / (texSettings.stepX * 0.001);
-    }
-    if (texSettings.stepY > 0 && partData.W) {
-      tex.repeat.y = (partData.W * 0.001) / (texSettings.stepY * 0.001);
-    }
-    // Offset
-    if (texSettings.offX) tex.offset.x = texSettings.offX * 0.001;
-    if (texSettings.offY) tex.offset.y = texSettings.offY * 0.001;
-    // Angle (additional rotation in degrees)
-    if (texSettings.angle) {
-      tex.rotation += texSettings.angle * Math.PI / 180;
-    }
-    // Mirror
-    if (texSettings.mirror) {
-      tex.wrapS = THREE.MirroredRepeatWrapping;
-    }
-    // Stretch: override repeat to fill panel
-    if (texSettings.stretch) {
-      tex.repeat.set(1, 1);
-    }
+    // Tile size is fixed to the real photo size (see bakeUV); repeat/offset from the editor are not used.
+    if (texSettings.angle) tex.rotation += texSettings.angle * Math.PI / 180;
+    if (texSettings.mirror) tex.wrapS = THREE.MirroredRepeatWrapping;
   };
 
   if (info.tex) {
@@ -695,9 +698,14 @@ export function createPartMaterial(partData, geoType) {
     // Асинхронно загружаем реальную — обновляем САМ материал
     loadRealTexture(info.tex).then(function(realTex) {
       if (realTex) {
-        applyTexRotation(realTex);
-        applyTexSettings(realTex);
-        mat.map = realTex;
+        // Per-material clone: rotation/wrap differ per part but the image is shared.
+        var t = realTex.clone();
+        t.needsUpdate = true;
+        applyTexRotation(t);
+        applyTexSettings(t);
+        mat.map = t;
+        // Photo is the colour: a tinted base colour would multiply and dirty it.
+        mat.color.setRGB(1, 1, 1);
         mat.needsUpdate = true;
       }
     });

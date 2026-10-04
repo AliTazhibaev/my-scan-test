@@ -239,14 +239,14 @@ function initThree() {
   setZoomTarget(new THREE.Vector3());
   // === Lighting — DetalQR pattern: flat, even studio illumination ===
   // HemisphereLight provides ambient fill so NO surface is fully dark
-  var hemiLight = new THREE.HemisphereLight(0xffffff, 0xc2c8ce, 0.92);
+  var hemiLight = new THREE.HemisphereLight(0xffffff, 0xb4bac2, 0.70);
   _scene.add(hemiLight);
   // Main light — moderate, from upper-right-front
-  const mainLight = new THREE.DirectionalLight(0xffffff, 0.42);
+  const mainLight = new THREE.DirectionalLight(0xffffff, 0.72);
   mainLight.position.set(1, 2, 1.5);
   _scene.add(mainLight);
   // Fill light — softer, from left-back
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.24);
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.30);
   fillLight.position.set(-1.5, 0.6, -1);
   _scene.add(fillLight);
   // Bottom fill — prevents dark undersides (DetalQR pattern)
@@ -962,6 +962,36 @@ async function buildSceneAsync() {
     _edgeCurVertex += verts;
     edgeGeo.dispose();
   }
+  // Split CSG crease segments (panel-local meters) into "inside a pocket footprint" (accent) and the
+  // rest (plain outline). Pocket pts are panel-local mm; test the segment midpoint against each
+  // pocket's bounding box padded by 0.2 mm.
+  function _splitCreaseByPockets(creaseGeo, pockets) {
+    var boxes = [];
+    (pockets || []).forEach(function(pk) {
+      if (!pk || !((+pk.depth || 0) > 0.3)) return;
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      if (pk.t === 'circle') { x0 = pk.x - pk.r; x1 = pk.x + pk.r; y0 = pk.y - pk.r; y1 = pk.y + pk.r; }
+      else if (pk.pts) pk.pts.forEach(function(q) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); });
+      if (isFinite(x0)) boxes.push([x0 * sc - 0.0002, y0 * sc - 0.0002, x1 * sc + 0.0002, y1 * sc + 0.0002]);
+    });
+    var src = creaseGeo.attributes.position.array, acc = [], pl = [];
+    for (var i = 0; i + 5 < src.length; i += 6) {
+      var mx = (src[i] + src[i + 3]) / 2, my = (src[i + 1] + src[i + 4]) / 2, inside = false;
+      for (var k = 0; k < boxes.length; k++) {
+        var bx = boxes[k];
+        if (mx >= bx[0] && mx <= bx[2] && my >= bx[1] && my <= bx[3]) { inside = true; break; }
+      }
+      var dst = inside ? acc : pl;
+      for (var j = 0; j < 6; j++) dst.push(src[i + j]);
+    }
+    function mk(arr) {
+      if (!arr.length) return null;
+      var g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+      return g;
+    }
+    return { accent: mk(acc), plain: mk(pl) };
+  }
   // Collect CSG crease edges (pocket outlines) into merged edge buffer
   function _collectCreaseVerts(creaseGeo, partId, position, quaternion) {
     if (!creaseGeo || !creaseGeo.attributes || !creaseGeo.attributes.position) return;
@@ -1036,7 +1066,7 @@ async function buildSceneAsync() {
         // Bake UV for correct texture tiling (DetalQR pattern)
         var bGrain = part.grain || 0;
         var bSwapUV = (bGrain === 2);
-        bakeUV(panelGeo, 1/1000, 1/1000, bSwapUV, true);
+        bakeUV(panelGeo, 1/1.3, 1/2.8, !bSwapUV, true, part.id); // photo tile 1.3 x 2.8 m (meters), grain along W when TextureOrientation=2
         var panelMat = createPartMaterial(part, 'box');
         var panelMesh = new THREE.Mesh(panelGeo, panelMat);
         if (part.placement) {
@@ -1100,7 +1130,7 @@ async function buildSceneAsync() {
     // Bake UV for correct texture tiling (DetalQR pattern)
     var grain = part.grain || 0;
     var swapUV = (grain === 2);
-    bakeUV(panelGeo, 1/1000, 1/1000, swapUV, false);
+    bakeUV(panelGeo, 1/1.3, 1/2.8, !swapUV, false, part.id); // photo tile 1.3 x 2.8 m (meters), grain along W when TextureOrientation=2
     var panelMat = createPartMaterial(part);
     var panelMesh = new THREE.Mesh(panelGeo, panelMat);
     // Позиция + поворот (DetalQR: pos + quat)
@@ -1115,11 +1145,17 @@ async function buildSceneAsync() {
     // Wireframe edges — collect for merged edge line
     originalPositions.set(part.id, new THREE.Vector3(part._pos.x, part._pos.y, part._pos.z));
     meshMap.set(part.id, panelMesh);
-    _collectEdgeVerts(panelGeo, part.id, panelMesh.position, panelMesh.quaternion);
-    // Collect CSG crease edges (pocket outlines) — accent color, not plain border color
-    if (panelGeo._crease) {
-      _collectAccentRawSegments(part.id, panelGeo._crease, panelMesh.position, panelMesh.quaternion);
+    // CSG panels: the crease set is the WHOLE outline + the groove. Segments inside a pocket's
+    // footprint get the accent (yellow) color; the rest form the regular black outline (previously
+    // everything went to the accent layer, so whole panel outlines turned yellow). For these panels
+    // the outline comes only from the crease set, so no black EdgesGeometry duplicate sits on the groove.
+    var _split = panelGeo._crease ? _splitCreaseByPockets(panelGeo._crease, part.pockets) : null;
+    if (_split && _split.plain) {
+      _collectCreaseVerts(_split.plain, part.id, panelMesh.position, panelMesh.quaternion);
+    } else {
+      _collectEdgeVerts(panelGeo, part.id, panelMesh.position, panelMesh.quaternion);
     }
+    if (_split && _split.accent) _collectAccentRawSegments(part.id, _split.accent, panelMesh.position, panelMesh.quaternion);
     // Collect cut/вырез contours (shape.holes) with the accent color so they read as
     // "this is a cut", distinct from the plain panel border (same color otherwise).
     if (shape && shape.holes && shape.holes.length) {
