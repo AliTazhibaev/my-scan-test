@@ -812,6 +812,7 @@ function _showEdgePart(partId) {
   if (_accentEdgeLine && _accentEdgeOriginalPositions && _accentEdgePartRanges.has(partId)) {
     _restoreEdgeRange(_accentEdgeLine.geometry.attributes.position, _accentEdgeOriginalPositions, _accentEdgePartRanges.get(partId));
   }
+  _syncEdgePart(partId);
   setNeedsRender(true);
 }
 // Bulk restore — used by "show all" / isolate-module flows which previously relied on
@@ -823,6 +824,31 @@ function _showAllEdgeGeometry() {
   if (_accentEdgeLine && _accentEdgeOriginalPositions) {
     _restoreEdgeRange(_accentEdgeLine.geometry.attributes.position, _accentEdgeOriginalPositions, { start: 0, count: _accentEdgeOriginalPositions.length / 3 });
   }
+  _syncAllEdgeOffsets();
+}
+// Outlines live in two merged line buffers in WORLD space (baked at build time), so they do not follow
+// a mesh when it moves. Explode moves meshes only, which left every outline behind in the middle of the
+// model. Re-place a part's segments at (original + current mesh offset).
+function _syncEdgeOffset(positionAttr, originalArray, range, dx, dy, dz) {
+  if (!positionAttr || !originalArray || !range || range.count === 0) return;
+  for (var i = range.start; i < range.start + range.count; i++) {
+    positionAttr.setXYZ(i, originalArray[i * 3] + dx, originalArray[i * 3 + 1] + dy, originalArray[i * 3 + 2] + dz);
+  }
+  positionAttr.needsUpdate = true;
+}
+function _syncEdgePart(partId) {
+  var mesh = meshMap.get(partId), orig = originalPositions.get(partId);
+  if (!mesh || !orig || !mesh.visible) return; // hidden parts stay collapsed
+  var dx = mesh.position.x - orig.x, dy = mesh.position.y - orig.y, dz = mesh.position.z - orig.z;
+  if (_mergedEdgeLine && _mergedEdgeOriginalPositions && _mergedEdgePartRanges.has(partId)) {
+    _syncEdgeOffset(_mergedEdgeLine.geometry.attributes.position, _mergedEdgeOriginalPositions, _mergedEdgePartRanges.get(partId), dx, dy, dz);
+  }
+  if (_accentEdgeLine && _accentEdgeOriginalPositions && _accentEdgePartRanges.has(partId)) {
+    _syncEdgeOffset(_accentEdgeLine.geometry.attributes.position, _accentEdgeOriginalPositions, _accentEdgePartRanges.get(partId), dx, dy, dz);
+  }
+}
+function _syncAllEdgeOffsets() {
+  meshMap.forEach(function(m, id) { _syncEdgePart(id); });
 }
 function _dimEdgePart(partId) {
   // Back to the normal black outline. Was gray (0x888888 / 0x333333), which made every panel
@@ -1813,6 +1839,7 @@ function applyExplode() {
     explodeMesh.position.copy(_tmpNewPos);
     // Detail meshes are children of panel mesh — they move automatically
   });
+  _syncAllEdgeOffsets(); // outlines are baked in world space: move them with their parts
 
   setNeedsRender(true);
 }
