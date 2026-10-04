@@ -182,7 +182,8 @@ function toPolys(geo) {
 function toGeo(polys) {
   var pos = [], nor = [], idx = [], map = new Map();
   var key = function(p, n) {
-    return Math.round(p.x * 100) + '_' + Math.round(p.y * 100) + '_' + Math.round(p.z * 100) + '_' +
+    // meters: 1e5 -> 0.01 mm weld grid (was *100 = 1 cm, which merged/shifted vertices of 9 mm grooves)
+    return Math.round(p.x * 1e5) + '_' + Math.round(p.y * 1e5) + '_' + Math.round(p.z * 1e5) + '_' +
            Math.round(n.x * 8) + '_' + Math.round(n.y * 8) + '_' + Math.round(n.z * 8);
   };
   var add = function(v) {
@@ -231,14 +232,16 @@ function repairT(polys) {
     var vs = polys[pi].vertices;
     for (var vi = 0; vi < vs.length; vi++) {
       var v = vs[vi];
-      var k = Math.round(v.pos.x * 50) + '_' + Math.round(v.pos.y * 50) + '_' + Math.round(v.pos.z * 50);
+      var k = Math.round(v.pos.x * 5e4) + '_' + Math.round(v.pos.y * 5e4) + '_' + Math.round(v.pos.z * 5e4);
       if (!seen.has(k)) {
         seen.add(k);
         pts.push(v.pos);
       }
     }
   }
-  var _EPS = 0.08, E2 = _EPS * _EPS;
+  // Units are meters here (0.08 was a millimeter value: it snapped vertices lying up to 8 cm from an
+  // edge onto it, warping polygons and creating stray diagonal creases).
+  var _EPS = 8e-5, E2 = _EPS * _EPS;
   pts.sort(function(u, v) { return u.x - v.x; });
   var N = pts.length;
   var xs = new Float64Array(N);
@@ -257,7 +260,7 @@ function repairT(polys) {
       var ax = a.pos.x, ay = a.pos.y, az = a.pos.z;
       var abx = b.pos.x - ax, aby = b.pos.y - ay, abz = b.pos.z - az;
       var L2 = abx * abx + aby * aby + abz * abz;
-      if (L2 < 1e-6) continue;
+      if (L2 < 1e-12) continue;
       var mnx = Math.min(ax, b.pos.x) - _EPS, mxx = Math.max(ax, b.pos.x) + _EPS;
       var mny = Math.min(ay, b.pos.y) - _EPS, mxy = Math.max(ay, b.pos.y) + _EPS;
       var mnz = Math.min(az, b.pos.z) - _EPS, mxz = Math.max(az, b.pos.z) + _EPS;
@@ -286,31 +289,59 @@ function repairT(polys) {
   return polys;
 }
 
-// Crease edges: only edges where TWO DIFFERENT planes meet (real corners)
+// Crease edges: only edges where TWO DIFFERENT planes meet (real corners).
+// Normals are recomputed from the polygon's own vertices (Newell) and degenerate slivers are
+// skipped: BSP splitting leaves hair-thin polygons whose stored plane normal is numerical noise,
+// and each one used to mark its triangulation seam as a "corner" -> stray diagonal lines on panels.
+// Coordinates are in meters; 1e4 -> 0.1 mm vertex grid (a coarser grid collapsed short edges).
 function csgCreaseEdges(polys) {
-  var vk = function(p) { return Math.round(p.x * 10) + '_' + Math.round(p.y * 10) + '_' + Math.round(p.z * 10); };
-  var nk = function(n) { return Math.round(n.x * 50) + '_' + Math.round(n.y * 50) + '_' + Math.round(n.z * 50); };
+  var vk = function(p) { return Math.round(p.x * 1e4) + '_' + Math.round(p.y * 1e4) + '_' + Math.round(p.z * 1e4); };
   var em = new Map();
   for (var pi = 0; pi < polys.length; pi++) {
-    var poly = polys[pi];
-    if (!poly.plane) continue;
-    var key = nk(poly.plane.normal);
-    var vs = poly.vertices;
+    var vs = polys[pi].vertices;
+    if (!vs || vs.length < 3) continue;
+    var nx = 0, ny = 0, nz = 0;
+    for (var k = 0; k < vs.length; k++) {
+      var p0 = vs[k].pos, p1 = vs[(k + 1) % vs.length].pos;
+      nx += (p0.y - p1.y) * (p0.z + p1.z);
+      ny += (p0.z - p1.z) * (p0.x + p1.x);
+      nz += (p0.x - p1.x) * (p0.y + p1.y);
+    }
+    var len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+    if (len < 1e-9) continue; // zero-area polygon (len = twice the area, in m^2)
+    // Needle: height (2*area / longest edge) under 0.5 mm. BSP leaves these along cut lines; their
+    // normals are noise and each one drew a long diagonal across the face.
+    var longest2 = 0;
+    for (var q = 0; q < vs.length; q++) {
+      var qa = vs[q].pos, qb = vs[(q + 1) % vs.length].pos;
+      var dx = qa.x - qb.x, dy = qa.y - qb.y, dz = qa.z - qb.z;
+      var l2 = dx * dx + dy * dy + dz * dz;
+      if (l2 > longest2) longest2 = l2;
+    }
+    if (len / Math.sqrt(longest2) < 5e-4) continue;
+    var n = { x: nx / len, y: ny / len, z: nz / len };
     for (var i = 0; i < vs.length; i++) {
       var a = vs[i].pos, b = vs[(i + 1) % vs.length].pos;
       var ka = vk(a), kb = vk(b);
       if (ka === kb) continue;
       var ek = ka < kb ? ka + '|' + kb : kb + '|' + ka;
       var e = em.get(ek);
-      if (!e) { e = { a: a, b: b, pl: new Set() }; em.set(ek, e); }
-      e.pl.add(key);
+      if (!e) { e = { a: a, b: b, ns: [] }; em.set(ek, e); }
+      e.ns.push(n);
     }
   }
   var positions = [];
   em.forEach(function(e) {
-    if (e.pl.size >= 2) {
-      positions.push(e.a.x, e.a.y, e.a.z, e.b.x, e.b.y, e.b.z);
+    var ns = e.ns, crease = false, backToBack = false;
+    for (var i = 0; i < ns.length; i++) {
+      for (var j = i + 1; j < ns.length; j++) {
+        var dot = ns[i].x * ns[j].x + ns[i].y * ns[j].y + ns[i].z * ns[j].z;
+        if (dot < -0.99) backToBack = true;   // coincident opposite faces (tool/panel overlap): not a real edge
+        else if (dot < 0.9995) crease = true; // > ~1.8 deg between neighbouring faces
+      }
     }
+    if (backToBack) crease = false;
+    if (crease) positions.push(e.a.x, e.a.y, e.a.z, e.b.x, e.b.y, e.b.z);
   });
   var g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));

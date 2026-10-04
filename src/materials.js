@@ -605,14 +605,20 @@ export function createPartMaterial(partData, geoType) {
     transparent: true,
     opacity: 1,
     depthWrite: true,
+    // Faces must NOT be pulled toward the camera (was factor/units -1): coplanar edge lines then
+    // lost the depth test against their own face and outlines/grooves vanished at oblique angles.
     polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1
+    polygonOffsetFactor: 0,
+    polygonOffsetUnits: 1
   };
 
   // Гладкие — сразу возвращаем без текстуры
   if (isSmooth && !info.tex) {
-    return new THREE.MeshStandardMaterial(matProps);
+    var smoothMat = new THREE.MeshStandardMaterial(matProps);
+    // Was skipped on this early return: colors were read as linear and blew out to white.
+    sRGBFix(smoothMat);
+    smoothMat.envMapIntensity = 0.1;
+    return smoothMat;
   }
 
   // Grain direction: TextureOrientation from БАЗИС.
