@@ -367,7 +367,7 @@ function buildPartDetails(partInfo, meshObj) {
     grooveMesh.receiveShadow = false;
     meshObj.add(grooveMesh);
     var grooveEdgeGeo = new THREE.EdgesGeometry(grooveGeo, 15);
-    var grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({ color: 0x00D4AA, transparent: true, opacity: 0.6 }));
+    var grooveEdgeLine = new THREE.LineSegments(grooveEdgeGeo, new THREE.LineBasicMaterial({ color: 0xF5B800, transparent: true, opacity: 0.9 }));
     grooveEdgeLine.position.copy(grooveMesh.position);
     meshObj.add(grooveEdgeLine);
     detailArr.push(grooveMesh, grooveEdgeLine);
@@ -825,7 +825,9 @@ function _showAllEdgeGeometry() {
   }
 }
 function _dimEdgePart(partId) {
-  _setEdgeHex(partId, isDarkTheme ? 0x333333 : 0x888888);
+  // Back to the normal black outline. Was gray (0x888888 / 0x333333), which made every panel
+  // look washed out after it had been selected once.
+  _setEdgeHex(partId, 0x000000);
 }
 
 const sc = 0.001;
@@ -841,7 +843,7 @@ var _mergedEdgeColors = null; // Float32Array reference for color updates
 // so cuts/grooves stay visually distinct from the plain panel border and are NOT
 // overwritten by theme/selection recoloring of _mergedEdgeLine.
 var _accentEdgeLine = null;
-var ACCENT_EDGE_COLOR = 0x000000; // groove/cut contours: black like the panel outlines
+var ACCENT_EDGE_COLOR = 0xF5B800; // groove/cut contours: yellow (deep enough to read on light and dark backgrounds)
 var _accentEdgePartRanges = new Map(); // partId → { start, count }
 // Backups of original (un-collapsed) vertex positions, captured right after build, so
 // hiding a part can collapse its segments to zero length and showing it can restore
@@ -1295,7 +1297,7 @@ function selectModuleHighlight(moduleKey, clickedId) {
   meshMap.forEach(function(mesh, id) {
     if (moduleIds.has(id)) {
       if (!hiddenSet.has(id)) _showEdgePart(id);
-      _setEdgeHex(id, isDarkTheme ? 0x556677 : 0x999999);
+      _setEdgeHex(id, 0x000000);
     } else {
       _hideEdgePart(id);
     }
@@ -1577,7 +1579,7 @@ function isolateModule(moduleKey) {
   meshMap.forEach((m, id) => {
     if (moduleIds.has(id)) {
       if (!hiddenSet.has(id)) _showEdgePart(id);
-      _setEdgeHex(id, isDarkTheme ? 0x556677 : 0x999999);
+      _setEdgeHex(id, 0x000000);
     } else {
       _hideEdgePart(id);
     }
