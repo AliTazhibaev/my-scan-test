@@ -55,9 +55,6 @@ export function setCsgEnabled(v) { csgEnabled = v; }
 export let autoRotate = false;
 export function setAutoRotate(v) { autoRotate = v; }
 
-export let animationPlaying = false;
-export function setAnimationPlaying(v) { animationPlaying = v; }
-
 // Ruler / measurement
 export let rulerMode = false;
 export function setRulerMode(v) { rulerMode = v; }
