@@ -50,6 +50,19 @@
     }
   }
   </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Что нужно, чтобы начать?", "acceptedAnswer": { "@type": "Answer", "text": "Экспортируйте проект из БАЗИС в JSON-файл и загрузите его в приложение. Все детали сразу появятся в 3D-модели." } },
+      { "@type": "Question", "name": "Нужно ли что-то устанавливать?", "acceptedAnswer": { "@type": "Answer", "text": "Нет, Aivo Scan работает в браузере. На телефоне его можно добавить на домашний экран, и он будет открываться как обычное приложение." } },
+      { "@type": "Question", "name": "Как быстро найти нужную деталь?", "acceptedAnswer": { "@type": "Answer", "text": "Наведите камеру на QR-код детали, и она подсветится в 3D-модели. Деталь можно выбрать и вручную, в модели или в списке." } },
+      { "@type": "Question", "name": "Можно ли подготовить фрезеровку для ЧПУ?", "acceptedAnswer": { "@type": "Answer", "text": "Да. Выберите профиль фрезеровки для фасада, настройте параметры и экспортируйте DXF-файл для станка с ЧПУ." } },
+      { "@type": "Question", "name": "Сколько это стоит и как получить доступ?", "acceptedAnswer": { "@type": "Answer", "text": "Условия обсуждаем индивидуально. Позвоните или напишите нам в WhatsApp или Instagram: подключим вас и поможем с настройкой." } }
+    ]
+  }
+  </script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -140,7 +153,7 @@
       display: none; background: none; border: none; color: var(--text);
       font-size: 24px; cursor: pointer; padding: 8px;
     }
-    @media (max-width: 600px) {
+    @media (max-width: 960px) {
       .nav-hamburger { display: block; }
       .nav-links {
         display: none; position: absolute; top: 64px; left: 0; right: 0;
@@ -765,7 +778,6 @@
     }
     @media (max-width: 600px) {
       .nav { padding: 0 16px; }
-      .nav-links a:not(.nav-cta) { display: none; }
       .features-grid { grid-template-columns: 1fr; }
       .stats-bar { grid-template-columns: repeat(2, 1fr); gap: 1px; padding: 0; border-radius: 20px; }
       .stat-item { padding: 22px 14px; }
@@ -800,12 +812,161 @@
       }
       html { scroll-behavior: auto; }
     }
+
+    /* ================================================================
+       РАСШИРЕНИЕ ЛЕНДИНГА: аврора, прогресс, 3D-наклон, плашки, лента,
+       витрина-слайдер, декоры, подсветка карточек, вопросы, связь
+       ================================================================ */
+    .scroll-progress {
+      position: fixed; top: 0; left: 0; width: 100%; height: 3px; z-index: 200;
+      transform-origin: 0 50%; transform: scaleX(0);
+      background: linear-gradient(90deg, var(--accent), #00b4d8, var(--accent2));
+      box-shadow: 0 0 14px rgba(0,212,170,0.6); pointer-events: none;
+    }
+    .nav-links a, .nav-logo span { white-space: nowrap; }
+    .nav-links a.is-current:not(.nav-cta) { color: var(--text); background: rgba(255,255,255,0.08); }
+
+    /* Живой фон */
+    .bg-layer { overflow: hidden; }
+    .bg-layer::before, .bg-layer::after {
+      content: ''; position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.5; will-change: transform;
+    }
+    .bg-layer::before { width: 46vw; height: 46vw; left: -8vw; top: 8vh; background: rgba(0,212,170,0.30); animation: auroraA 26s ease-in-out infinite alternate; }
+    .bg-layer::after { width: 40vw; height: 40vw; right: -10vw; top: 38vh; background: rgba(0,140,220,0.24); animation: auroraB 32s ease-in-out infinite alternate; }
+    @keyframes auroraA { to { transform: translate3d(14vw, 24vh, 0) scale(1.2); } }
+    @keyframes auroraB { to { transform: translate3d(-16vw, -20vh, 0) scale(1.15); } }
+
+    /* Заголовок героя: мягкий перелив акцента */
+    .hero h1 .em { background-size: 200% 100%; animation: emShift 7s ease-in-out infinite alternate; }
+    @keyframes emShift { to { background-position: 100% 0; } }
+
+    /* Скриншот героя: свечение, наклон за курсором, плашки */
+    .hero-shot { perspective: 1400px; }
+    .hero-shot::after {
+      content: ''; position: absolute; left: 6%; right: 6%; top: 18%; bottom: -8%; z-index: -1;
+      background: radial-gradient(60% 60% at 50% 40%, rgba(0,212,170,0.38), rgba(0,140,220,0.14) 60%, transparent 75%);
+      filter: blur(46px); animation: glowPulse 7s ease-in-out infinite;
+    }
+    @keyframes glowPulse { 50% { opacity: 0.55; transform: scale(0.96); } }
+    .hero-shot .shot-frame { transform: rotateX(var(--tx, 0deg)) rotateY(var(--ty, 0deg)); transition: transform 0.3s ease-out; will-change: transform; }
+    .float-chip {
+      position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 16px; border-radius: 14px; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap;
+      background: rgba(20,24,28,0.72); backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5);
+      border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+      animation: chipFloat 6s ease-in-out infinite;
+    }
+    .float-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+    .float-chip.fc-yellow i { background: #ffc400; box-shadow: 0 0 10px #ffc400; }
+    .fc1 { left: -2%; top: 20%; }
+    .fc2 { right: -2%; top: 46%; animation-delay: -2s; }
+    .fc3 { left: 6%; bottom: 10%; animation-delay: -4s; }
+    @keyframes chipFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+    /* Бегущая лента */
+    .marquee {
+      position: relative; z-index: 1; overflow: hidden; padding: 22px 0; margin-top: 24px;
+      border-block: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+      mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+    }
+    .marquee-track { display: flex; width: max-content; gap: 44px; animation: marqueeSlide 42s linear infinite; }
+    .marquee-track span { display: inline-flex; align-items: center; gap: 44px; font-size: 14px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+    .marquee-track span::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px rgba(0,212,170,0.7); }
+    @keyframes marqueeSlide { to { transform: translateX(-50%); } }
+
+    /* Витрина-слайдер */
+    .viewer { max-width: 1040px; margin: 0 auto; }
+    .viewer-tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .viewer-tab {
+      padding: 10px 20px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; color: var(--text2); cursor: pointer;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); transition: all 0.3s var(--ease);
+    }
+    .viewer-tab:hover { color: var(--text); background: rgba(255,255,255,0.09); }
+    .viewer-tab[aria-selected="true"] { color: #04130f; background: linear-gradient(135deg, var(--accent), #00b894); border-color: transparent; box-shadow: 0 6px 22px rgba(0,212,170,0.3); }
+    .viewer-stage { position: relative; box-shadow: 0 40px 90px rgba(0,0,0,0.55), 0 0 80px rgba(0,212,170,0.08); }
+    .viewer-slides { display: grid; }
+    .viewer-slide { grid-area: 1 / 1; width: 100%; height: auto; display: block; opacity: 0; transform: scale(1.03); transition: opacity 0.7s var(--ease), transform 1.1s var(--ease); }
+    .viewer-slide.is-active { opacity: 1; transform: none; }
+    .viewer-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,0.06); }
+    .viewer-progress i { display: block; height: 100%; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .viewer.is-playing .viewer-progress i { animation: viewerFill var(--dur, 6s) linear forwards; }
+    @keyframes viewerFill { to { transform: scaleX(1); } }
+    .viewer-caption { text-align: center; max-width: 560px; margin: 24px auto 0; min-height: 96px; }
+    .viewer-caption h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .viewer-caption p { color: var(--text2); font-size: 15px; line-height: 1.65; }
+
+    /* Галерея декоров */
+    .decor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .decor-card {
+      position: relative; margin: 0; border-radius: 20px; overflow: hidden; aspect-ratio: 3 / 4;
+      border: 1px solid rgba(255,255,255,0.08); background: #101214; cursor: default;
+      transition: transform 0.45s var(--ease), border-color 0.3s, box-shadow 0.45s var(--ease);
+    }
+    .decor-card img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.9s var(--ease); }
+    .decor-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(6,8,10,0.88) 0%, rgba(6,8,10,0.1) 45%, transparent 65%); pointer-events: none; }
+    .decor-card figcaption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
+    .decor-card figcaption b { font-size: 15px; font-weight: 700; }
+    .decor-card figcaption span { font-size: 12px; color: var(--accent); font-weight: 600; letter-spacing: 0.06em; }
+    .decor-card:hover { transform: translateY(-6px); border-color: rgba(0,212,170,0.4); box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0,212,170,0.12); }
+    .decor-card:hover img { transform: scale(1.08); }
+
+    /* Подсветка карточек возможностей за курсором */
+    .feature-card::after {
+      content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+      background: radial-gradient(340px circle at var(--mx, 50%) var(--my, 0%), rgba(0,212,170,0.16), transparent 62%);
+    }
+    .feature-card:hover::after { opacity: 1; }
+    .feature-card .feature-icon { transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease); }
+    .feature-card:hover .feature-icon { transform: translateY(-3px) scale(1.07); box-shadow: 0 0 26px rgba(0,212,170,0.35); }
+
+    /* Вопросы и ответы */
+    .faq { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .faq-item { border-radius: 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); transition: border-color 0.3s, background 0.3s; }
+    .faq-item[open] { border-color: rgba(0,212,170,0.28); background: rgba(0,212,170,0.04); }
+    .faq-item summary { list-style: none; cursor: pointer; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 16px; font-weight: 600; }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item summary::after { content: '+'; flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; font-size: 20px; line-height: 1; color: var(--accent); background: rgba(0,212,170,0.1); transition: transform 0.3s var(--ease); }
+    .faq-item[open] summary::after { transform: rotate(45deg); }
+    .faq-item p { padding: 0 24px 22px; color: var(--text2); font-size: 15px; line-height: 1.7; }
+    .faq-item a { color: var(--accent); }
+
+    /* Связаться: кнопки в финальном призыве */
+    .cta-alt { margin-top: 26px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 12px; font-size: 14px; color: var(--text2); }
+    .cta-alt a { padding: 9px 16px; border-radius: 100px; text-decoration: none; font-weight: 600; color: var(--text); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s var(--ease); }
+    .cta-alt a:hover { color: #04130f; background: var(--accent); border-color: var(--accent); transform: translateY(-2px); }
+
+    @media (max-width: 900px) {
+      .float-chip { display: none; }
+      .decor-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
+      .bg-layer::before, .bg-layer::after { display: none; }
+      .hero-shot::after { display: none; }
+    }
+    @media (max-width: 600px) {
+      .viewer-tabs { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding-bottom: 4px; scrollbar-width: none; }
+      .viewer-tabs::-webkit-scrollbar { display: none; }
+      .viewer-tab { flex: none; padding: 9px 16px; font-size: 13px; }
+      .viewer-caption { min-height: 120px; }
+      .decor-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 62%; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; padding-bottom: 8px; scrollbar-width: none; }
+      .decor-grid::-webkit-scrollbar { display: none; }
+      .decor-card { scroll-snap-align: start; }
+      .faq-item summary { padding: 18px 18px; font-size: 15px; }
+      .faq-item p { padding: 0 18px 20px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bg-layer::before, .bg-layer::after, .hero-shot::after, .float-chip, .marquee-track, .hero h1 .em { animation: none !important; }
+      .hero-shot .shot-frame { transform: none !important; }
+      .viewer-slide { transition: none; }
+    }
   </style>
 </head>
 <body>
 
 <!-- BACKGROUND -->
 <div class="bg-layer"></div>
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 
 <!-- NAV -->
 <nav class="nav">
@@ -816,7 +977,9 @@
   <button class="nav-hamburger" id="navHamburger" aria-label="Меню навигации" aria-expanded="false">☰</button>
   <div class="nav-links" id="navLinks">
     <a href="#features">Возможности</a>
+    <a href="#decors">Декоры</a>
     <a href="#how">Как работает</a>
+    <a href="#faq">Вопросы</a>
     <a href="#contacts">Контакты</a>
     <a href="app.html" class="nav-cta">Открыть</a>
   </div>
@@ -836,7 +999,10 @@
     </a>
     <a href="#features" class="btn btn-glass">Узнать больше</a>
   </div>
-  <div class="hero-shot">
+  <div class="hero-shot" id="heroShot">
+    <span class="float-chip fc1"><i></i>QR → деталь подсвечена</span>
+    <span class="float-chip fc2 fc-yellow"><i></i>Пазы и вырезы жёлтым</span>
+    <span class="float-chip fc3"><i></i>Экспорт DXF для ЧПУ</span>
     <div class="shot-frame">
       <div class="shot-bar"><i></i><i></i><i></i><span>aivoscan.work / app</span></div>
       <img src="img/app-oak.jpg" width="1600" height="1000" fetchpriority="high" decoding="async"
@@ -865,28 +1031,53 @@
   </div>
 </section>
 
+<!-- MARQUEE -->
+<div class="marquee" aria-hidden="true"><div class="marquee-track"><span>БАЗИС</span><span>3D 360°</span><span>QR-сканирование</span><span>Режим взрыва</span><span>DXF для ЧПУ</span><span>Дуб</span><span>Орех</span><span>Гранит</span><span>Мрамор</span><span>Бетон</span><span>PWA</span><span>БАЗИС</span><span>3D 360°</span><span>QR-сканирование</span><span>Режим взрыва</span><span>DXF для ЧПУ</span><span>Дуб</span><span>Орех</span><span>Гранит</span><span>Мрамор</span><span>Бетон</span><span>PWA</span></div></div>
+
 <!-- SHOWCASE -->
 <section class="section" id="showcase">
   <div class="section-label reveal">В деле</div>
   <h2 class="section-title reveal">Выглядит как <span class="em">настоящая мебель</span></h2>
   <p class="section-desc reveal">Реальные декоры, объём, пазы и вырезы — как в вашем проекте из БАЗИС</p>
-  <div class="showcase-grid">
-    <figure class="showcase-card reveal reveal-delay-1">
-      <div class="shot-frame"><img src="img/app-explode.jpg" width="1600" height="1000" loading="lazy" decoding="async"
-        alt="Режим взрыва: шкаф разобран на детали, видна текстура и контуры каждой панели"></div>
-      <figcaption>
-        <h3>Режим взрыва</h3>
-        <p>Разведите детали и увидьте конструкцию изнутри. <span class="tag-groove"></span>Пазы и вырезы подсвечены жёлтым.</p>
-      </figcaption>
-    </figure>
-    <figure class="showcase-card reveal reveal-delay-2">
-      <div class="shot-frame"><img src="img/app-part.jpg" width="1600" height="1000" loading="lazy" decoding="async"
-        alt="Карточка детали: выбранная дверь подсвечена, видны размеры, материал и соседние детали"></div>
-      <figcaption>
-        <h3>Каждая деталь под рукой</h3>
-        <p>Выберите панель или отсканируйте QR — деталь подсветится, а в карточке будут размеры, материал и соседи.</p>
-      </figcaption>
-    </figure>
+  <div class="viewer reveal" id="viewer">
+    <div class="viewer-tabs" role="tablist" aria-label="Режимы приложения">
+      <button class="viewer-tab" role="tab" aria-selected="true" data-i="0">Реальные декоры</button>
+      <button class="viewer-tab" role="tab" aria-selected="false" data-i="1">Режим взрыва</button>
+      <button class="viewer-tab" role="tab" aria-selected="false" data-i="2">Карточка детали</button>
+    </div>
+    <div class="viewer-stage shot-frame">
+      <div class="shot-bar"><i></i><i></i><i></i><span>aivoscan.work / app</span></div>
+      <div class="viewer-slides">
+        <img class="viewer-slide is-active" src="img/app-oak.jpg" width="1600" height="1000" decoding="async"
+             alt="3D-модель шкафа с реалистичной текстурой дуба, жёлтым подсвечены вырезы и пазы">
+        <img class="viewer-slide" src="img/app-explode.jpg" width="1600" height="1000" loading="lazy" decoding="async"
+             alt="Режим взрыва: шкаф разобран на детали, видна текстура и контуры каждой панели">
+        <img class="viewer-slide" src="img/app-part.jpg" width="1600" height="1000" loading="lazy" decoding="async"
+             alt="Карточка детали: выбранная дверь подсвечена, видны размеры, материал и соседние детали">
+      </div>
+      <div class="viewer-progress" aria-hidden="true"><i></i></div>
+    </div>
+    <div class="viewer-caption" aria-live="polite">
+      <h3 id="viewerTitle">Реальные декоры</h3>
+      <p id="viewerText">Фото дуба, ореха, камня и бетона с правильным направлением волокон. Разные материалы всегда легко различить.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DECORS -->
+<section class="section" id="decors">
+  <div class="section-label reveal">Декоры</div>
+  <h2 class="section-title reveal">Настоящие <span class="em">декоры</span>, а не просто цвета</h2>
+  <p class="section-desc reveal">Фото дуба, ореха, гранита, мрамора и бетона из библиотеки текстур приложения</p>
+  <div class="decor-grid">
+      <figure class="decor-card reveal reveal-delay-1"><img src="img/decors/oak-bardolino.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Дуб Бардолино натуральный"><figcaption><b>Дуб Бардолино</b><span>H1145 ST10</span></figcaption></figure>
+      <figure class="decor-card reveal reveal-delay-2"><img src="img/decors/oak-halifax.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Дуб Галифакс натуральный"><figcaption><b>Дуб Галифакс</b><span>H1180 ST37</span></figcaption></figure>
+      <figure class="decor-card reveal reveal-delay-3"><img src="img/decors/oak-davos.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Дуб Давос натуральный"><figcaption><b>Дуб Давос</b><span>H3131 ST12</span></figcaption></figure>
+      <figure class="decor-card reveal reveal-delay-4"><img src="img/decors/walnut-pacific.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Орех Пацифик натуральный"><figcaption><b>Орех Пацифик</b><span>H3700 ST10</span></figcaption></figure>
+      <figure class="decor-card reveal reveal-delay-1"><img src="img/decors/granite-anthracite.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Гранит Верчелли антрацит"><figcaption><b>Гранит Верчелли</b><span>F028 ST89 · антрацит</span></figcaption></figure>
+      <figure class="decor-card reveal reveal-delay-2"><img src="img/decors/granite-grey.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Гранит Верчелли серый"><figcaption><b>Гранит Верчелли</b><span>F029 ST89 · серый</span></figcaption></figure>
+      <figure class="decor-card reveal reveal-delay-3"><img src="img/decors/marble-marmara.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Мрамор Мармара"><figcaption><b>Мрамор Мармара</b><span>F160 ST9</span></figcaption></figure>
+      <figure class="decor-card reveal reveal-delay-4"><img src="img/decors/concrete-chicago.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Бетон Чикаго светло-серый"><figcaption><b>Бетон Чикаго</b><span>F186 ST9 · светло-серый</span></figcaption></figure>
   </div>
 </section>
 
@@ -1001,6 +1192,11 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       Запустить Aivo Scan
     </a>
+    <div class="cta-alt"><span>Нужен доступ или есть вопросы?</span>
+      <a href="tel:+996990551884">Позвонить</a>
+      <a href="https://wa.me/996990551884" target="_blank" rel="noopener">WhatsApp</a>
+      <a href="https://www.instagram.com/aivo.design" target="_blank" rel="noopener">Instagram</a>
+    </div>
   </div>
 </section>
 
@@ -1023,6 +1219,20 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
       Открыть фрезировки
     </a>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section" id="faq">
+  <div class="section-label reveal">Вопросы</div>
+  <h2 class="section-title reveal">Частые <span class="em">вопросы</span></h2>
+  <p class="section-desc reveal">Коротко о том, как начать и что умеет приложение</p>
+  <div class="faq">
+    <details class="faq-item reveal" name="faq"><summary>Что нужно, чтобы начать?</summary><p>Экспортируйте проект из БАЗИС в JSON-файл и загрузите его в приложение. Все детали сразу появятся в 3D-модели.</p></details>
+    <details class="faq-item reveal" name="faq"><summary>Нужно ли что-то устанавливать?</summary><p>Нет, Aivo Scan работает в браузере. На телефоне его можно добавить на домашний экран, и он будет открываться как обычное приложение.</p></details>
+    <details class="faq-item reveal" name="faq"><summary>Как быстро найти нужную деталь?</summary><p>Наведите камеру на QR-код детали, и она подсветится в 3D-модели. Деталь можно выбрать и вручную, в модели или в списке.</p></details>
+    <details class="faq-item reveal" name="faq"><summary>Можно ли подготовить фрезеровку для ЧПУ?</summary><p>Да. Выберите профиль фрезеровки для фасада, настройте параметры и экспортируйте DXF-файл для станка с ЧПУ.</p></details>
+    <details class="faq-item reveal" name="faq"><summary>Сколько это стоит и как получить доступ?</summary><p>Условия обсуждаем индивидуально. Позвоните или напишите нам в WhatsApp или Instagram: подключим вас и поможем с настройкой.</p></details>
   </div>
 </section>
 
@@ -1142,6 +1352,118 @@ if ('serviceWorker' in navigator) {
     if (!refreshing) { refreshing = true; window.location.reload(); }
   });
 }
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fine = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // Индикатор прокрутки
+  var bar = document.getElementById('scrollProgress');
+  var tick = false;
+  function updateBar() {
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    if (bar && h > 0) { bar.style.transform = 'scaleX(' + Math.min(window.scrollY / h, 1) + ')'; }
+    tick = false;
+  }
+  window.addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(updateBar); } }, { passive: true });
+  updateBar();
+
+  // Подсветка текущего раздела в меню
+  var links = {};
+  document.querySelectorAll('#navLinks a[href^="#"]').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window) {
+    var secObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) { return; }
+        Object.keys(links).forEach(function (k) { links[k].classList.toggle('is-current', k === e.target.id); });
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    Object.keys(links).forEach(function (k) { var s = document.getElementById(k); if (s) { secObs.observe(s); } });
+  }
+
+  // Наклон скриншота героя за курсором
+  var shot = document.getElementById('heroShot');
+  if (shot && fine && !calm) {
+    var frame = shot.querySelector('.shot-frame');
+    shot.addEventListener('pointermove', function (e) {
+      var r = shot.getBoundingClientRect();
+      var px = (e.clientX - r.left) / r.width - 0.5;
+      var py = (e.clientY - r.top) / r.height - 0.5;
+      frame.style.setProperty('--ty', (px * 6).toFixed(2) + 'deg');
+      frame.style.setProperty('--tx', (-py * 5).toFixed(2) + 'deg');
+    });
+    shot.addEventListener('pointerleave', function () {
+      frame.style.setProperty('--ty', '0deg');
+      frame.style.setProperty('--tx', '0deg');
+    });
+  }
+
+  // Подсветка карточек возможностей за курсором
+  if (fine) {
+    document.querySelectorAll('.feature-card').forEach(function (c) {
+      c.addEventListener('pointermove', function (e) {
+        var r = c.getBoundingClientRect();
+        c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+        c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+      });
+    });
+  }
+
+  // Витрина: вкладки и автопереключение
+  var viewer = document.getElementById('viewer');
+  if (viewer) {
+    var tabs = viewer.querySelectorAll('.viewer-tab');
+    var slides = viewer.querySelectorAll('.viewer-slide');
+    var title = document.getElementById('viewerTitle');
+    var text = document.getElementById('viewerText');
+    var INFO = [
+      ['Реальные декоры', 'Фото дуба, ореха, камня и бетона с правильным направлением волокон. Разные материалы всегда легко различить.'],
+      ['Режим взрыва', 'Разведите детали и увидьте конструкцию изнутри. Пазы и вырезы подсвечены жёлтым.'],
+      ['Каждая деталь под рукой', 'Выберите панель или отсканируйте QR: деталь подсветится, а в карточке будут размеры, материал и соседи.']
+    ];
+    var cur = 0, timer = null, DUR = 6000, userStopped = false, inView = false;
+    viewer.style.setProperty('--dur', (DUR / 1000) + 's');
+
+    function show(i) {
+      cur = (i + slides.length) % slides.length;
+      slides.forEach(function (s, k) { s.classList.toggle('is-active', k === cur); });
+      tabs.forEach(function (t, k) { t.setAttribute('aria-selected', k === cur ? 'true' : 'false'); });
+      title.textContent = INFO[cur][0];
+      text.textContent = INFO[cur][1];
+    }
+    function restartBar() {
+      viewer.classList.remove('is-playing');
+      void viewer.offsetWidth;
+      viewer.classList.add('is-playing');
+    }
+    function play() {
+      if (userStopped || calm || !inView) { return; }
+      clearTimeout(timer);
+      restartBar();
+      timer = setTimeout(function () { show(cur + 1); play(); }, DUR);
+    }
+    function pause() { clearTimeout(timer); viewer.classList.remove('is-playing'); }
+
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        userStopped = true; pause();
+        show(parseInt(t.getAttribute('data-i'), 10));
+      });
+    });
+    viewer.addEventListener('pointerenter', function () { if (!userStopped) { pause(); } });
+    viewer.addEventListener('pointerleave', function () { if (!userStopped) { play(); } });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) {
+        inView = es[0].isIntersecting;
+        if (inView) { play(); } else { pause(); }
+      }, { threshold: 0.35 }).observe(viewer);
+    }
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { pause(); } else { play(); } });
+  }
+})();
 </script>
 
 </body>

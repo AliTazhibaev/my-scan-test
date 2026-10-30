@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aivo-scan-v12';
+const CACHE_NAME = 'aivo-scan-v13';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
