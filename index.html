@@ -28,7 +28,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap&subset=cyrillic">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -896,21 +896,6 @@
     .viewer-caption h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
     .viewer-caption p { color: var(--text2); font-size: 15px; line-height: 1.65; }
 
-    /* Галерея декоров */
-    .decor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-    .decor-card {
-      position: relative; margin: 0; border-radius: 20px; overflow: hidden; aspect-ratio: 3 / 4;
-      border: 1px solid rgba(255,255,255,0.08); background: #101214; cursor: default;
-      transition: transform 0.45s var(--ease), border-color 0.3s, box-shadow 0.45s var(--ease);
-    }
-    .decor-card img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.9s var(--ease); }
-    .decor-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(6,8,10,0.88) 0%, rgba(6,8,10,0.1) 45%, transparent 65%); pointer-events: none; }
-    .decor-card figcaption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
-    .decor-card figcaption b { font-size: 15px; font-weight: 700; }
-    .decor-card figcaption span { font-size: 12px; color: var(--accent); font-weight: 600; letter-spacing: 0.06em; }
-    .decor-card:hover { transform: translateY(-6px); border-color: rgba(0,212,170,0.4); box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0,212,170,0.12); }
-    .decor-card:hover img { transform: scale(1.08); }
-
     /* Подсветка карточек возможностей за курсором */
     .feature-card::after {
       content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.3s;
@@ -938,7 +923,6 @@
 
     @media (max-width: 900px) {
       .float-chip { display: none; }
-      .decor-grid { grid-template-columns: repeat(2, 1fr); }
     }
     @media (max-width: 700px) {
       .bg-layer::before, .bg-layer::after { display: none; }
@@ -949,9 +933,6 @@
       .viewer-tabs::-webkit-scrollbar { display: none; }
       .viewer-tab { flex: none; padding: 9px 16px; font-size: 13px; }
       .viewer-caption { min-height: 120px; }
-      .decor-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 62%; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; padding-bottom: 8px; scrollbar-width: none; }
-      .decor-grid::-webkit-scrollbar { display: none; }
-      .decor-card { scroll-snap-align: start; }
       .faq-item summary { padding: 18px 18px; font-size: 15px; }
       .faq-item p { padding: 0 18px 20px; }
     }
@@ -960,12 +941,89 @@
       .hero-shot .shot-frame { transform: none !important; }
       .viewer-slide { transition: none; }
     }
+
+    /* ================================================================
+       СТИЛЬ «ЧЕРТЁЖ × СТЕКЛО»: сетка, нумерация разделов, моно-подписи,
+       уголки-риски (жёлтые, как подсветка пазов в приложении), луч-сканер
+       ================================================================ */
+    :root { --groove: #ffc400; --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+
+    .bp-grid {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(rgba(0,212,170,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,170,0.07) 1px, transparent 1px);
+      background-size: 32px 32px, 32px 32px, 192px 192px, 192px 192px;
+      -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 28%, #000 15%, transparent 80%);
+      mask-image: radial-gradient(ellipse 85% 75% at 50% 28%, #000 15%, transparent 80%);
+    }
+
+    /* Нумерация разделов: 01 / В деле, 02 / Возможности ... */
+    body { counter-reset: sec; }
+    /* contain: style у .section обнуляет счётчик, оставляем только layout */
+    .section { contain: layout; }
+    .section-label {
+      font-family: var(--mono); font-size: 12px; letter-spacing: 0.2em; color: var(--text2);
+    }
+    .section-label::before {
+      counter-increment: sec; content: '0' counter(sec) '\00a0/\00a0';
+      color: var(--groove); font-weight: 700;
+    }
+
+    /* Моно-шрифт для технических подписей */
+    .hero-badge, .float-chip, .marquee-track span, .stat-num, .contact-label { font-family: var(--mono); }
+    .hero-badge { letter-spacing: 0.06em; text-transform: uppercase; font-size: 12px; }
+    .stat-num { letter-spacing: -0.02em; }
+    .float-chip { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+    .marquee-track span { font-size: 13px; }
+    .marquee-track span::after { background: var(--groove); box-shadow: 0 0 10px rgba(255,196,0,0.7); border-radius: 1px; transform: rotate(45deg); }
+
+    /* Заголовок героя крупнее и жёстче */
+    .hero h1 { font-size: clamp(38px, 7.4vw, 72px); letter-spacing: -0.045em; line-height: 1.04; }
+    .section-title { letter-spacing: -0.035em; }
+
+    /* Уголки-риски на карточках (как рамка выделения в чертеже) */
+    .feature-card, .feature-card:hover, .contact-card, .contact-card:hover, .stats-bar, .cta-box {
+      --tick: rgba(255,255,255,0.26);
+      background-image:
+        linear-gradient(var(--tick), var(--tick)), linear-gradient(var(--tick), var(--tick)),
+        linear-gradient(var(--tick), var(--tick)), linear-gradient(var(--tick), var(--tick)),
+        linear-gradient(var(--tick), var(--tick)), linear-gradient(var(--tick), var(--tick)),
+        linear-gradient(var(--tick), var(--tick)), linear-gradient(var(--tick), var(--tick));
+      background-repeat: no-repeat;
+      background-size: 12px 1px, 1px 12px, 12px 1px, 1px 12px, 12px 1px, 1px 12px, 12px 1px, 1px 12px;
+      background-position:
+        left 10px top 10px, left 10px top 10px,
+        right 10px top 10px, right 10px top 10px,
+        left 10px bottom 10px, left 10px bottom 10px,
+        right 10px bottom 10px, right 10px bottom 10px;
+    }
+    .feature-card:hover, .contact-card:hover { --tick: var(--groove); }
+
+    /* Луч-сканер по скриншоту героя: «Aivo Scan» сканирует модель */
+    .hero-shot .shot-frame { position: relative; }
+    .hero-shot .shot-frame::after {
+      content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+      background: linear-gradient(to bottom, transparent 78%, rgba(0,212,170,0.16) 94%, rgba(0,255,176,0.85) 99.4%, transparent 100%);
+      transform: translateY(-100%); animation: scanBeam 6.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    }
+    @keyframes scanBeam { 0% { transform: translateY(-100%); } 62%, 100% { transform: translateY(100%); } }
+
+    /* Кнопка-призыв и подписи вкладок: чуть техничнее */
+    .viewer-tab { font-family: var(--mono); font-size: 13px; letter-spacing: 0.01em; }
+    .faq-item summary::after { border-radius: 8px; }
+
+    @media (max-width: 700px) { .bp-grid { background-size: 28px 28px, 28px 28px, 168px 168px, 168px 168px; } }
+    @media (prefers-reduced-motion: reduce) { .hero-shot .shot-frame::after { animation: none; display: none; } }
   </style>
 </head>
 <body>
 
 <!-- BACKGROUND -->
 <div class="bg-layer"></div>
+<div class="bp-grid" aria-hidden="true"></div>
 <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 
 <!-- NAV -->
@@ -977,7 +1035,6 @@
   <button class="nav-hamburger" id="navHamburger" aria-label="Меню навигации" aria-expanded="false">☰</button>
   <div class="nav-links" id="navLinks">
     <a href="#features">Возможности</a>
-    <a href="#decors">Декоры</a>
     <a href="#how">Как работает</a>
     <a href="#faq">Вопросы</a>
     <a href="#contacts">Контакты</a>
@@ -1032,7 +1089,7 @@
 </section>
 
 <!-- MARQUEE -->
-<div class="marquee" aria-hidden="true"><div class="marquee-track"><span>БАЗИС</span><span>3D 360°</span><span>QR-сканирование</span><span>Режим взрыва</span><span>DXF для ЧПУ</span><span>Дуб</span><span>Орех</span><span>Гранит</span><span>Мрамор</span><span>Бетон</span><span>PWA</span><span>БАЗИС</span><span>3D 360°</span><span>QR-сканирование</span><span>Режим взрыва</span><span>DXF для ЧПУ</span><span>Дуб</span><span>Орех</span><span>Гранит</span><span>Мрамор</span><span>Бетон</span><span>PWA</span></div></div>
+<div class="marquee" aria-hidden="true"><div class="marquee-track"><span>БАЗИС</span><span>3D 360°</span><span>QR-сканирование</span><span>Режим взрыва</span><span>Пазы и вырезы</span><span>Пошаговая сборка</span><span>DXF для ЧПУ</span><span>Печать спецификации</span><span>PWA</span><span>БАЗИС</span><span>3D 360°</span><span>QR-сканирование</span><span>Режим взрыва</span><span>Пазы и вырезы</span><span>Пошаговая сборка</span><span>DXF для ЧПУ</span><span>Печать спецификации</span><span>PWA</span></div></div>
 
 <!-- SHOWCASE -->
 <section class="section" id="showcase">
@@ -1061,23 +1118,6 @@
       <h3 id="viewerTitle">Реальные декоры</h3>
       <p id="viewerText">Фото дуба, ореха, камня и бетона с правильным направлением волокон. Разные материалы всегда легко различить.</p>
     </div>
-  </div>
-</section>
-
-<!-- DECORS -->
-<section class="section" id="decors">
-  <div class="section-label reveal">Декоры</div>
-  <h2 class="section-title reveal">Настоящие <span class="em">декоры</span>, а не просто цвета</h2>
-  <p class="section-desc reveal">Фото дуба, ореха, гранита, мрамора и бетона из библиотеки текстур приложения</p>
-  <div class="decor-grid">
-      <figure class="decor-card reveal reveal-delay-1"><img src="img/decors/oak-bardolino.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Дуб Бардолино натуральный"><figcaption><b>Дуб Бардолино</b><span>H1145 ST10</span></figcaption></figure>
-      <figure class="decor-card reveal reveal-delay-2"><img src="img/decors/oak-halifax.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Дуб Галифакс натуральный"><figcaption><b>Дуб Галифакс</b><span>H1180 ST37</span></figcaption></figure>
-      <figure class="decor-card reveal reveal-delay-3"><img src="img/decors/oak-davos.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Дуб Давос натуральный"><figcaption><b>Дуб Давос</b><span>H3131 ST12</span></figcaption></figure>
-      <figure class="decor-card reveal reveal-delay-4"><img src="img/decors/walnut-pacific.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Орех Пацифик натуральный"><figcaption><b>Орех Пацифик</b><span>H3700 ST10</span></figcaption></figure>
-      <figure class="decor-card reveal reveal-delay-1"><img src="img/decors/granite-anthracite.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Гранит Верчелли антрацит"><figcaption><b>Гранит Верчелли</b><span>F028 ST89 · антрацит</span></figcaption></figure>
-      <figure class="decor-card reveal reveal-delay-2"><img src="img/decors/granite-grey.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Гранит Верчелли серый"><figcaption><b>Гранит Верчелли</b><span>F029 ST89 · серый</span></figcaption></figure>
-      <figure class="decor-card reveal reveal-delay-3"><img src="img/decors/marble-marmara.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Мрамор Мармара"><figcaption><b>Мрамор Мармара</b><span>F160 ST9</span></figcaption></figure>
-      <figure class="decor-card reveal reveal-delay-4"><img src="img/decors/concrete-chicago.jpg" width="420" height="560" loading="lazy" decoding="async" alt="Декор: Бетон Чикаго светло-серый"><figcaption><b>Бетон Чикаго</b><span>F186 ST9 · светло-серый</span></figcaption></figure>
   </div>
 </section>
 
