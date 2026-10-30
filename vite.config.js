@@ -10,7 +10,7 @@ function copyStaticAssets() {
   const assetsToCopy = [
     'favicon.svg', 'logo.svg', 'qr-logo.svg',
     'manifest.json', 'robots.txt', 'sitemap.xml', 'CNAME',
-    'mbank-qr.jpg', 'bg-dark.png', 'bg-light.png', 'og-image.png',
+    'bg-dark.png', 'bg-light.png', 'og-image.png',
     'sw.js',
   ];
   return {
