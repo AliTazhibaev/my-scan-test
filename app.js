@@ -20,6 +20,11 @@ import {
 } from './src/ui.js';
 import { initEvents } from './src/events.js';
 import {
+  projectId, saveProject, listProjects, getProjectText, deleteProject,
+  saveProjectProgress, loadProjectProgress, getLastProject
+} from './src/projects.js';
+import { askConfirm } from './src/dialog.js';
+import {
   // state values
   parts, selectedId, scannedSet, hiddenSet, idMode,
   meshMap, edgeLineMap, originalPositions, moduleMap,
@@ -121,9 +126,10 @@ function toggleTheme() {
 // plus a soft radial "sun halo" near the top. Flat Color() looked like a boxed-in void —
 // the gradient reads as an environment, and its horizon stop doubles as the fog color.
 var _bgTexDark = null, _bgTexLight = null;
-var FOG_COLOR_DARK = 0x3d4650;  // horizon-zone stop of the dark gradient
+var FOG_COLOR_DARK = 0x222c33;  // horizon-zone stop of the dark gradient (кино-стиль главной)
 var FOG_COLOR_LIGHT = 0xc8d2da; // horizon-zone stop of the light gradient
-function _buildBgTexture(stops, haloAlpha) {
+function _buildBgTexture(stops, haloAlpha, haloRGB) {
+  haloRGB = haloRGB || '255,255,255';
   var cv = document.createElement('canvas');
   cv.width = 512; cv.height = 512;
   var x = cv.getContext('2d');
@@ -132,9 +138,9 @@ function _buildBgTexture(stops, haloAlpha) {
   x.fillStyle = g;
   x.fillRect(0, 0, 512, 512);
   var h = x.createRadialGradient(256, 30, 0, 256, 30, 320);
-  h.addColorStop(0, 'rgba(255,255,255,' + haloAlpha + ')');
-  h.addColorStop(0.35, 'rgba(255,255,255,' + (haloAlpha * 0.35) + ')');
-  h.addColorStop(1, 'rgba(255,255,255,0)');
+  h.addColorStop(0, 'rgba(' + haloRGB + ',' + haloAlpha + ')');
+  h.addColorStop(0.35, 'rgba(' + haloRGB + ',' + (haloAlpha * 0.35) + ')');
+  h.addColorStop(1, 'rgba(' + haloRGB + ',0)');
   x.fillStyle = h;
   x.fillRect(0, 0, 512, 512);
   var tex = new THREE.CanvasTexture(cv);
@@ -144,13 +150,13 @@ function _buildBgTexture(stops, haloAlpha) {
 function _darkBgTexture() {
   if (!_bgTexDark) {
     _bgTexDark = _buildBgTexture([
-      [0, '#30383f'],
-      [0.28, '#363f47'],
-      [0.46, '#3d4650'], // = FOG_COLOR_DARK
-      [0.64, '#363c42'],
-      [0.84, '#282e33'],
-      [1, '#1f2429']
-    ], 0.06);
+      [0, '#0d1316'],
+      [0.28, '#172025'],
+      [0.46, '#222c33'], // = FOG_COLOR_DARK
+      [0.64, '#1a2227'],
+      [0.84, '#0f1417'],
+      [1, '#090c0e']
+    ], 0.14, '0,212,170');
   }
   return _bgTexDark;
 }
@@ -1891,13 +1897,8 @@ function printSpecification() {
     showToast("📁 Сначала загрузите JSON");
     return;
   }
-  const printWin = window.open("", "_blank");
-  if (!printWin) {
-    showToast("❌ Разрешите всплывающие окна для печати");
-    return;
-  }
   let printHtml = "<html><head><title>Спецификация</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f0f0f0;font-weight:700}.mod{background:#e8e8ff;font-weight:700}</style></head><body>";
-  printHtml += "<h2>Спецификация — " + document.getElementById("projectTitle").textContent + "</h2>";
+  printHtml += "<h2>Спецификация — " + escapeHtml(document.getElementById("projectTitle").textContent) + "</h2>";
   printHtml += "<p>Всего деталей: " + parts.length + " | Собрано: " + scannedSet.size + "</p>";
   printHtml += "<table><tr><th>#</th><th>Обозначение</th><th>Позиция</th><th>Наименование</th><th>Материал</th><th>Размеры (мм)</th><th>Статус</th></tr>";
   let lastModule = "";
@@ -1922,9 +1923,23 @@ function printSpecification() {
     printHtml += "</table>";
   }
   printHtml += "</body></html>";
-  printWin.document.write(printHtml);
-  printWin.document.close();
-  printWin.print();
+  // Печать через скрытую рамку: всплывающие окна блокируются, а в приложении их нет вовсе.
+  // В окне печати можно выбрать «Сохранить как PDF» и отправить файл.
+  var old = document.getElementById("printFrame");
+  if (old) old.remove();
+  var frame = document.createElement("iframe");
+  frame.id = "printFrame";
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+  document.body.appendChild(frame);
+  var doc = frame.contentWindow.document;
+  doc.open();
+  doc.write(printHtml);
+  doc.close();
+  setTimeout(function() {
+    try { frame.contentWindow.focus(); frame.contentWindow.print(); }
+    catch (e) { showToast("❌ Печать недоступна на этом устройстве"); }
+  }, 250);
 }
 // QR scanner handled by src/qr.js
 function handleScan(scanData) {
@@ -1952,37 +1967,31 @@ function handleScan(scanData) {
   saveProgress();
   renderPartsList();
 }
+// Прогресс хранится отдельно у каждого проекта (src/projects.js).
+var currentProjectId = null;
 var _saveProgressTimer = null;
 function saveProgress() {
   clearTimeout(_saveProgressTimer);
+  var id = currentProjectId;
   _saveProgressTimer = setTimeout(function() {
-    localStorage.setItem("aivoProgress", JSON.stringify({
-      scanned: Array.from(scannedSet),
-      hidden: Array.from(hiddenSet),
-      projectTitle: document.getElementById("projectTitle").textContent
-    }));
+    saveProjectProgress(id, Array.from(scannedSet), Array.from(hiddenSet)).then(renderProjects);
   }, 500);
 }
-function loadProgress() {
-  const currentTitle = document.getElementById("projectTitle").textContent;
-  const saved = JSON.parse(localStorage.getItem("aivoProgress") || "{}");
-  // Only restore progress if it belongs to the same project
-  if (saved.projectTitle && saved.projectTitle !== currentTitle) {
-    scannedSet.clear();
-    hiddenSet.clear();
-    return;
-  }
-  if (saved.scanned) {
-    scannedSet.clear();
-    saved.scanned.forEach(id => scannedSet.add(id));
-  }
-  if (saved.hidden) {
-    hiddenSet.clear();
-    saved.hidden.forEach(id => hiddenSet.add(id));
-  }
+function loadProgress(id, title) {
+  scannedSet.clear();
+  hiddenSet.clear();
+  return loadProjectProgress(id, title).then(function(saved) {
+    var known = new Set(parts.map(function(p) { return p.id; }));
+    saved.scanned.forEach(function(pid) { if (known.has(pid)) scannedSet.add(pid); });
+    saved.hidden.forEach(function(pid) { if (known.has(pid)) hiddenSet.add(pid); });
+    hiddenSet.forEach(function(pid) { var m = meshMap.get(pid); if (m) { m.visible = false; _hideEdgePart(pid); } });
+    invalidateVisibleCache();
+    setNeedsRender(true);
+  }).catch(function() {});
 }
 function resetProgress() {
-  if (confirm("Сбросить весь прогресс сборки?")) {
+  askConfirm("Сбросить весь прогресс сборки этого проекта?", { ok: "Сбросить", danger: true }).then(function(ok) {
+  if (ok) {
     scannedSet.clear();
     hiddenSet.clear();
     meshMap.forEach(m => m.visible = true);
@@ -1993,9 +2002,10 @@ function resetProgress() {
     closeSheet();
     updateStats();
     renderPartsList();
-    localStorage.removeItem("aivoProgress");
+    saveProjectProgress(currentProjectId, [], []).then(renderProjects);
     showToast("🔄 Прогресс сброшен");
   }
+  });
 }
 // UI functions handled by src/ui.js
 
@@ -2077,7 +2087,8 @@ function showChecklistFlash(part, isError) {
   flash._timer = setTimeout(function() { flash.style.display = "none"; }, 800);
 }
 function resetChecklist() {
-  if (!confirm("Сбросить прогресс проверки?")) return;
+  askConfirm("Сбросить прогресс проверки этого проекта?", { ok: "Сбросить", danger: true }).then(function(ok) {
+  if (!ok) return;
   scannedSet.clear();
   hiddenSet.clear();
   meshMap.forEach(function(m) { m.visible = true; });
@@ -2088,8 +2099,9 @@ function resetChecklist() {
   updateStats();
   renderChecklist();
   renderPartsList();
-  localStorage.removeItem("aivoProgress");
+  saveProjectProgress(currentProjectId, [], []).then(renderProjects);
   showToast("🔄 Чеклист сброшен");
+  });
 }
 // Open checklist scanner (reuses QR scanner with checklist callback)
 function openChecklistScanner() {
@@ -2105,83 +2117,154 @@ initEvents({
   toggleTheme, toggleVisibility, showAllParts, toggleXray, toggleExplode,
   toggleCSGVisibility, toggleDims, toggleRuler, resetProgress, showStats, printSpecification,
   selectPart, buildModuleMap, centerCamera, handleFileLoad: function(file) {
-    if (!file.name.endsWith('.json')) {
+    if (!file.name.toLowerCase().endsWith('.json')) {
       showToast("❌ Только JSON файлы поддерживаются");
       return;
     }
-    document.getElementById("loadingOverlay").classList.add("show");
-    var loadText = document.querySelector("#loadingOverlay .load-text");
-    var progressFill = document.getElementById("loadProgressFill");
-    if (progressFill) { progressFill.classList.remove("indeterminate"); progressFill.style.width = "0%"; }
-    // Safety timeout — force-hide overlay if something hangs
-    var _loadSafetyTimer = setTimeout(function() {
-      document.getElementById("loadingOverlay").classList.remove("show");
-      if (progressFill) progressFill.classList.add("indeterminate");
-      showToast("❌ Превышено время загрузки");
-    }, 15000);
     var reader = new FileReader();
     reader.onload = function(ev) {
-      try {
-        var data = JSON.parse(ev.target.result);
-        var loadedParts = data.parts || data;
-        if (!Array.isArray(loadedParts) || loadedParts.length === 0) {
-          clearTimeout(_loadSafetyTimer);
-          showToast("❌ Неверный формат JSON — массив деталей пуст");
-          document.getElementById("loadingOverlay").classList.remove("show");
-          if (progressFill) progressFill.classList.add("indeterminate");
-          return;
-        }
-        setParts(loadedParts);
-        setFastenerData(data.fasteners || []);
-        setDimsData(data.dims || []);
-        window._loadedHoles = data.holes || [];
-        parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
-        if (loadText) loadText.textContent = "Подготовка данных...";
-        if (progressFill) progressFill.style.width = "10%";
-        autoLayout(parts);
-        if (loadText) loadText.textContent = "Построение 3D (" + parts.length + " деталей)...";
-        if (progressFill) progressFill.style.width = "20%";
-        setTimeout(function() {
-          buildSceneAsync().then(function() {
-            setSelectedId(null);
-            document.getElementById("projectTitle").textContent = file.name.replace(".json", "");
-            loadProgress();
-            centerCamera();
-            closeDrawer();
-            updateStats();
-            if (progressFill) progressFill.style.width = "100%";
-            showToast("✅ Загружено " + parts.length + " деталей");
-            if (dimsData.length) showToast("📐 " + dimsData.length + " размеров из БАЗИС");
-            saveProgress();
-          }).catch(function(buildErr) {
-            showToast("❌ Ошибка 3D: " + buildErr.message);
-            if (loadText) {
-              loadText.innerHTML = '<div class="error-container"><div class="error-icon">⚠️</div><div class="error-message">Ошибка построения 3D</div><div class="error-detail">' + escapeHtml(buildErr.message) + '</div><button class="retry-btn" onclick="this.closest(\'#loadingOverlay\').classList.remove(\'show\')">🔄 Попробовать снова</button></div>';
-            }
-          }).finally(function() {
-            clearTimeout(_loadSafetyTimer);
-            if (progressFill) progressFill.classList.add("indeterminate");
-            document.getElementById("loadingOverlay").classList.remove("show");
-          });
-        }, 30);
-      } catch(err) {
-        clearTimeout(_loadSafetyTimer);
-        showToast("❌ Ошибка файла: " + err.message);
-        var progressFill2 = document.getElementById("loadProgressFill");
-        if (progressFill2) progressFill2.classList.add("indeterminate");
-        document.getElementById("loadingOverlay").classList.remove("show");
-      }
+      var text = String(ev.target.result).replace(/^\uFEFF/, "");
+      var title = file.name.replace(/\.json$/i, "");
+      openProjectText(text, title, projectId(file.name, text));
     };
-    reader.onerror = function() {
-      clearTimeout(_loadSafetyTimer);
-      showToast("❌ Не удалось прочитать файл");
-      var progressFill3 = document.getElementById("loadProgressFill");
-      if (progressFill3) progressFill3.classList.add("indeterminate");
-      document.getElementById("loadingOverlay").classList.remove("show");
-    };
+    reader.onerror = function() { showToast("❌ Не удалось прочитать файл"); };
     reader.readAsText(file, "UTF-8");
   }
 });
+
+// Открыть проект из текста JSON (из файла или из «Моих проектов») и запомнить его в «Моих проектах».
+function openProjectText(text, title, id) {
+  document.getElementById("loadingOverlay").classList.add("show");
+  var loadText = document.querySelector("#loadingOverlay .load-text");
+  var progressFill = document.getElementById("loadProgressFill");
+  if (loadText) loadText.textContent = "Загрузка...";
+  if (progressFill) { progressFill.classList.remove("indeterminate"); progressFill.style.width = "0%"; }
+  function hideOverlay() {
+    if (progressFill) progressFill.classList.add("indeterminate");
+    document.getElementById("loadingOverlay").classList.remove("show");
+  }
+  // Safety timeout — force-hide overlay if something hangs
+  var _loadSafetyTimer = setTimeout(function() {
+    hideOverlay();
+    showToast("❌ Превышено время загрузки");
+  }, 15000);
+  var data, loadedParts;
+  try {
+    data = JSON.parse(text);
+    loadedParts = data.parts || data;
+  } catch (err) {
+    clearTimeout(_loadSafetyTimer);
+    hideOverlay();
+    showToast("❌ Ошибка файла: " + err.message);
+    return;
+  }
+  if (!Array.isArray(loadedParts) || loadedParts.length === 0) {
+    clearTimeout(_loadSafetyTimer);
+    showToast("❌ Неверный формат JSON — массив деталей пуст");
+    hideOverlay();
+    return;
+  }
+  setParts(loadedParts);
+  setFastenerData(data.fasteners || []);
+  setDimsData(data.dims || []);
+  window._loadedHoles = data.holes || [];
+  parts.forEach(function(p, i) { if (p.id === undefined) p.id = i; });
+  if (loadText) loadText.textContent = "Подготовка данных...";
+  if (progressFill) progressFill.style.width = "10%";
+  autoLayout(parts);
+  if (loadText) loadText.textContent = "Построение 3D (" + parts.length + " деталей)...";
+  if (progressFill) progressFill.style.width = "20%";
+  currentProjectId = id;
+  setTimeout(function() {
+    buildSceneAsync().then(function() {
+      setSelectedId(null);
+      document.getElementById("projectTitle").textContent = title;
+      return saveProject(id, title, text, parts.length).then(function() { return loadProgress(id, title); });
+    }).then(function() {
+      centerCamera();
+      closeDrawer();
+      updateStats();
+      renderPartsList();
+      renderProjects();
+      if (progressFill) progressFill.style.width = "100%";
+      showToast("✅ Загружено " + parts.length + " деталей" + (scannedSet.size ? " · собрано " + scannedSet.size : ""));
+      if (dimsData.length) showToast("📐 " + dimsData.length + " размеров из БАЗИС");
+    }).catch(function(buildErr) {
+      showToast("❌ Ошибка 3D: " + buildErr.message);
+      if (loadText) {
+        loadText.innerHTML = '<div class="error-container"><div class="error-icon">⚠️</div><div class="error-message">Ошибка построения 3D</div><div class="error-detail">' + escapeHtml(buildErr.message) + '</div><button class="retry-btn" onclick="this.closest(\'#loadingOverlay\').classList.remove(\'show\')">🔄 Попробовать снова</button></div>';
+      }
+    }).finally(function() {
+      clearTimeout(_loadSafetyTimer);
+      hideOverlay();
+    });
+  }, 30);
+}
+
+// === Мои проекты (список в меню) ===
+function formatWhen(ts) {
+  if (!ts) return "";
+  var d = new Date(ts);
+  var today = new Date();
+  var sameDay = d.toDateString() === today.toDateString();
+  return sameDay ? "сегодня " + d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+                 : d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+}
+function renderProjects() {
+  var box = document.getElementById("projectsList");
+  if (!box) return Promise.resolve();
+  return listProjects().then(function(list) {
+    var wrap = document.getElementById("projectsBlock");
+    if (wrap) wrap.style.display = list.length ? "" : "none";
+    box.textContent = "";
+    list.forEach(function(p) {
+      var done = (p.scanned || []).length;
+      var total = p.partsCount || 0;
+      var pct = total ? Math.min(100, Math.round(done / total * 100)) : 0;
+      var row = document.createElement("div");
+      row.className = "project-row" + (p.id === currentProjectId ? " current" : "");
+      var open = document.createElement("button");
+      open.type = "button";
+      open.className = "project-open";
+      open.innerHTML = '<span class="project-name"></span><span class="project-meta"></span>' +
+        '<span class="project-bar"><i style="width:' + pct + '%"></i></span>';
+      open.querySelector(".project-name").textContent = p.title || "Проект";
+      open.querySelector(".project-meta").textContent = "собрано " + done + " из " + total + " · " + formatWhen(p.openedAt);
+      open.addEventListener("click", function() { openSavedProject(p.id); });
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "project-del";
+      del.setAttribute("aria-label", "Удалить проект из списка");
+      del.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+      del.addEventListener("click", function() {
+        askConfirm("Удалить «" + (p.title || "проект") + "» из списка? Прогресс сборки этого проекта тоже удалится.", { ok: "Удалить", danger: true })
+          .then(function(ok) {
+            if (!ok) return;
+            if (p.id === currentProjectId) currentProjectId = null;
+            deleteProject(p.id).then(renderProjects);
+          });
+      });
+      row.appendChild(open);
+      row.appendChild(del);
+      box.appendChild(row);
+    });
+  });
+}
+function openSavedProject(id) {
+  if (id === currentProjectId && parts.length) { closeDrawer(); return; }
+  getProjectText(id).then(function(text) {
+    if (!text) { showToast("❌ Проект не найден, загрузите файл заново"); renderProjects(); return; }
+    listProjects().then(function(list) {
+      var meta = list.find(function(p) { return p.id === id; });
+      openProjectText(text, (meta && meta.title) || "Проект", id);
+    });
+  });
+}
+window._openLastProject = function() {
+  var last = getLastProject();
+  if (last && !parts.length) openSavedProject(last);
+};
+renderProjects();
 
 // Drag-and-drop handled by initEvents
 
@@ -2232,6 +2315,8 @@ function init3D() {
   try {
     initThree();
     if (renderer && scene && camera) renderer.render(scene, camera);
+    // Сборщик вернулся в приложение — сразу открываем проект, с которым он работал.
+    setTimeout(function() { if (window._openLastProject) window._openLastProject(); }, 50);
   } catch(e) {
     var overlay = document.getElementById("loadingOverlay");
     if (overlay) {

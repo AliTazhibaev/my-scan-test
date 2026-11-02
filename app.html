@@ -7,7 +7,7 @@
   <meta name="description" content="3D визуализация и пошаговая сборка мебели. Сканируйте QR-коды деталей, отслеживайте прогресс сборки.">
   <meta name="keywords" content="мебель, сборка, 3D, сканер, QR, базис, цех, производство">
   <meta name="author" content="Aivo Scan">
-  <meta name="theme-color" content="#00d4aa">
+  <meta name="theme-color" content="#07090b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Aivo Scan">
@@ -19,24 +19,18 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="favicon.svg">
   <link rel="manifest" href="manifest.json">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="dns-prefetch" href="https://www.gstatic.com">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <!-- Библиотеки лежат на сайте (vendor/), чтобы приложение открывалось и без интернета.
+       three.js r128, jsQR 1.4.0, Firebase compat 10.12.0 — те же версии, что раньше брались с CDN. -->
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/jsQR.min.js"></script>
+  <script src="vendor/firebase-app-compat.js"></script>
+  <script src="vendor/firebase-auth-compat.js"></script>
+  <script src="vendor/firebase-firestore-compat.js"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap&subset=cyrillic">
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap&subset=cyrillic">
+  <link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body>
 
@@ -206,7 +200,11 @@
     <input type="text" id="searchInput" class="search-input" placeholder="Поиск по артикулу или названию..." aria-label="Поиск по артикулу или названию">
   </div>
   <div class="drawer-content">
-    <button class="upload-btn" id="uploadBtn" aria-label="Загрузить JSON файл"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ЗАГРУЗИТЬ JSON</button>
+    <div id="projectsBlock" class="projects-block" style="display:none">
+      <div class="projects-title">МОИ ПРОЕКТЫ</div>
+      <div id="projectsList" class="projects-list"></div>
+    </div>
+    <button class="upload-btn" id="uploadBtn" aria-label="Загрузить JSON файл"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ЗАГРУЗИТЬ НОВЫЙ JSON</button>
     <div class="id-mode-toggle" id="idModeToggle">
       <span class="id-mode-label">Идентификатор:</span>
       <div class="id-mode-switch">
@@ -357,7 +355,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 </script>
-<script type="module" src="app.js?v=9"></script>
+<script type="module" src="app.js?v=10"></script>
 <script>
 // Register Service Worker + auto-update
 if ('serviceWorker' in navigator) {

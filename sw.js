@@ -1,16 +1,38 @@
-const CACHE_NAME = 'aivo-scan-v17';
+const CACHE_NAME = 'aivo-scan-v18';
+// Всё, что нужно приложению для работы без интернета (после первого открытия).
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/app.html',
+  '/app.js',
   '/styles.css',
   '/manifest.json',
   '/favicon.svg',
   '/logo.svg',
   '/qr-logo.svg',
   '/bg-dark.png',
-  '/bg-light.png'
+  '/bg-light.png',
+  '/src/assembly.js',
+  '/src/auth.js',
+  '/src/camera.js',
+  '/src/csg.js',
+  '/src/dialog.js',
+  '/src/events.js',
+  '/src/materials.js',
+  '/src/projects.js',
+  '/src/qr.js',
+  '/src/state.js',
+  '/src/ui.js',
+  '/vendor/three.min.js',
+  '/vendor/jsQR.min.js',
+  '/vendor/firebase-app-compat.js',
+  '/vendor/firebase-auth-compat.js',
+  '/vendor/firebase-firestore-compat.js'
 ];
+// Файлы с версией в адресе (app.js?v=10) без сети ищем и без «?v=…».
+function fromCache(request) {
+  return caches.match(request).then(function (hit) { return hit || caches.match(request, { ignoreSearch: true }); });
+}
 
 // Pre-cache static assets on install
 self.addEventListener('install', event => {
@@ -51,7 +73,7 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
           return resp;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => fromCache(event.request))
     );
     return;
   }
@@ -65,14 +87,14 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
           return resp;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => fromCache(event.request))
     );
     return;
   }
 
   // Local static assets (CSS, images, etc) — cache-first, update in background
   event.respondWith(
-    caches.match(event.request).then(cached => {
+    fromCache(event.request).then(cached => {
       const fetchPromise = fetch(event.request).then(resp => {
         const clone = resp.clone();
         caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
