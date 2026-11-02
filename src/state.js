@@ -170,17 +170,17 @@ export const holeMeshes = [];
 export const pocketMeshes = [];
 
 // Module helpers (moved here to break circular dep with ui.js ←→ app.js)
+// Модуль = код без номера детали: GOST_01_001 -> GOST_01, PRIH_01_00_001 -> PRIH_01.
+// Приставки перед модулем сохраняются: 1_SAN_01_001 -> 1_SAN_01, M_SAN_01_001 -> M_SAN_01
+// (раньше такие детали падали в «Прочее»).
+const MODULE_RE = /^((?:[A-Z0-9]+_)*?[A-Z]+\d*_\d+)/;
 export function getModulePrefix(partCode) {
   if (!partCode) return 'OTHER';
-  const m = partCode.match(/^([A-Z]+\d*_\d+)/);
+  const m = String(partCode).toUpperCase().match(MODULE_RE);
   return m ? m[1] : 'OTHER';
 }
 export function getModuleKey(code) {
-  const prefix = getModulePrefix(code);
-  if (prefix === 'OTHER') return 'OTHER';
-  if (prefix.startsWith('D-')) return 'HARDWARE';
-  const m = prefix.match(/^([A-Z]+\d*_\d+)/);
-  return m ? m[1] : prefix;
+  return getModulePrefix(code);
 }
 export function getModuleColor(materialName) {
   const moduleKey = getModuleKey(materialName);
@@ -194,6 +194,7 @@ export function getModuleColor(materialName) {
 }
 export function getModuleName(partCodeForName, groupName) {
   if (groupName) return groupName;
+  if (String(partCodeForName).startsWith('OTHER')) return 'Прочее';
   const k = getModuleKey(partCodeForName);
   if (k === 'HARDWARE') return 'Фурнитура';
   if (k === 'OTHER') return 'Прочее';
