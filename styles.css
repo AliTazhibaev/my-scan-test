@@ -648,6 +648,8 @@
 
     .drawer-content {
       flex: 1; overflow-y: auto; padding: 10px;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); /* последняя деталь не под полоской iPhone */
+      min-height: 0;
       -webkit-overflow-scrolling: touch;
     }
 
@@ -781,7 +783,7 @@
     .module-parts {
       padding-left: 8px;
       overflow: hidden;
-      max-height: 2000px;
+      max-height: none; /* раньше 2000px: в больших модулях (40+ деталей) хвост списка обрезался */
       transition: max-height var(--dur-smooth) var(--ease-out),
                   opacity var(--dur-normal) var(--ease-out),
                   padding var(--dur-smooth) var(--ease-out);
