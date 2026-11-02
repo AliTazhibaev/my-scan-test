@@ -1,3 +1,4 @@
+import { findPartByScan } from './src/scanmatch.js';
 import {
   init as initMaterials,
   createPartMaterial,
@@ -1942,28 +1943,23 @@ function printSpecification() {
   }, 250);
 }
 // QR scanner handled by src/qr.js
+function scanToast(found) {
+  var name = found.part.name || found.part.code || "Деталь";
+  if (found.allDone) return "ℹ️ " + name + ": все " + found.copies + " шт. уже отмечены";
+  return "✅ " + name + (found.copies > 1 ? " (" + found.copiesDone + " из " + found.copies + ")" : "");
+}
 function handleScan(scanData) {
-  let foundPart;
-  if (idMode === "position") {
-    foundPart = parts.find(p => p.position === scanData || p.position?.trim() === scanData.trim() || p.position?.toLowerCase() === scanData.toLowerCase());
-    if (!foundPart) {
-      foundPart = parts.find(p => scanData.includes(p.position) || p.position?.includes(scanData));
-    }
-  } else {
-    foundPart = parts.find(p => p.code === scanData || p.code?.trim() === scanData.trim() || p.code?.toLowerCase() === scanData.toLowerCase());
-    if (!foundPart) {
-      foundPart = parts.find(p => scanData.includes(p.code) || p.code?.includes(scanData));
-    }
-  }
-  if (!foundPart) {
-    showToast("❌ Деталь не найдена");
+  var found = findPartByScan(parts, scannedSet, scanData, idMode);
+  if (!found) {
+    showToast("❌ Деталь не найдена: «" + String(scanData).slice(0, 40) + "»");
     return;
   }
+  var foundPart = found.part;
   scannedSet.add(foundPart.id);
   updateStats();
   selectPart(foundPart.id);
   startSmoothZoom(foundPart.id);
-  showToast("✅ " + foundPart.name);
+  showToast(scanToast(found));
   saveProgress();
   renderPartsList();
 }
@@ -2047,16 +2043,10 @@ function renderChecklist() {
   body.appendChild(frag);
 }
 function handleChecklistScan(scanData) {
-  var foundPart;
-  if (idMode === "position") {
-    foundPart = parts.find(function(p) { return p.position === scanData || (p.position || "").trim().toLowerCase() === scanData.trim().toLowerCase(); });
-    if (!foundPart) foundPart = parts.find(function(p) { return scanData.indexOf(p.position) >= 0 || (p.position || "").indexOf(scanData) >= 0; });
-  } else {
-    foundPart = parts.find(function(p) { return p.code === scanData || (p.code || "").trim().toLowerCase() === scanData.trim().toLowerCase(); });
-    if (!foundPart) foundPart = parts.find(function(p) { return scanData.indexOf(p.code) >= 0 || (p.code || "").indexOf(scanData) >= 0; });
-  }
+  var found = findPartByScan(parts, scannedSet, scanData, idMode);
+  var foundPart = found ? found.part : null;
   if (!foundPart) {
-    showChecklistFlash(null, true);
+    showChecklistFlash(null, true, scanData);
     return;
   }
   scannedSet.add(foundPart.id);
@@ -2064,10 +2054,10 @@ function handleChecklistScan(scanData) {
   saveProgress();
   selectPart(foundPart.id);
   startSmoothZoom(foundPart.id);
-  showChecklistFlash(foundPart, false);
+  showChecklistFlash(foundPart, false, found);
   if (_checklistOpen) renderChecklist();
 }
-function showChecklistFlash(part, isError) {
+function showChecklistFlash(part, isError, extra) {
   var flash = document.getElementById("checklistFlash");
   var icon = flash.querySelector(".flash-icon");
   var name = document.getElementById("flashName");
@@ -2076,11 +2066,12 @@ function showChecklistFlash(part, isError) {
   if (isError) {
     icon.textContent = "✕";
     name.textContent = "Деталь не найдена";
-    sub.textContent = "";
+    sub.textContent = extra ? "«" + String(extra).slice(0, 40) + "»" : "";
   } else {
     icon.textContent = "✓";
     name.textContent = part.name || part.code || "Деталь";
-    sub.textContent = (part.code || "") + "  •  " + scannedSet.size + " / " + parts.length;
+    sub.textContent = (part.code || "") + (extra && extra.copies > 1 ? "  •  " + extra.copiesDone + " из " + extra.copies + " шт." : "") + "  •  " + scannedSet.size + " / " + parts.length;
+    if (extra && extra.allDone) name.textContent = (part.name || part.code || "Деталь") + " — уже все";
   }
   flash.style.display = "flex";
   clearTimeout(flash._timer);
