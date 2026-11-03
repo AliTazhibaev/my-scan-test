@@ -6,6 +6,7 @@
 import { readPass, makePass, clearPass, evaluatePass, passNow, touchPass, daysLeft, OFFLINE_DAYS } from './license.js';
 import { showToast } from './ui.js';
 import { askConfirm } from './dialog.js';
+import { isNative } from './native.js';
 
 let currentUser = null;
 let userDeviceLimit = 5;
@@ -155,6 +156,18 @@ async function fetchServerTime() {
   return isNaN(d) ? null : d;
 }
 
+// Время сервера через Firestore (в приложении заголовок Date у локальных файлов не годится):
+// пишем отметку serverTimestamp в своё устройство и читаем её обратно.
+async function firestoreTime(user) {
+  const id = getStoredDeviceId(user.uid);
+  if (!id) return null;
+  const ref = db.collection('users').doc(user.uid).collection('devices').doc(id);
+  await withTimeout(ref.update({ lastAccess: firebase.firestore.FieldValue.serverTimestamp() }), 8000);
+  const d = await withTimeout(ref.get(), 8000);
+  const t = d.exists && d.data().lastAccess;
+  return t && t.toDate ? t.toDate().getTime() : null;
+}
+
 // Это устройство всё ещё привязано к аккаунту?
 async function verifyDevice(user) {
   const ref = db.collection('users').doc(user.uid).collection('devices');
@@ -174,9 +187,10 @@ async function verifyDevice(user) {
 
 // Проверка в сети: новый пропуск + устройство. Нет сети — ошибка.
 async function refreshPass(user) {
-  const serverNow = await fetchServerTime();
-  const deviceNow = Date.now();
+  let serverNow = isNative() ? null : await fetchServerTime();
   const doc = await withTimeout(db.collection('users').doc(user.uid).get(), 8000);
+  if (!serverNow) { try { serverNow = await firestoreTime(user); } catch (e) {} }
+  const deviceNow = Date.now();
   const data = doc.exists ? doc.data() : {};
   userDeviceLimit = data.deviceLimit || 5;
   let exp = null;
@@ -281,7 +295,10 @@ function gateContent(reason, v) {
     case 'first': return { icon: '📶', title: 'Нужен интернет', text: 'Для первого запуска на этом устройстве подключитесь к интернету. Потом приложение будет работать и без него до ' + OFFLINE_DAYS + ' дней.', buttons: [Object.assign({}, retry, { primary: true })] };
     case 'offline': return { icon: '📶', title: 'Подключитесь к интернету', text: 'Без интернета Aivo Scan работает до ' + OFFLINE_DAYS + ' дней. Этот срок прошёл: подключитесь на минуту, чтобы проверить подписку. Проекты и отметки сохранены.', buttons: [Object.assign({}, retry, { primary: true })] };
     case 'clock': return { icon: '🕒', title: 'Проверьте дату и время', text: 'Похоже, часы на устройстве переведены назад. Включите автоматическую дату и время и подключитесь к интернету.', buttons: [Object.assign({}, retry, { primary: true })] };
-    case 'expired': return { icon: '🔒', title: 'Срок доступа закончился', text: 'Доступ был оплачен до ' + fmtDate(v.expiresAt) + '. Продлите его на сайте. Если уже оплатили, нажмите «Проверить снова» после подтверждения.', buttons: [buy, retry] };
+    case 'expired':
+      // В приложении из магазинов ссылок на оплату быть не должно (правила Google/Apple).
+      if (isNative()) return { icon: '🔒', title: 'Срок доступа закончился', text: 'Доступ был до ' + fmtDate(v.expiresAt) + '. Чтобы продлить, обратитесь к администратору вашего аккаунта. Когда доступ продлят, нажмите «Проверить снова».', buttons: [Object.assign({}, retry, { primary: true })] };
+      return { icon: '🔒', title: 'Срок доступа закончился', text: 'Доступ был оплачен до ' + fmtDate(v.expiresAt) + '. Продлите его на сайте. Если уже оплатили, нажмите «Проверить снова» после подтверждения.', buttons: [buy, retry] };
     case 'frozen': return { icon: '⏸', title: 'Доступ приостановлен', text: 'Свяжитесь с нами, чтобы возобновить доступ.', buttons: [Object.assign({}, wa, { primary: true }), retry] };
     case 'limit': return { icon: '📱', title: 'Лимит устройств', text: 'На этом аккаунте уже занято ' + userDeviceLimit + ' из ' + userDeviceLimit + ' устройств. Выйдите из аккаунта на старом телефоне или попросите администратора отвязать его.', buttons: [retry] };
   }

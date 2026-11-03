@@ -2137,3 +2137,5 @@ body.light-theme .project-bar { background: rgba(0, 0, 0, 0.08); }
 .gate-logout { margin-top: 18px; min-height: 44px; background: none; border: 0; color: rgba(242, 245, 244, 0.55);
   font-family: inherit; font-size: 13px; font-weight: 500; line-height: 1; text-decoration: underline; cursor: pointer; }
 
+/* приложение из магазинов: без ссылок на оплату */
+.is-native .login-buy { display: none; }

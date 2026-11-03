@@ -7,7 +7,8 @@ import {
 } from './src/materials.js';
 import { applyPockets as csgApplyPockets, buildPocketDecals, clearPocketCache } from './src/csg.js';
 import { handleLogin, initAuth } from './src/auth.js';
-import { initQR, wireQRListeners, openScanner } from './src/qr.js';
+import { initQR, wireQRListeners, openScanner, closeScanner } from './src/qr.js';
+import { initNative } from './src/native.js';
 import {
   initCamera, setupCameraControls, updateCamera,
   startSmoothZoom, animateSmoothZoom, invalidateVisibleCache,
@@ -2252,9 +2253,48 @@ function openSavedProject(id) {
   });
 }
 window._openLastProject = function() {
+  // Файл прислали через «Поделиться → Aivo Scan» до входа — открываем его.
+  if (window._pendingShared) {
+    var sh = window._pendingShared;
+    window._pendingShared = null;
+    openSharedProject(sh.text, sh.name);
+    return;
+  }
   var last = getLastProject();
   if (last && !parts.length) openSavedProject(last);
 };
+
+// === Приложение Android/iPhone: «Поделиться → Aivo Scan» и кнопка «назад» ===
+function openSharedProject(text, name) {
+  text = String(text).replace(/^\uFEFF/, "");
+  name = String(name || "Проект.json");
+  var title = name.replace(/\.json$/i, "");
+  closeDrawer();
+  openProjectText(text, title, projectId(name, text));
+}
+function isShown(id) {
+  var el = document.getElementById(id);
+  return !!el && !el.classList.contains("hidden") && el.style.display !== "none";
+}
+function handleBackButton() {
+  var confirmBox = document.querySelector(".confirm-modal:not(.hidden) .confirm-cancel");
+  if (confirmBox) { confirmBox.click(); return true; }
+  if (isShown("scannerModal")) { closeScanner(); return true; }
+  if (isShown("statsModal")) { document.getElementById("statsModal").classList.add("hidden"); return true; }
+  if (_checklistOpen) { closeChecklist(); return true; }
+  if (document.getElementById("drawer").classList.contains("open")) { closeDrawer(); return true; }
+  if (document.getElementById("bottomSheet").classList.contains("open")) { closeSheet(); return true; }
+  if (document.getElementById("isolationBar").style.display && document.getElementById("isolationBar").style.display !== "none") { exitIsolation(); return true; }
+  return false;
+}
+initNative({
+  onBack: handleBackButton,
+  onShareError: function(msg) { showToast("❌ " + msg); },
+  openShared: function(text, name) {
+    if (_3dInitialized) openSharedProject(text, name);
+    else window._pendingShared = { text: text, name: name };
+  }
+});
 renderProjects();
 
 // Drag-and-drop handled by initEvents
@@ -2289,6 +2329,7 @@ let _resizeTimer = null;
 window.addEventListener("resize", () => {
   clearTimeout(_resizeTimer);
   _resizeTimer = setTimeout(() => {
+    if (!renderer || !camera) return; // 3D ещё не создан (экран входа)
     renderer.setSize(window.innerWidth, window.innerHeight);
     var bestPR = Math.min(window.devicePixelRatio, Math.max(1.75, Math.sqrt(6000000 / (window.innerWidth * window.innerHeight))));
     renderer.setPixelRatio(bestPR);

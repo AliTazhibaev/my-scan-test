@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aivo-scan-v23';
+const CACHE_NAME = 'aivo-scan-v24';
 // Всё, что нужно приложению для работы без интернета (после первого открытия).
 const STATIC_ASSETS = [
   '/',
@@ -18,6 +18,7 @@ const STATIC_ASSETS = [
   '/src/csg.js',
   '/src/dialog.js',
   '/src/license.js',
+  '/src/native.js',
   '/src/scanmatch.js',
   '/src/events.js',
   '/src/materials.js',
