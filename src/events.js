@@ -122,6 +122,7 @@ export function initEvents(deps) {
   if (blockModeBtnEl) blockModeBtnEl.addEventListener('click', () => {
     setBlockMode(!blockMode);
     blockModeBtnEl.classList.toggle('active', blockMode);
+    if (!blockMode && window._onBlockModeOff) window._onBlockModeOff();
     showToast(blockMode ? 'Режим блоков: ВКЛ' : 'Режим блоков: ВЫКЛ');
   });
 

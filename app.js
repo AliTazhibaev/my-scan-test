@@ -1343,18 +1343,55 @@ function centerCamera() {
   updateCamera();
 }
 
+// === Подсветка: одно «нормальное» состояние панели и сброс подсветки блока ===
+// Раньше после режима блоков вся модель оставалась полупрозрачной и без рёбер,
+// а выделенная панель была прозрачной на 15%, и сквозь неё просвечивали рёбра деталей позади.
+var _moduleHighlightActive = false;
+function _setNormalMaterial(mesh) {
+  mesh.material.emissive.setHex(0);
+  mesh.material.emissiveIntensity = 0;
+  mesh.material.transparent = true;
+  mesh.material.opacity = 1;
+  mesh.material.depthWrite = true;
+  mesh.material.needsUpdate = true;
+}
+function _setSelectedMaterial(mesh, strong) {
+  mesh.material.emissive.setHex(0x00D4AA);
+  mesh.material.emissiveIntensity = strong ? 0.32 : 0.14;
+  mesh.material.transparent = true;
+  mesh.material.opacity = 1;
+  mesh.material.depthWrite = true;
+  mesh.material.needsUpdate = true;
+}
+function clearModuleHighlight() {
+  if (!_moduleHighlightActive) return;
+  _moduleHighlightActive = false;
+  meshMap.forEach(function(mesh, id) {
+    _setNormalMaterial(mesh);
+    if (mesh.visible && !hiddenSet.has(id)) _showEdgePart(id);
+    _setEdgeHex(id, 0x000000);
+  });
+  invalidateVisibleCache();
+  if (xrayActive) applyXray();
+  setNeedsRender(true);
+}
+window._clearModuleHighlight = clearModuleHighlight;
+// Режим блоков выключили: убираем подсветку блока, выделенная деталь остаётся выделенной.
+window._onBlockModeOff = function() {
+  var keep = selectedId;
+  clearModuleHighlight();
+  if (keep !== null && meshMap.has(keep)) selectPart(keep);
+};
 function selectModuleHighlight(moduleKey, clickedId) {
   _currentSheetPartId = null;
   setSelectedId(clickedId);
   var moduleParts = moduleMap.get(moduleKey);
   if (!moduleParts) { selectPart(clickedId); return; }
   var moduleIds = new Set(moduleParts.map(function(p) { return p.id; }));
+  _moduleHighlightActive = true;
   meshMap.forEach(function(mesh, id) {
     if (moduleIds.has(id)) {
-      mesh.material.emissive.setHex(0x00D4AA);
-      mesh.material.emissiveIntensity = id === clickedId ? 0.25 : 0.12;
-      mesh.material.transparent = true;
-      mesh.material.opacity = id === clickedId ? 0.85 : 0.95;
+      _setSelectedMaterial(mesh, id === clickedId);
     } else {
       mesh.material.emissive.setHex(0);
       mesh.material.emissiveIntensity = 0;
@@ -1366,8 +1403,8 @@ function selectModuleHighlight(moduleKey, clickedId) {
   // Update merged edge colors for module highlight
   meshMap.forEach(function(mesh, id) {
     if (moduleIds.has(id)) {
-      if (!hiddenSet.has(id)) _showEdgePart(id);
-      _setEdgeHex(id, 0x000000);
+      if (!hiddenSet.has(id) && mesh.visible) _showEdgePart(id);
+      _setEdgeHex(id, id === clickedId ? 0x00D4AA : 0x000000);
     } else {
       _hideEdgePart(id);
     }
@@ -1395,29 +1432,17 @@ function selectModuleHighlight(moduleKey, clickedId) {
   setNeedsRender(true);
 }
 function selectPart(partId) {
+  clearModuleHighlight();
   var prevId = selectedId;
   setSelectedId(partId);
   // Only reset previous selected (not all meshes — saves O(N) per click)
   if (prevId !== null && prevId !== partId) {
     var prevMesh = meshMap.get(prevId);
-    if (prevMesh) {
-      prevMesh.material.emissive.setHex(0);
-      prevMesh.material.emissiveIntensity = 0;
-      prevMesh.material.transparent = true;
-      prevMesh.material.opacity = 1;
-      prevMesh.material.depthWrite = true;
-      prevMesh.material.needsUpdate = true;
-    }
+    if (prevMesh) _setNormalMaterial(prevMesh);
     _dimEdgePart(prevId);
   }
   var selectedMesh = meshMap.get(partId);
-  if (selectedMesh) {
-    selectedMesh.material.emissive.setHex(0x00D4AA);
-    selectedMesh.material.emissiveIntensity = 0.25;
-    selectedMesh.material.transparent = true;
-    selectedMesh.material.opacity = 0.85;
-    selectedMesh.material.needsUpdate = true;
-  }
+  if (selectedMesh) _setSelectedMaterial(selectedMesh, true);
   _setEdgeHex(partId, 0x00D4AA);
   if (xrayActive) {
     applyXray();
@@ -1632,6 +1657,7 @@ function showAllParts() {
 // === Module Isolation ===
 function isolateModule(moduleKey) {
   if (!moduleMap.has(moduleKey)) return;
+  clearModuleHighlight();
   setIsolatedModule(moduleKey);
   var moduleParts = moduleMap.get(moduleKey);
   var moduleIds = new Set(moduleParts.map(p => p.id));
@@ -1679,14 +1705,20 @@ function isolateModule(moduleKey) {
 function exitIsolation() {
   setIsolatedModule(null);
   setExplodeModuleKey(null);
-  meshMap.forEach(m => {
-    m.visible = true;
+  meshMap.forEach((m, id) => {
+    // Детали, скрытые кнопкой «глаз», остаются скрытыми (раньше появлялись снова).
+    m.visible = !hiddenSet.has(id);
     m.material.transparent = true;
     m.material.opacity = 1;
     m.material.depthWrite = true;
     m.material.roughness = 0.78;
   });
   _resetAllEdges();
+  hiddenSet.forEach(function(id) { _hideEdgePart(id); });
+  if (selectedId !== null && meshMap.has(selectedId) && !hiddenSet.has(selectedId)) {
+    _setSelectedMaterial(meshMap.get(selectedId), true);
+    _setEdgeHex(selectedId, 0x00D4AA);
+  }
   detailMeshes.forEach(arr => {
     arr.forEach(obj => { obj.visible = true; });
   });

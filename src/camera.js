@@ -89,13 +89,16 @@ export function invalidateVisibleCache() {
 }
 
 export function deselectPart() {
+  // Нажали в пустое место: снимаем и подсветку блока, если она была.
+  if (window._clearModuleHighlight) window._clearModuleHighlight();
   if (selectedId === null) return;
   var prevMesh = meshMap.get(selectedId);
   if (prevMesh) {
     prevMesh.material.emissive.setHex(0);
     prevMesh.material.emissiveIntensity = 0;
-    prevMesh.material.transparent = false;
+    prevMesh.material.transparent = true; // как у всех панелей (было false — другой порядок отрисовки)
     prevMesh.material.opacity = 1;
+    prevMesh.material.depthWrite = true;
     prevMesh.material.needsUpdate = true;
   }
   if (_dimEdgePart) _dimEdgePart(selectedId);
