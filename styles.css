@@ -2105,3 +2105,8 @@ body.light-theme .project-bar { background: rgba(0, 0, 0, 0.08); }
 .confirm-text { font-size: 15px; line-height: 1.5; color: var(--text-primary); margin-bottom: 18px; }
 .confirm-actions { display: flex; gap: 8px; }
 .confirm-actions .modal-btn { flex: 1; min-height: 44px; margin: 0; }
+
+/* ссылка на покупку под формой входа */
+.login-buy { display: flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 10px;
+  color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 10px; }
+.login-buy:hover { text-decoration: underline; }

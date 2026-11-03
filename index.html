@@ -59,7 +59,7 @@
       { "@type": "Question", "name": "Нужно ли что-то устанавливать?", "acceptedAnswer": { "@type": "Answer", "text": "Нет, Aivo Scan работает в браузере. На телефоне его можно добавить на домашний экран, и он будет открываться как обычное приложение." } },
       { "@type": "Question", "name": "Как быстро найти нужную деталь?", "acceptedAnswer": { "@type": "Answer", "text": "Наведите камеру на QR-код детали, и она подсветится в 3D-модели. Деталь можно выбрать и вручную, в модели или в списке." } },
       { "@type": "Question", "name": "Можно ли подготовить фрезеровку для ЧПУ?", "acceptedAnswer": { "@type": "Answer", "text": "Да. Выберите профиль фрезеровки для фасада, настройте параметры и экспортируйте DXF-файл для станка с ЧПУ." } },
-      { "@type": "Question", "name": "Сколько это стоит и как получить доступ?", "acceptedAnswer": { "@type": "Answer", "text": "Условия обсуждаем индивидуально. Позвоните или напишите нам в WhatsApp или Instagram: подключим вас и поможем с настройкой." } }
+      { "@type": "Question", "name": "Сколько это стоит и как получить доступ?", "acceptedAnswer": { "@type": "Answer", "text": "Цех: 2 500 сом в месяц или 20 000 сом в год, один аккаунт и до 5 устройств. Сборщик: 800 сом в месяц или 6 500 сом в год, до 2 устройств. Оплата по QR через M Bank на странице тарифов." } }
     ]
   }
   </script>
@@ -276,6 +276,18 @@
     .qr-img { width: 148px; height: 148px; padding: 12px; background: #fff; border-radius: 16px; margin-bottom: 22px; }
     @media (max-width: 880px) { .duo { grid-template-columns: 1fr; } }
 
+    /* ---------- тарифы ---------- */
+    .prices { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; }
+    .price { border: 1px solid var(--line-2); border-radius: 22px; padding: clamp(24px, 3.4vw, 36px); background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); }
+    .price h3 { font-family: var(--display); font-weight: 700; font-size: clamp(22px, 2.6vw, 30px); letter-spacing: -0.02em; }
+    .price-who { color: var(--text-3); font: 500 14px/1.4 var(--mono); margin: 6px 0 22px; }
+    .price-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+    .price-row b { font: 700 clamp(22px, 2.8vw, 30px)/1.1 var(--display); }
+    .price-row span { color: var(--text-2); font-size: 15px; }
+    .price-row i { font: 600 12px/1 var(--mono); font-style: normal; color: var(--groove); margin-left: 6px; }
+    .price-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    .price-actions .btn { flex: 1 1 120px; }
+    @media (max-width: 760px) { .prices { grid-template-columns: 1fr; } }
     /* ---------- вопросы ---------- */
     .faq { display: grid; gap: 10px; max-width: 860px; }
     .faq details { border: 1px solid var(--line-2); border-radius: 16px; background: rgba(255,255,255,0.02); transition: border-color .25s, background-color .25s; }
@@ -328,6 +340,7 @@
     <nav class="nav-links" id="navLinks" aria-label="Главное меню">
       <a href="#story">Как работает</a>
       <a href="#features">Возможности</a>
+      <a href="#pricing">Тарифы</a>
       <a href="#faq">Вопросы</a>
       <a href="#contacts">Контакты</a>
       <a href="app.html" class="nav-cta">Открыть приложение</a>
@@ -481,6 +494,39 @@
 </section>
 
 <!-- ===== ВОПРОСЫ ===== -->
+<!-- ===== ТАРИФЫ ===== -->
+<section class="section" id="pricing" style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head rv">
+      <span class="eyebrow">Тарифы</span>
+      <h2 class="h2">Простые <span class="accent">цены</span></h2>
+      <p class="lead">Оплата по QR через M Bank. Доступ включаем после проверки оплаты.</p>
+    </div>
+    <div class="prices">
+      <div class="price rv">
+        <h3>Цех</h3>
+        <p class="price-who">1 аккаунт · до 5 устройств</p>
+        <div class="price-row"><b>2 500 сом</b><span>в месяц</span></div>
+        <div class="price-row"><b>20 000 сом</b><span>в год <i>выгода 10 000 сом</i></span></div>
+        <div class="price-actions">
+          <a href="buy.html?plan=shop_month" class="btn btn-primary">Месяц</a>
+          <a href="buy.html?plan=shop_year" class="btn btn-ghost">Год</a>
+        </div>
+      </div>
+      <div class="price rv">
+        <h3>Сборщик</h3>
+        <p class="price-who">1 аккаунт · до 2 устройств</p>
+        <div class="price-row"><b>800 сом</b><span>в месяц</span></div>
+        <div class="price-row"><b>6 500 сом</b><span>в год <i>выгода 3 100 сом</i></span></div>
+        <div class="price-actions">
+          <a href="buy.html?plan=solo_month" class="btn btn-primary">Месяц</a>
+          <a href="buy.html?plan=solo_year" class="btn btn-ghost">Год</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="faq" style="padding-top:0">
   <div class="wrap">
     <div class="section-head rv">
@@ -492,7 +538,7 @@
       <details class="rv" name="faq"><summary>Нужно ли что-то устанавливать?</summary><p>Нет, Aivo Scan работает в браузере. На телефоне его можно добавить на домашний экран, и он будет открываться как обычное приложение.</p></details>
       <details class="rv" name="faq"><summary>Как быстро найти нужную деталь?</summary><p>Наведите камеру на QR-код детали, и она подсветится в 3D-модели. Деталь можно выбрать и вручную, в модели или в списке.</p></details>
       <details class="rv" name="faq"><summary>Можно ли подготовить фрезеровку для ЧПУ?</summary><p>Да. Выберите профиль фрезеровки для фасада, настройте параметры и экспортируйте DXF-файл для станка с ЧПУ.</p></details>
-      <details class="rv" name="faq"><summary>Сколько это стоит и как получить доступ?</summary><p>Условия обсуждаем индивидуально. Позвоните или напишите нам в WhatsApp или Instagram: подключим вас и поможем с настройкой.</p></details>
+      <details class="rv" name="faq"><summary>Сколько это стоит и как получить доступ?</summary><p>Цех: 2 500 сом в месяц или 20 000 сом в год, один аккаунт и до 5 устройств. Сборщик: 800 сом в месяц или 6 500 сом в год, до 2 устройств. Оплатить можно по QR через M Bank на <a href="buy.html">странице тарифов</a>. После проверки оплаты включим доступ, а если аккаунт уже есть, продлим его.</p></details>
     </div>
   </div>
 </section>
@@ -502,12 +548,13 @@
   <div class="wrap">
     <span class="eyebrow rv">Готовы начать?</span>
     <h2 class="h2 rv">Первый проект — <span class="accent">за минуты</span></h2>
-    <p class="lead rv">Откройте приложение и загрузите проект из БАЗИС. Нужен доступ — напишите, подключим и поможем с настройкой.</p>
+    <p class="lead rv">Откройте приложение и загрузите проект из БАЗИС. Нужен доступ — выберите тариф и оплатите по QR, или напишите нам, поможем с настройкой.</p>
     <div class="hero-actions rv">
       <a href="app.html" class="btn btn-primary">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
         Запустить Aivo Scan
       </a>
+      <a href="buy.html" class="btn btn-ghost">Тарифы и оплата</a>
     </div>
     <div class="contacts rv">
       <a class="contact" href="tel:+996990551884"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>+996 990 551 884</a>
@@ -523,6 +570,7 @@
     <span>© Aivo Scan</span>
     <nav aria-label="Ссылки в подвале">
       <a href="app.html">Приложение</a>
+      <a href="buy.html">Тарифы</a>
       <a href="milling.html">Фрезеровка</a>
       <a href="https://www.instagram.com/aivo.design" target="_blank" rel="noopener">Instagram</a>
       <a href="tel:+996990551884">+996 990 551 884</a>

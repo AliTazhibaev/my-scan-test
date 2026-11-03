@@ -127,7 +127,7 @@ async function checkAccountDeadline(uid) {
       const exp = data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt);
       if (new Date() > exp) {
         const days = Math.ceil((new Date() - exp) / 86400000);
-        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0c12;color:#fff;font-family:sans-serif;text-align:center;padding:20px"><div><div style="font-size:48px;margin-bottom:16px">&#x1f512;</div><div style="font-size:20px;font-weight:700;margin-bottom:8px">Аккаунт заблокирован</div><div style="font-size:14px;color:#94a3b8;margin-bottom:16px">Срок действия истёк ' + exp.toLocaleDateString('ru-RU') + ' (' + days + ' дн.)</div><div style="font-size:12px;color:#64748b">Свяжитесь с администратором для продления</div></div></div>';
+        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0c12;color:#fff;font-family:sans-serif;text-align:center;padding:20px"><div><div style="font-size:48px;margin-bottom:16px">&#x1f512;</div><div style="font-size:20px;font-weight:700;margin-bottom:8px">Аккаунт заблокирован</div><div style="font-size:14px;color:#94a3b8;margin-bottom:16px">Срок действия истёк ' + exp.toLocaleDateString('ru-RU') + ' (' + days + ' дн.)</div><a href="buy.html" style="display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border-radius:14px;background:#00D4AA;color:#00140f;font-weight:700;text-decoration:none;margin-bottom:12px">Продлить доступ</a><div style="font-size:12px;color:#64748b">Если уже оплатили, мы скоро включим доступ</div></div></div>';
         auth.signOut();
       }
     }

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тарифы и оплата — Aivo Scan</title>
+  <meta name="description" content="Тарифы Aivo Scan для цехов и сборщиков. Оплата по QR через M Bank.">
+  <link rel="canonical" href="https://aivoscan.work/buy.html">
+  <meta name="theme-color" content="#07090b">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+  <style>
+    :root {
+      --bg: #07090b; --bg-2: #0c1013; --bg-3: #11161a;
+      --line: rgba(255, 255, 255, 0.08); --line-2: rgba(255, 255, 255, 0.14);
+      --text: #f2f5f4; --text-2: rgba(242, 245, 244, 0.7); --text-3: rgba(242, 245, 244, 0.52);
+      --accent: #00D4AA; --accent-2: #3dffd0; --accent-ink: #00140f; --accent-dim: rgba(0, 212, 170, 0.14);
+      --groove: #F5C542; --danger: #ff6b6b;
+      --display: 'Unbounded', 'Inter', system-ui, sans-serif;
+      --body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      --gutter: clamp(16px, 4vw, 48px);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: var(--body); background: var(--bg); color: var(--text); line-height: 1.55; font-size: 16px; overflow-x: clip; -webkit-font-smoothing: antialiased; }
+    img, svg { display: block; max-width: 100%; }
+    a { color: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 10px; }
+    .wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 var(--gutter); }
+    .backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background: radial-gradient(60% 50% at 78% 10%, rgba(0, 212, 170, 0.14), transparent 70%), radial-gradient(50% 40% at 8% 80%, rgba(0, 120, 200, 0.08), transparent 70%), var(--bg); }
+    .backdrop::after { content: ''; position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 56px 56px; -webkit-mask-image: radial-gradient(80% 60% at 60% 20%, #000 30%, transparent 80%); mask-image: radial-gradient(80% 60% at 60% 20%, #000 30%, transparent 80%); }
+
+    .nav { height: 68px; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+    .nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-weight: 700; font-size: 15px; min-height: 44px; }
+    .brand img { width: 32px; height: 32px; border-radius: 9px; }
+    .nav-link { text-decoration: none; color: var(--text-2); font-size: 14px; font-weight: 500; min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 12px; }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+    .eyebrow { display: inline-flex; align-items: center; gap: 10px; font: 700 12px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+    .eyebrow::before { content: ''; width: 22px; height: 1px; background: currentColor; }
+    h1 { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 5.4vw, 56px); line-height: 1.04; letter-spacing: -0.03em; margin: 16px 0 14px; text-wrap: balance; }
+    h1 .accent { color: var(--accent); }
+    .lead { color: var(--text-2); font-size: clamp(16px, 1.6vw, 18px); max-width: 620px; }
+    .head { padding: clamp(40px, 7vw, 80px) 0 clamp(28px, 4vw, 44px); }
+
+    .step-title { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: 700; font-size: clamp(18px, 2.4vw, 24px); margin: 0 0 18px; }
+    .step-title b { width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: var(--accent-dim); color: var(--accent); font: 700 15px/1 var(--mono); flex: none; }
+    .block { padding-bottom: clamp(36px, 6vw, 60px); }
+    .hidden { display: none !important; }
+
+    /* ---------- тарифы ---------- */
+    .groups { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .group { border: 1px solid var(--line-2); border-radius: 22px; padding: clamp(20px, 3vw, 30px); background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); }
+    .group h2 { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: -0.01em; }
+    .group .who { color: var(--text-3); font-size: 14px; margin: 4px 0 16px; }
+    .group ul { list-style: none; display: grid; gap: 7px; margin-bottom: 20px; color: var(--text-2); font-size: 15px; }
+    .group li { display: flex; gap: 10px; align-items: baseline; }
+    .group li::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--accent); flex: none; transform: translateY(-2px); }
+    .options { display: grid; gap: 10px; }
+    .opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 64px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--line-2); background: rgba(255,255,255,0.02); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: border-color .2s, background-color .2s, transform .2s var(--ease); }
+    .opt:hover { border-color: rgba(255,255,255,0.3); }
+    .opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-dim); box-shadow: 0 0 0 1px var(--accent) inset; }
+    .opt-name { font-weight: 600; }
+    .opt-note { display: block; font: 600 12px/1.3 var(--mono); color: var(--groove); margin-top: 3px; }
+    .opt-price { font: 700 19px/1 var(--display); white-space: nowrap; }
+    .opt-price small { font: 500 12px var(--body); color: var(--text-3); }
+    @media (max-width: 760px) { .groups { grid-template-columns: 1fr; } }
+
+    /* ---------- форма ---------- */
+    .card { border: 1px solid var(--line-2); border-radius: 22px; padding: clamp(20px, 3vw, 32px); background: rgba(255,255,255,0.025); }
+    .summary { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; padding-bottom: 18px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+    .summary-plan { font-weight: 600; }
+    .summary-price { font: 700 24px/1 var(--display); color: var(--accent); }
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .field { display: grid; gap: 7px; }
+    .field.wide { grid-column: 1 / -1; }
+    .field label { font-size: 14px; font-weight: 600; }
+    .field .hint { font-size: 13px; color: var(--text-3); }
+    .field input { width: 100%; min-height: 50px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line-2); background: rgba(255,255,255,0.04); color: var(--text); font: 16px var(--body); }
+    .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    .field input[aria-invalid="true"] { border-color: var(--danger); }
+    .err { color: var(--danger); font-size: 14px; min-height: 20px; margin-top: 12px; }
+    @media (max-width: 640px) { .fields { grid-template-columns: 1fr; } }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 26px; border-radius: 14px; font: 700 15px/1 var(--body); text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: transform .2s var(--ease), background-color .2s, border-color .2s, box-shadow .3s; }
+    .btn svg { width: 18px; height: 18px; flex: none; }
+    .btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 10px 40px -12px rgba(0, 212, 170, 0.7); }
+    .btn-primary:hover { background: var(--accent-2); }
+    .btn-primary:disabled { opacity: .6; cursor: wait; }
+    .btn-ghost { border-color: var(--line-2); color: var(--text); background: rgba(255,255,255,0.03); }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.3); }
+    .btn:active { transform: scale(0.98); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+
+    /* ---------- оплата ---------- */
+    .pay { display: grid; grid-template-columns: 260px 1fr; gap: clamp(20px, 4vw, 44px); align-items: start; }
+    .qr { background: #fff; border-radius: 18px; padding: 14px; width: 100%; max-width: 260px; }
+    .qr img { width: 100%; height: auto; image-rendering: pixelated; }
+    .qr-cap { text-align: center; color: var(--text-3); font-size: 13px; margin-top: 10px; }
+    .big { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .big div { border: 1px solid var(--line-2); border-radius: 14px; padding: 14px 16px; }
+    .big span { display: block; font-size: 13px; color: var(--text-3); margin-bottom: 6px; }
+    .big b { font: 700 clamp(20px, 3vw, 26px)/1.1 var(--display); }
+    .big .code b { font-family: var(--mono); color: var(--groove); letter-spacing: 0.04em; }
+    .copy { margin-left: 8px; font: 600 12px var(--body); color: var(--accent); background: none; border: 0; cursor: pointer; min-height: 32px; padding: 0 4px; }
+    ol.how { padding-left: 22px; display: grid; gap: 8px; color: var(--text-2); }
+    ol.how b { color: var(--text); }
+    .mbank-btn { display: none; }
+    @media (max-width: 760px) {
+      .pay { grid-template-columns: 1fr; }
+      .qr-wrap { order: 2; }
+      .mbank-btn { display: inline-flex; width: 100%; margin-bottom: 18px; }
+      .big { grid-template-columns: 1fr; }
+    }
+
+    .done { text-align: center; padding: clamp(28px, 5vw, 48px) 0; }
+    .done-ic { width: 72px; height: 72px; border-radius: 50%; background: var(--accent-dim); color: var(--accent); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+    .done-ic svg { width: 34px; height: 34px; }
+    .done h2 { font-family: var(--display); font-size: clamp(22px, 3.4vw, 32px); margin-bottom: 10px; }
+    .done p { color: var(--text-2); max-width: 560px; margin: 0 auto 8px; }
+    .done .actions { justify-content: center; }
+
+    .note { color: var(--text-3); font-size: 14px; margin-top: 16px; }
+    footer { border-top: 1px solid var(--line); padding: 24px 0 36px; color: var(--text-3); font-size: 14px; margin-top: 20px; }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+    footer a { text-decoration: none; }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap">
+    <a href="/" class="brand"><img src="logo.svg" alt="" width="32" height="32">Aivo Scan</a>
+    <a href="app.html" class="nav-link">Войти в приложение</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="head">
+    <span class="eyebrow">Тарифы</span>
+    <h1>Доступ к <span class="accent">Aivo Scan</span></h1>
+    <p class="lead">Выберите тариф, оплатите по QR через M Bank, и мы откроем доступ. Если аккаунт уже есть, оплата продлит его.</p>
+  </div>
+
+  <!-- 1. ТАРИФ -->
+  <section class="block" id="stepPlan" aria-labelledby="t1">
+    <h2 class="step-title" id="t1"><b>1</b>Выберите тариф</h2>
+    <div class="groups">
+      <div class="group">
+        <h2>Цех</h2>
+        <p class="who">Для мебельного цеха и бригады сборщиков</p>
+        <ul>
+          <li>1 аккаунт на цех</li>
+          <li>до 5 телефонов и компьютеров</li>
+          <li>3D-модель, QR-сканер, чеклист, сборка по шагам</li>
+        </ul>
+        <div class="options" data-group="shop"></div>
+      </div>
+      <div class="group">
+        <h2>Сборщик</h2>
+        <p class="who">Для частного сборщика</p>
+        <ul>
+          <li>1 аккаунт</li>
+          <li>до 2 устройств: телефон и компьютер</li>
+          <li>все те же возможности</li>
+        </ul>
+        <div class="options" data-group="solo"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. ДАННЫЕ -->
+  <section class="block hidden" id="stepForm" aria-labelledby="t2">
+    <h2 class="step-title" id="t2"><b>2</b>Ваши данные</h2>
+    <form class="card" id="orderForm" novalidate>
+      <div class="summary"><span class="summary-plan" id="sumPlan"></span><span class="summary-price" id="sumPrice"></span></div>
+      <div class="fields">
+        <div class="field wide">
+          <label for="fEmail">Email — это логин в приложении</label>
+          <input id="fEmail" type="email" inputmode="email" autocomplete="email" placeholder="ceh@example.com" required>
+          <span class="hint">Если аккаунт уже есть, укажите тот же email: продлим его. Если нет, создадим новый и пришлём письмо для установки пароля.</span>
+        </div>
+        <div class="field">
+          <label for="fName" id="fNameLabel">Название цеха</label>
+          <input id="fName" type="text" autocomplete="organization" maxlength="100" required>
+        </div>
+        <div class="field">
+          <label for="fPhone">Телефон или WhatsApp</label>
+          <input id="fPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+996 ..." maxlength="30" required>
+        </div>
+      </div>
+      <div class="err" id="formErr" role="alert"></div>
+      <div class="actions">
+        <button class="btn btn-primary" type="submit">Перейти к оплате
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- 3. ОПЛАТА -->
+  <section class="block hidden" id="stepPay" aria-labelledby="t3">
+    <h2 class="step-title" id="t3"><b>3</b>Оплата через M Bank</h2>
+    <div class="card">
+      <div class="pay">
+        <div class="qr-wrap">
+          <div class="qr"><img src="img/pay-mbank-qr.svg" alt="QR-код для оплаты в M Bank" width="232" height="232"></div>
+          <p class="qr-cap">Получатель: <span id="receiver"></span></p>
+        </div>
+        <div>
+          <a class="btn btn-primary mbank-btn" id="mbankBtn" href="#" rel="noopener">Открыть M Bank и оплатить</a>
+          <div class="big">
+            <div><span>Сумма к оплате</span><b id="payAmount"></b></div>
+            <div class="code"><span>Код заявки <button type="button" class="copy" id="copyCode">копировать</button></span><b id="payCode"></b></div>
+          </div>
+          <ol class="how">
+            <li>Отсканируйте QR в приложении <b>M Bank</b> или нажмите кнопку на телефоне.</li>
+            <li>Введите сумму <b id="howAmount"></b>.</li>
+            <li>В комментарии к переводу напишите код <b id="howCode"></b>.</li>
+            <li>После оплаты нажмите «Я оплатил».</li>
+          </ol>
+          <div class="err" id="payErr" role="alert"></div>
+          <div class="actions">
+            <button class="btn btn-primary" type="button" id="paidBtn">Я оплатил</button>
+            <button class="btn btn-ghost" type="button" id="backBtn">Изменить данные</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Доступ включаем вручную после проверки оплаты, обычно в течение рабочего дня.</p>
+  </section>
+
+  <!-- 4. ГОТОВО -->
+  <section class="block hidden" id="stepDone" aria-live="polite">
+    <div class="card done">
+      <div class="done-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <h2>Заявка <span id="doneCode"></span> отправлена</h2>
+      <p>Проверим оплату и включим доступ, обычно в течение рабочего дня.</p>
+      <p id="doneMail"></p>
+      <div class="actions">
+        <a class="btn btn-primary" id="waBtn" href="#" target="_blank" rel="noopener">Отправить чек в WhatsApp</a>
+        <a class="btn btn-ghost" href="app.html">Войти в приложение</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© Aivo Scan</span>
+    <span><a href="/">Главная</a> · <a href="tel:+996990551884">+996 990 551 884</a></span>
+  </div>
+</footer>
+
+<script src="plans.js?v=1"></script>
+<script src="vendor/firebase-app-compat.js"></script>
+<script src="vendor/firebase-firestore-compat.js"></script>
+<script>
+(function () {
+  'use strict';
+  var PLANS = window.AIVO_PLANS, PAY = window.AIVO_PAY, som = window.aivoFormatSom;
+  var STORE = 'aivoBuy';
+  var state = { plan: null, email: '', name: '', phone: '', code: '', step: 'plan' };
+  function $(id) { return document.getElementById(id); }
+
+  function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+  function load() { try { return JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) { return null; } }
+  function clearSaved() { try { localStorage.removeItem(STORE); } catch (e) {} }
+
+  var db = null;
+  try {
+    firebase.initializeApp({
+      apiKey: 'AIzaSyC1zdM8WU5C29Skn7WUhzsX3VzKUlT7dxo',
+      authDomain: 'aivo-scan.firebaseapp.com',
+      projectId: 'aivo-scan',
+      storageBucket: 'aivo-scan.firebasestorage.app',
+      messagingSenderId: '104812750903',
+      appId: '1:104812750903:web:42f097a49719748af5f7b2'
+    });
+    db = firebase.firestore();
+  } catch (e) { db = null; }
+
+  // ---------- тарифы ----------
+  Object.keys(PLANS).forEach(function (key) {
+    var p = PLANS[key];
+    var box = document.querySelector('.options[data-group="' + p.group + '"]');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'opt';
+    btn.dataset.plan = key;
+    btn.setAttribute('aria-pressed', 'false');
+    var note = '';
+    if (p.months === 12) {
+      var monthly = null;
+      Object.keys(PLANS).forEach(function (k) { if (PLANS[k].group === p.group && PLANS[k].months === 1) monthly = PLANS[k]; });
+      if (monthly && monthly.price * 12 > p.price) note = 'выгода ' + som(monthly.price * 12 - p.price);
+    }
+    btn.innerHTML = '<span><span class="opt-name">' + p.short + '</span>' + (note ? '<span class="opt-note">' + note + '</span>' : '') + '</span>' +
+      '<span class="opt-price">' + som(p.price) + ' <small>/ ' + (p.months === 12 ? 'год' : 'мес') + '</small></span>';
+    btn.addEventListener('click', function () { choosePlan(key, true); });
+    box.appendChild(btn);
+  });
+
+  function choosePlan(key, scroll) {
+    if (!PLANS[key]) return;
+    state.plan = key;
+    document.querySelectorAll('.opt').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.plan === key)); });
+    var p = PLANS[key];
+    $('sumPlan').textContent = p.title + ' · до ' + p.devices + ' устройств';
+    $('sumPrice').textContent = som(p.price);
+    $('fNameLabel').textContent = p.group === 'shop' ? 'Название цеха' : 'Ваше имя';
+    $('fName').setAttribute('autocomplete', p.group === 'shop' ? 'organization' : 'name');
+    show('form');
+    if (scroll) $('stepForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    save();
+  }
+
+  function show(step) {
+    state.step = step;
+    $('stepForm').classList.toggle('hidden', !(step === 'form' || step === 'pay'));
+    $('stepPay').classList.toggle('hidden', step !== 'pay');
+    $('stepDone').classList.toggle('hidden', step !== 'done');
+    $('stepPlan').classList.toggle('hidden', step === 'done');
+    if (step === 'pay' || step === 'done') $('stepForm').classList.add('hidden');
+  }
+
+  // ---------- данные ----------
+  function makeCode() {
+    var abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', s = '';
+    var rnd = new Uint32Array(4);
+    (window.crypto || window.msCrypto).getRandomValues(rnd);
+    for (var i = 0; i < 4; i++) s += abc[rnd[i] % abc.length];
+    return 'AV-' + s;
+  }
+
+  $('orderForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = $('fEmail').value.trim().toLowerCase();
+    var name = $('fName').value.trim();
+    var phone = $('fPhone').value.trim();
+    var bad = null;
+    ['fEmail', 'fName', 'fPhone'].forEach(function (id) { $(id).removeAttribute('aria-invalid'); });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) bad = ['fEmail', 'Проверьте email: на него придёт письмо для входа.'];
+    else if (name.length < 2) bad = ['fName', 'Укажите ' + ($('fNameLabel').textContent.toLowerCase()) + '.'];
+    else if (phone.replace(/\D/g, '').length < 9) bad = ['fPhone', 'Укажите телефон, чтобы мы могли связаться.'];
+    if (bad) { $(bad[0]).setAttribute('aria-invalid', 'true'); $(bad[0]).focus(); $('formErr').textContent = bad[1]; return; }
+    $('formErr').textContent = '';
+    state.email = email; state.name = name; state.phone = phone;
+    if (!state.code) state.code = makeCode();
+    fillPay();
+    show('pay');
+    save();
+    $('stepPay').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // ---------- оплата ----------
+  function fillPay() {
+    var p = PLANS[state.plan];
+    $('payAmount').textContent = som(p.price);
+    $('howAmount').textContent = som(p.price);
+    $('payCode').textContent = state.code;
+    $('howCode').textContent = state.code;
+    $('receiver').textContent = PAY.receiver;
+    $('mbankBtn').href = PAY.mbankUrl;
+    $('payErr').textContent = '';
+  }
+
+  $('copyCode').addEventListener('click', function () {
+    var btn = this;
+    function ok() { btn.textContent = 'скопировано'; setTimeout(function () { btn.textContent = 'копировать'; }, 1500); }
+    if (navigator.clipboard) navigator.clipboard.writeText(state.code).then(ok, function () {});
+  });
+
+  $('backBtn').addEventListener('click', function () {
+    show('form');
+    $('stepForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    save();
+  });
+
+  function waLink() {
+    var p = PLANS[state.plan];
+    var text = 'Здравствуйте! Оплатил Aivo Scan.\nЗаявка: ' + state.code + '\nТариф: ' + p.title + ', ' + p.price + ' сом\nEmail: ' + state.email + '\n(чек прикладываю)';
+    return 'https://wa.me/' + PAY.whatsapp + '?text=' + encodeURIComponent(text);
+  }
+
+  $('paidBtn').addEventListener('click', function () {
+    var btn = this;
+    var p = PLANS[state.plan];
+    if (!db) { $('payErr').innerHTML = 'Не удалось отправить заявку. <a href="' + waLink() + '" target="_blank" rel="noopener">Напишите нам в WhatsApp</a>, указав код ' + state.code + '.'; return; }
+    btn.disabled = true;
+    btn.textContent = 'Отправляем…';
+    db.collection('orders').doc(state.code).set({
+      code: state.code,
+      plan: state.plan,
+      amount: p.price,
+      email: state.email,
+      name: state.name,
+      phone: state.phone,
+      status: 'new',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function () {
+      $('doneCode').textContent = state.code;
+      $('doneMail').textContent = 'Когда доступ будет включён, войдите в приложение с email ' + state.email + '. Если аккаунт новый, на этот email придёт письмо для установки пароля.';
+      $('waBtn').href = waLink();
+      show('done');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      clearSaved();
+    }).catch(function () {
+      $('payErr').innerHTML = 'Не удалось отправить заявку. <a href="' + waLink() + '" target="_blank" rel="noopener">Напишите нам в WhatsApp</a>, указав код ' + state.code + '.';
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = 'Я оплатил';
+    });
+  });
+
+  // ---------- восстановление (после перехода в M Bank страница может перезагрузиться) ----------
+  var saved = load();
+  var fromUrl = new URLSearchParams(location.search).get('plan');
+  if (saved && saved.plan && PLANS[saved.plan]) {
+    state = saved;
+    $('fEmail').value = state.email || '';
+    $('fName').value = state.name || '';
+    $('fPhone').value = state.phone || '';
+    choosePlan(state.plan, false);
+    if (saved.step === 'pay' && state.code && state.email) { fillPay(); show('pay'); save(); }
+  } else if (fromUrl && PLANS[fromUrl]) {
+    choosePlan(fromUrl, false);
+  }
+})();
+</script>
+</body>
+</html>

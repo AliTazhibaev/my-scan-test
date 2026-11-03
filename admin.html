@@ -125,6 +125,12 @@
     .user-devices { font-size: 11px; color: var(--text3); margin-bottom: 10px; }
     .user-device { padding: 4px 0; border-top: 1px solid rgba(255,255,255,0.04); }
     .user-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .orders-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 12px; }
+    .orders-filter { font-size: 12px; color: var(--text2); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .order-code { font-family: ui-monospace, Menlo, monospace; color: #F5C542; font-weight: 700; }
+    .order-sum { font-size: 18px; font-weight: 800; color: var(--accent); }
+    .order-card.new { border-color: rgba(245,197,66,0.35); }
+    .order-card.done { opacity: 0.6; }
 
     /* MODAL */
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
@@ -239,11 +245,21 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Создать аккаунт
     </button>
-    <button class="btn btn-ghost btn-sm" onclick="loadUsers()">
+    <button class="btn btn-ghost btn-sm" onclick="loadOrders(); loadUsers()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Обновить
     </button>
   </div>
+
+  <!-- ORDERS -->
+  <div class="orders-head">
+    <span class="section-title-accent">Заявки на оплату</span>
+    <label class="orders-filter"><input type="checkbox" id="ordersAll" onchange="loadOrders()"> показать обработанные</label>
+  </div>
+  <div class="user-list" id="orderList" style="margin-bottom:28px">
+    <div class="empty"><p>Загрузка заявок…</p></div>
+  </div>
+  <div class="orders-head"><span class="section-title-accent">Аккаунты</span></div>
 
   <!-- USER LIST -->
   <div class="user-list" id="userList">
@@ -349,6 +365,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="plans.js?v=1"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyC1zdM8WU5C29Skn7WUhzsX3VzKUlT7dxo",
@@ -472,6 +489,7 @@ async function doLogin() {
     document.getElementById('loginView').style.display = 'none';
     document.getElementById('adminView').classList.add('active');
     document.getElementById('adminEmail').textContent = email;
+    loadOrders();
     loadUsers();
   } catch (e) {
     let msg = 'Ошибка авторизации';
@@ -714,6 +732,153 @@ function updateStats(total, active, expired, devices) {
   document.getElementById('statActive').textContent = active;
   document.getElementById('statExpired').textContent = expired;
   document.getElementById('statDevices').textContent = devices;
+}
+
+// === ЗАЯВКИ НА ОПЛАТУ (с сайта buy.html) ===
+// Подтверждение: если аккаунт с этим email есть — продлеваем срок (от текущей даты
+// окончания, если она ещё не прошла); если нет — создаём аккаунт и отправляем письмо
+// для установки пароля.
+const ordersById = new Map();
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function addMonths(date, months) {
+  const d = new Date(date.getTime());
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() < day) d.setDate(0); // 31 янв + 1 мес = 28/29 фев
+  return d;
+}
+function randomPassword() {
+  const abc = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const r = new Uint32Array(12); crypto.getRandomValues(r);
+  return Array.from(r, n => abc[n % abc.length]).join('');
+}
+const ORDER_STATUS = { new: ['Новая', 'badge-frozen'], confirmed: ['Подтверждена', 'badge-active'], rejected: ['Отклонена', 'badge-expired'] };
+
+async function loadOrders() {
+  const box = document.getElementById('orderList');
+  const showAll = document.getElementById('ordersAll').checked;
+  box.innerHTML = '<div class="empty"><p>Загрузка заявок…</p></div>';
+  try {
+    const snap = await db.collection('orders').orderBy('createdAt', 'desc').limit(100).get();
+    ordersById.clear();
+    let html = '';
+    snap.forEach(doc => {
+      const o = doc.data();
+      ordersById.set(doc.id, o);
+      if (!showAll && o.status !== 'new') return;
+      const plan = (window.AIVO_PLANS || {})[o.plan];
+      const st = ORDER_STATUS[o.status] || [o.status, 'badge-free'];
+      const when = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate().toLocaleString('ru-RU') : '';
+      html += '<div class="user-card order-card ' + (o.status === 'new' ? 'new' : 'done') + '">';
+      html += '<div class="user-top"><div class="user-email"><span class="order-code">' + esc(o.code) + '</span> · ' + esc(o.email) + '</div><span class="user-badge ' + st[1] + '">' + esc(st[0]) + '</span></div>';
+      html += '<div class="user-meta"><span class="order-sum">' + esc(plan ? plan.price : o.amount) + ' сом</span><span>' + esc(plan ? plan.title : o.plan) + '</span><span>' + esc(when) + '</span></div>';
+      html += '<div class="user-meta"><span>👤 ' + esc(o.name) + '</span><span>📞 <a href="https://wa.me/' + esc(String(o.phone || '').replace(/\D/g, '')) + '" target="_blank" rel="noopener" style="color:inherit">' + esc(o.phone) + '</a></span></div>';
+      if (o.status === 'confirmed' && o.expiresAt) html += '<div class="user-meta"><span>✅ Доступ до ' + esc(o.expiresAt.toDate().toLocaleDateString('ru-RU')) + (o.newAccount ? ' · новый аккаунт' : ' · продлён') + '</span></div>';
+      if (o.status === 'new') {
+        html += '<div class="user-actions">';
+        html += '<button class="btn btn-primary btn-sm" onclick="confirmOrder(\'' + esc(doc.id) + '\', this)">✅ Оплата пришла — включить</button>';
+        html += '<button class="btn btn-danger btn-sm" onclick="rejectOrder(\'' + esc(doc.id) + '\')">✕ Отклонить</button>';
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    box.innerHTML = html || '<div class="empty"><p>' + (showAll ? 'Заявок пока нет' : 'Новых заявок нет') + '</p></div>';
+  } catch (e) {
+    box.innerHTML = '<div class="empty"><p>Заявки не загрузились: ' + esc(e.message) + '<br>Проверьте, что в правилах Firestore добавлен блок для orders.</p></div>';
+  }
+}
+
+async function confirmOrder(id, btn) {
+  const o = ordersById.get(id);
+  const plan = o && (window.AIVO_PLANS || {})[o.plan];
+  if (!o || !plan) { toast('❌ Неизвестный тариф в заявке'); return; }
+  const email = String(o.email || '').trim().toLowerCase();
+  try {
+    let snap = await db.collection('users').where('email', '==', email).get();
+    if (snap.empty && o.email !== email) snap = await db.collection('users').where('email', '==', o.email).get();
+    const now = new Date();
+    let uid, current = null, newAccount = false, prevLimit = 0;
+    if (!snap.empty) {
+      uid = snap.docs[0].id;
+      const u = snap.docs[0].data();
+      if (u.isAdmin || u.admin) { toast('❌ Это email администратора'); return; }
+      current = u.expiresAt && u.expiresAt.toDate ? u.expiresAt.toDate() : null;
+      prevLimit = u.deviceLimit || 0;
+    }
+    const base = current && current > now ? current : now;
+    const until = addMonths(base, plan.months);
+    const what = snap.empty
+      ? 'Создать НОВЫЙ аккаунт ' + email + '\nдоступ до ' + until.toLocaleDateString('ru-RU') + ', устройств: ' + plan.devices + '\n\nНа email уйдёт письмо для установки пароля.'
+      : 'Продлить аккаунт ' + email + '\nсейчас: ' + (current ? 'до ' + current.toLocaleDateString('ru-RU') : 'бессрочно') + '\nстанет: до ' + until.toLocaleDateString('ru-RU') + ', устройств: ' + Math.max(prevLimit, plan.devices);
+    if (!confirm('Оплата ' + plan.price + ' сом (' + o.code + ') пришла?\n\n' + what)) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Включаем…'; }
+    let tempPass = null;
+    if (snap.empty) {
+      tempPass = randomPassword();
+      const res = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + firebaseConfig.apiKey, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: tempPass, returnSecureToken: false })
+      });
+      const data = await res.json();
+      if (data.error) {
+        const msg = data.error.message === 'EMAIL_EXISTS'
+          ? 'Такой email уже есть во входе Firebase, но нет в списке аккаунтов. Создайте/продлите его вручную.'
+          : data.error.message;
+        throw new Error(msg);
+      }
+      uid = data.localId;
+      newAccount = true;
+    }
+    const userUpdate = {
+      email,
+      expiresAt: firebase.firestore.Timestamp.fromDate(until),
+      deviceLimit: Math.max(prevLimit, plan.devices),
+      frozen: false,
+      plan: o.plan,
+      name: o.name || '',
+      phone: o.phone || ''
+    };
+    await db.collection('users').doc(uid).set(userUpdate, { merge: true });
+    await db.collection('orders').doc(id).update({
+      status: 'confirmed',
+      confirmedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      uid, newAccount,
+      expiresAt: firebase.firestore.Timestamp.fromDate(until)
+    });
+    if (newAccount) {
+      let mailed = false;
+      try {
+        const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + firebaseConfig.apiKey, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestType: 'PASSWORD_RESET', email })
+        });
+        mailed = r.ok;
+      } catch (e) {}
+      alert('Аккаунт создан: ' + email + '\nДоступ до ' + until.toLocaleDateString('ru-RU') + '\n\n' +
+        (mailed ? 'Письмо для установки пароля отправлено.\n' : 'Письмо НЕ отправилось.\n') +
+        'Если письмо не придёт, отправьте клиенту временный пароль:\n' + tempPass);
+    } else {
+      toast('✅ Продлено до ' + until.toLocaleDateString('ru-RU') + ': ' + email);
+    }
+    loadOrders();
+    loadUsers();
+  } catch (e) {
+    toast('❌ ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Оплата пришла — включить'; }
+  }
+}
+
+async function rejectOrder(id) {
+  const o = ordersById.get(id);
+  if (!o || !confirm('Отклонить заявку ' + o.code + ' (' + o.email + ')?\nДоступ не изменится.')) return;
+  try {
+    await db.collection('orders').doc(id).update({ status: 'rejected', confirmedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    toast('Заявка ' + o.code + ' отклонена');
+    loadOrders();
+  } catch (e) { toast('❌ ' + e.message); }
 }
 
 // === ENTER KEY ===
