@@ -32,6 +32,22 @@ export function initNative(opts) {
     });
   }
 
+  // iPhone: «Поделиться / Открыть в → Aivo Scan» приходит как ссылка на файл (appUrlOpen).
+  if (App && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'ios') {
+    var openFileUrl = function (url) {
+      if (!url || !/^file:/i.test(url)) return;
+      var name = decodeURIComponent(url.split('/').pop() || 'Проект.json');
+      // iPhone кладёт повторно открытый файл как «имя-1.json», «имя-2.json» — это тот же проект.
+      name = name.replace(/-\d+(\.json)$/i, '$1');
+      fetch(window.Capacitor.convertFileSrc(url))
+        .then(function (r) { if (!r.ok) throw new Error('read'); return r.text(); })
+        .then(function (text) { opts.openShared(text, name); })
+        .catch(function () { if (opts.onShareError) opts.onShareError('Не удалось открыть файл'); });
+    };
+    App.addListener('appUrlOpen', function (e) { openFileUrl(e && e.url); });
+    App.getLaunchUrl().then(function (r) { if (r && r.url) openFileUrl(r.url); }).catch(function () {});
+  }
+
   var Share = plugin('AivoShare');
   if (Share) {
     var deliver = function (data) {

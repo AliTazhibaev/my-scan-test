@@ -2139,3 +2139,22 @@ body.light-theme .project-bar { background: rgba(0, 0, 0, 0.08); }
 
 /* приложение из магазинов: без ссылок на оплату */
 .is-native .login-buy { display: none; }
+
+/* ===== вырез, «чёлка» и полоска iPhone (viewport-fit=cover) =====
+   Раньше высота панелей была фиксированной, и отступ сверху/снизу «съедал» место:
+   на iPhone верхняя панель уходила под часы. Теперь высота = панель + отступ. */
+:root { --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px); }
+.top-panel { height: calc(46px + var(--safe-top)); }
+.drawer, .assembly-overlay, .isolation-bar { top: calc(46px + var(--safe-top)); }
+.toast, .checklist-panel { top: calc(54px + var(--safe-top)); }
+.bottom-toolbar { height: calc(64px + var(--safe-bottom)); }
+.bottom-sheet { bottom: calc(64px + var(--safe-bottom)); }
+.quick-actions { bottom: calc(72px + var(--safe-bottom)); }
+.checklist-panel { bottom: calc(70px + var(--safe-bottom)); }
+@media (min-width: 601px) { .toast { top: calc(56px + var(--safe-top)); } }
+@media (max-width: 600px) {
+  .top-panel { height: calc(44px + var(--safe-top)); }
+  .drawer, .assembly-overlay, .isolation-bar { top: calc(44px + var(--safe-top)); }
+  .bottom-toolbar { height: calc(58px + var(--safe-bottom)); }
+  .bottom-sheet { bottom: calc(58px + var(--safe-bottom)); }
+}
