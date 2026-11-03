@@ -124,6 +124,7 @@
     .user-meta span { display: flex; align-items: center; gap: 4px; }
     .user-devices { font-size: 11px; color: var(--text3); margin-bottom: 10px; }
     .user-device { padding: 4px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+    .dev-unlink { margin-left: 6px; background: none; border: 1px solid rgba(239,68,68,0.3); color: #ef4444; border-radius: 6px; font-size: 10px; padding: 2px 8px; cursor: pointer; }
     .user-actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .orders-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 12px; }
     .orders-filter { font-size: 12px; color: var(--text2); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
@@ -695,7 +696,8 @@ async function loadUsers() {
         for (const d of devicesSnap.docs) {
           const dd = d.data();
           const seen = dd.lastSeen ? new Date(dd.lastSeen.toDate()).toLocaleString('ru-RU') : dd.lastAccess ? new Date(dd.lastAccess.toDate()).toLocaleString('ru-RU') : '?';
-          devHtml += '<div class="user-device">📱 ' + (dd.name || 'unknown') + ' — ' + seen + '</div>';
+          devHtml += '<div class="user-device">📱 ' + esc(dd.name || 'unknown') + ' — ' + esc(seen) +
+            ' <button class="dev-unlink" onclick="unlinkDevice(\'' + esc(uid) + '\',\'' + esc(d.id) + '\')">отвязать</button></div>';
         }
         devHtml += '</div>';
       }
@@ -869,6 +871,15 @@ async function confirmOrder(id, btn) {
     toast('❌ ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = '✅ Оплата пришла — включить'; }
   }
+}
+
+async function unlinkDevice(uid, deviceId) {
+  if (!confirm('Отвязать это устройство?\nНа этом устройстве приложение выйдет из аккаунта при следующей проверке, место освободится.')) return;
+  try {
+    await db.collection('users').doc(uid).collection('devices').doc(deviceId).delete();
+    toast('✅ Устройство отвязано');
+    loadUsers();
+  } catch (e) { toast('❌ ' + e.message); }
 }
 
 async function rejectOrder(id) {

@@ -2110,3 +2110,30 @@ body.light-theme .project-bar { background: rgba(0, 0, 0, 0.08); }
 .login-buy { display: flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 10px;
   color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 10px; }
 .login-buy:hover { text-decoration: underline; }
+
+/* ===== аккаунт в меню ===== */
+.account-info { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 12px; }
+.account-text { min-width: 0; }
+.account-email { font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.account-logout { flex: none; min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary); font: 600 12px/1 inherit; font-family: inherit; cursor: pointer; }
+.account-logout:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+
+/* ===== экран проверки доступа (src/auth.js) ===== */
+.gate { position: fixed; inset: 0; z-index: 500; display: none; align-items: center; justify-content: center;
+  padding: 24px 16px; background: rgba(7, 9, 11, 0.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.gate.show { display: flex; }
+.gate-box { width: 100%; max-width: 400px; text-align: center; color: #f2f5f4; }
+.gate-icon { font-size: 44px; line-height: 1; margin-bottom: 18px; }
+.gate-title { font-family: var(--display, inherit); font-size: 20px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.01em; }
+.gate-text { font-size: 14px; line-height: 1.55; color: rgba(242, 245, 244, 0.72); margin: 0 0 22px; }
+.gate-actions { display: flex; flex-direction: column; gap: 10px; }
+.gate-btn { display: flex; align-items: center; justify-content: center; min-height: 50px; padding: 0 20px; border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.04); color: #f2f5f4;
+  font: 700 15px/1 inherit; font-family: inherit; text-decoration: none; cursor: pointer; }
+.gate-btn.primary { background: #00D4AA; border-color: #00D4AA; color: #00140f; }
+.gate-logout { margin-top: 18px; min-height: 44px; background: none; border: 0; color: rgba(242, 245, 244, 0.55);
+  font: 500 13px/1 inherit; font-family: inherit; text-decoration: underline; cursor: pointer; }
+
