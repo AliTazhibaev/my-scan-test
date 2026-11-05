@@ -246,7 +246,7 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Создать аккаунт
     </button>
-    <button class="btn btn-ghost btn-sm" onclick="loadOrders(); loadUsers()">
+    <button class="btn btn-ghost btn-sm" onclick="loadOrders(); loadDeleteRequests(); loadUsers()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Обновить
     </button>
@@ -259,6 +259,10 @@
   </div>
   <div class="user-list" id="orderList" style="margin-bottom:28px">
     <div class="empty"><p>Загрузка заявок…</p></div>
+  </div>
+  <div id="delReqBlock" style="display:none">
+    <div class="orders-head"><span class="section-title-accent" style="color:#ef4444">Заявки на удаление аккаунта</span></div>
+    <div class="user-list" id="delReqList" style="margin-bottom:28px"></div>
   </div>
   <div class="orders-head"><span class="section-title-accent">Аккаунты</span></div>
 
@@ -491,6 +495,7 @@ async function doLogin() {
     document.getElementById('adminView').classList.add('active');
     document.getElementById('adminEmail').textContent = email;
     loadOrders();
+    loadDeleteRequests();
     loadUsers();
   } catch (e) {
     let msg = 'Ошибка авторизации';
@@ -627,19 +632,78 @@ async function doReset() {
 }
 
 // === DELETE ===
+// Удаление аккаунта: данные + устройства + метка «удалён» (deleteRequests/{uid}, status done).
+// По метке приложение выходит из аккаунта и удаляет вход. Без метки удалённый аккаунт
+// мог бы войти снова и работать «бессрочно».
+async function eraseAccount(uid, email) {
+  const devicesSnap = await db.collection('users').doc(uid).collection('devices').get();
+  const batch = db.batch();
+  for (const d of devicesSnap.docs) batch.delete(d.ref);
+  batch.delete(db.collection('users').doc(uid));
+  batch.set(db.collection('deleteRequests').doc(uid), {
+    uid, email: email || '', status: 'done',
+    doneAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+  await batch.commit();
+}
 async function doDelete(uid, email) {
   if (!confirm('Удалить аккаунт ' + email + '? Это нельзя отменить!')) return;
   try {
-    const devicesSnap = await db.collection('users').doc(uid).collection('devices').get();
-    const batch = db.batch();
-    for (const d of devicesSnap.docs) batch.delete(d.ref);
-    batch.delete(db.collection('users').doc(uid));
-    await batch.commit();
+    await eraseAccount(uid, email);
     toast('✅ Удалено: ' + email);
     loadUsers();
+    loadDeleteRequests();
   } catch (e) {
     toast('❌ ' + e.message);
   }
+}
+
+// === ЗАЯВКИ НА УДАЛЕНИЕ (из приложения) ===
+async function loadDeleteRequests() {
+  const block = document.getElementById('delReqBlock');
+  const box = document.getElementById('delReqList');
+  try {
+    const snap = await db.collection('deleteRequests').where('status', '==', 'new').get();
+    if (snap.empty) { block.style.display = 'none'; return; }
+    let html = '';
+    snap.forEach(doc => {
+      const r = doc.data();
+      const when = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate().toLocaleString('ru-RU') : '';
+      html += '<div class="user-card" style="border-color:rgba(239,68,68,0.35)">';
+      html += '<div class="user-top"><div class="user-email">' + esc(r.email) + '</div><span class="user-badge badge-expired">Удалить</span></div>';
+      html += '<div class="user-meta"><span>📱 ' + esc(r.device || '') + '</span><span>' + esc(when) + '</span></div>';
+      html += '<div class="user-meta"><span>Удалить в течение 7 дней. Если это аккаунт цеха, лучше сначала позвонить клиенту.</span></div>';
+      html += '<div class="user-actions">';
+      html += '<button class="btn btn-danger btn-sm" onclick="approveDelete(\'' + esc(doc.id) + '\')">🗑 Удалить аккаунт и данные</button>';
+      html += '<button class="btn btn-ghost btn-sm" onclick="rejectDelete(\'' + esc(doc.id) + '\')">Клиент передумал</button>';
+      html += '</div></div>';
+      delReqEmails.set(doc.id, r.email || '');
+    });
+    box.innerHTML = html;
+    block.style.display = '';
+  } catch (e) {
+    block.style.display = '';
+    box.innerHTML = '<div class="empty"><p>Заявки на удаление не загрузились: ' + esc(e.message) + '<br>Проверьте правила Firestore (блок deleteRequests).</p></div>';
+  }
+}
+const delReqEmails = new Map();
+async function approveDelete(uid) {
+  const email = delReqEmails.get(uid) || uid;
+  if (!confirm('Удалить аккаунт ' + email + ' и все его данные? Это нельзя отменить.')) return;
+  try {
+    await eraseAccount(uid, email);
+    toast('✅ Аккаунт удалён: ' + email);
+    loadDeleteRequests();
+    loadUsers();
+  } catch (e) { toast('❌ ' + e.message); }
+}
+async function rejectDelete(uid) {
+  if (!confirm('Клиент передумал? Заявка закроется, аккаунт останется.')) return;
+  try {
+    await db.collection('deleteRequests').doc(uid).delete();
+    toast('Заявка закрыта');
+    loadDeleteRequests();
+  } catch (e) { toast('❌ ' + e.message); }
 }
 
 // === LOAD USERS ===

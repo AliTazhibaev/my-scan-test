@@ -2177,3 +2177,11 @@ body.light-theme .project-bar { background: rgba(0, 0, 0, 0.08); }
 .stat-row span:last-child { flex: none; font-weight: 600; white-space: nowrap; }
 .stat-empty { font-size: 12px; color: var(--text-tertiary); padding: 4px 0; }
 #statsModal .modal-box { max-height: 82vh; overflow-y: auto; }
+
+/* удаление аккаунта и окно пароля */
+.account-delete { display: block; margin: -6px 0 12px auto; min-height: 32px; padding: 0 4px; background: none; border: 0;
+  color: var(--text-tertiary); font-family: inherit; font-size: 11px; text-decoration: underline; cursor: pointer; }
+.account-delete:hover { color: #ef4444; }
+.pw-input { width: 100%; min-height: 46px; padding: 0 12px; margin-bottom: 6px; border-radius: 10px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text-primary); font-size: 16px; font-family: inherit; }
+.pw-error { min-height: 18px; color: #ef4444; font-size: 12px; margin-bottom: 8px; }

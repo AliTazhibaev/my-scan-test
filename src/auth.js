@@ -5,7 +5,7 @@
 
 import { readPass, makePass, clearPass, evaluatePass, passNow, touchPass, daysLeft, OFFLINE_DAYS } from './license.js';
 import { showToast } from './ui.js';
-import { askConfirm } from './dialog.js';
+import { askConfirm, askPassword } from './dialog.js';
 import { isNative } from './native.js';
 
 let currentUser = null;
@@ -189,6 +189,12 @@ async function verifyDevice(user) {
 async function refreshPass(user) {
   let serverNow = isNative() ? null : await fetchServerTime();
   const doc = await withTimeout(db.collection('users').doc(user.uid).get(), 8000);
+  // Аккаунт удалён администратором (по заявке или вручную): данных нет, а метка удаления есть.
+  if (!doc.exists) {
+    let mark = null;
+    try { mark = await withTimeout(db.collection('deleteRequests').doc(user.uid).get(), 8000); } catch (e) {}
+    if (mark && mark.exists && mark.data().status === 'done') return { deleted: true };
+  }
   if (!serverNow) { try { serverNow = await firestoreTime(user); } catch (e) {} }
   const deviceNow = Date.now();
   const data = doc.exists ? doc.data() : {};
@@ -221,6 +227,11 @@ async function runGate(user) {
     else showGate('checking');
     try {
       const r = await refreshPass(user);
+      if (r.deleted) {
+        try { await auth.currentUser.delete(); } catch (e) {}
+        await leave('Этот аккаунт удалён.', false);
+        return;
+      }
       if (r.device === 'unlinked') { await leave('Это устройство отвязано от аккаунта. Войдите снова.', false); return; }
       if (r.device === 'limit') { showGate('limit'); return; }
       verdict = evaluatePass(r.pass, passNow(r.pass));
@@ -280,6 +291,40 @@ async function leave(message, unlink) {
 function askLogout() {
   askConfirm('Выйти из аккаунта на этом устройстве? Устройство освободится, и на его место можно будет войти с другого телефона. Проекты в этом телефоне сохранятся.', { ok: 'Выйти', danger: true })
     .then(ok => { if (ok) leave('', true); });
+}
+
+// Заявка на удаление аккаунта (требование App Store / Google Play).
+// Сразу не удаляем: аккаунтом цеха пользуются несколько сборщиков, удаляет администратор.
+async function askDeleteAccount() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const ok = await askConfirm('Удалить аккаунт ' + (user.email || '') + ' и все его данные? Доступ пропадёт на всех устройствах этого аккаунта, вернуть его будет нельзя.', { ok: 'Продолжить', danger: true });
+  if (!ok) return;
+  let error = '';
+  for (;;) {
+    const pass = await askPassword('Для подтверждения введите пароль от аккаунта.', { ok: 'Отправить заявку', error: error });
+    if (!pass) return;
+    try {
+      const cred = firebase.auth.EmailAuthProvider.credential(user.email, pass);
+      await user.reauthenticateWithCredential(cred);
+      break;
+    } catch (e) {
+      error = (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential' || e.code === 'auth/invalid-login-credentials'))
+        ? 'Неверный пароль' : 'Не получилось проверить пароль. Проверьте интернет.';
+    }
+  }
+  try {
+    await db.collection('deleteRequests').doc(user.uid).set({
+      uid: user.uid,
+      email: user.email || '',
+      status: 'new',
+      device: getDeviceName(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await askConfirm('Заявка на удаление отправлена. Аккаунт и все данные будут удалены в течение 7 дней. Если передумаете, напишите нам.', { ok: 'Понятно' });
+  } catch (e) {
+    await askConfirm('Заявка уже отправлена ранее или нет связи. Если аккаунт не удалят в течение 7 дней, напишите нам: +996 990 551 884.', { ok: 'Понятно' });
+  }
 }
 
 // ---------- экран «нет доступа» ----------
@@ -351,6 +396,8 @@ function updateAccountInfo() {
   box.querySelector('.account-email').textContent = user.email || '';
   box.querySelector('.account-meta').textContent = line;
   box.style.display = '';
+  const del = document.getElementById('deleteAccountBtn');
+  if (del) del.style.display = '';
 }
 
 // === Onboarding ===
@@ -421,6 +468,8 @@ export function initAuth() {
 
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) logoutBtn.addEventListener('click', askLogout);
+  const deleteBtn = document.getElementById('deleteAccountBtn');
+  if (deleteBtn) deleteBtn.addEventListener('click', askDeleteAccount);
 
   // Сообщение после выхода (например, «устройство отвязано»).
   try {

@@ -30,7 +30,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap&subset=cyrillic">
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
 
@@ -205,6 +205,7 @@
       <div class="account-text"><div class="account-email"></div><div class="account-meta"></div></div>
       <button type="button" class="account-logout" id="logoutBtn">Выйти</button>
     </div>
+    <button type="button" class="account-delete" id="deleteAccountBtn" style="display:none">Удалить аккаунт</button>
     <div id="projectsBlock" class="projects-block" style="display:none">
       <div class="projects-title">МОИ ПРОЕКТЫ</div>
       <div id="projectsList" class="projects-list"></div>
@@ -360,7 +361,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 </script>
-<script type="module" src="app.js?v=18"></script>
+<script type="module" src="app.js?v=19"></script>
 <script>
 // Register Service Worker + auto-update
 if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
