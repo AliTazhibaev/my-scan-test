@@ -34,6 +34,7 @@ function keyOf(part, field) {
 function pick(list, scanned) {
   var free = list.filter(function (p) { return !scanned.has(p.id); });
   return {
+    all: list,
     part: free.length ? free[0] : list[0],
     copies: list.length,
     copiesDone: list.length - free.length + (free.length ? 1 : 0),

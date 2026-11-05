@@ -62,6 +62,26 @@ export function startSmoothZoom(partId) {
   setAutoRotate(false);
 }
 
+// Плавно показать сразу несколько деталей (одинаковые панели при скане).
+export function startSmoothZoomMany(ids) {
+  const list = parts.filter(p => ids.indexOf(p.id) >= 0 && p._pos && p._size);
+  if (!list.length) return;
+  if (list.length === 1) { startSmoothZoom(list[0].id); return; }
+  let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  list.forEach(p => {
+    minX = Math.min(minX, p._pos.x - p._size.x / 2); maxX = Math.max(maxX, p._pos.x + p._size.x / 2);
+    minY = Math.min(minY, p._pos.y - p._size.y / 2); maxY = Math.max(maxY, p._pos.y + p._size.y / 2);
+    minZ = Math.min(minZ, p._pos.z - p._size.z / 2); maxZ = Math.max(maxZ, p._pos.z + p._size.z / 2);
+  });
+  zoomPartCenter = new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+  const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+  const dist = Math.max(size * 1.8, 0.8);
+  const dir = camera.position.clone().sub(zoomPartCenter).normalize();
+  zoomTarget.set(zoomPartCenter.x + dir.x * dist, zoomPartCenter.y + dir.y * dist, zoomPartCenter.z + dir.z * dist);
+  setIsSmoothZoom(true);
+  setAutoRotate(false);
+}
+
 export function animateSmoothZoom() {
   if (!isSmoothZoom) return;
   const lerpFactor = 0.12;

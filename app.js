@@ -12,7 +12,7 @@ import { initNative } from './src/native.js';
 import { fastenerSummary, grooveSummary, holeSummary, materialSummary, massKg } from './src/stats.js';
 import {
   initCamera, setupCameraControls, updateCamera,
-  startSmoothZoom, animateSmoothZoom, invalidateVisibleCache,
+  startSmoothZoom, startSmoothZoomMany, animateSmoothZoom, invalidateVisibleCache,
   startRulerMode, stopRulerMode
 } from './src/camera.js';
 import { initAssembly } from './src/assembly.js';
@@ -1383,6 +1383,48 @@ window._onBlockModeOff = function() {
   clearModuleHighlight();
   if (keep !== null && meshMap.has(keep)) selectPart(keep);
 };
+// Подсветить набор деталей (блок или одинаковые панели), остальное — полупрозрачно.
+function _highlightSet(ids, primaryId) {
+  _moduleHighlightActive = true;
+  meshMap.forEach(function(mesh, id) {
+    if (ids.has(id)) {
+      _setSelectedMaterial(mesh, id === primaryId);
+    } else {
+      mesh.material.emissive.setHex(0);
+      mesh.material.emissiveIntensity = 0;
+      mesh.material.transparent = true;
+      mesh.material.opacity = 0.3;
+      mesh.material.depthWrite = false;
+      mesh.material.needsUpdate = true;
+    }
+  });
+  meshMap.forEach(function(mesh, id) {
+    if (ids.has(id)) {
+      if (!hiddenSet.has(id) && mesh.visible) _showEdgePart(id);
+      _setEdgeHex(id, 0x00D4AA);
+    } else {
+      _hideEdgePart(id);
+    }
+  });
+  invalidateVisibleCache();
+  setNeedsRender(true);
+}
+// Скан детали, у которой есть одинаковые копии: показываем все места, куда она подходит.
+function selectCopies(found) {
+  if (!found || !found.all || found.all.length < 2) {
+    selectPart(found.part.id);
+    startSmoothZoom(found.part.id);
+    return;
+  }
+  var ids = found.all.map(function(p) { return p.id; });
+  _currentSheetPartId = null;
+  setSelectedId(found.part.id);
+  _highlightSet(new Set(ids), found.part.id);
+  updateSheet(found.part);
+  renderPartsList();
+  openSheet();
+  startSmoothZoomMany(ids);
+}
 function selectModuleHighlight(moduleKey, clickedId) {
   _currentSheetPartId = null;
   setSelectedId(clickedId);
@@ -1987,7 +2029,7 @@ function printSpecification() {
 function scanToast(found) {
   var name = found.part.name || found.part.code || "Деталь";
   if (found.allDone) return "ℹ️ " + name + ": все " + found.copies + " шт. уже отмечены";
-  return "✅ " + name + (found.copies > 1 ? " (" + found.copiesDone + " из " + found.copies + ")" : "");
+  return "✅ " + name + (found.copies > 1 ? " (" + found.copiesDone + " из " + found.copies + ") — подсвечены все " + found.copies : "");
 }
 function handleScan(scanData) {
   var found = findPartByScan(parts, scannedSet, scanData, idMode);
@@ -1998,8 +2040,7 @@ function handleScan(scanData) {
   var foundPart = found.part;
   scannedSet.add(foundPart.id);
   updateStats();
-  selectPart(foundPart.id);
-  startSmoothZoom(foundPart.id);
+  selectCopies(found);
   showToast(scanToast(found));
   saveProgress();
   renderPartsList();
@@ -2107,8 +2148,7 @@ function handleChecklistScan(scanData) {
   scannedSet.add(foundPart.id);
   updateStats();
   saveProgress();
-  selectPart(foundPart.id);
-  startSmoothZoom(foundPart.id);
+  selectCopies(found);
   showChecklistFlash(foundPart, false, found);
   if (_checklistOpen) renderChecklist();
 }
