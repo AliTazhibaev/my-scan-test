@@ -74,8 +74,11 @@ export function startSmoothZoomMany(ids) {
     minZ = Math.min(minZ, p._pos.z - p._size.z / 2); maxZ = Math.max(maxZ, p._pos.z + p._size.z / 2);
   });
   zoomPartCenter = new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
-  const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
-  const dist = Math.max(size * 1.8, 0.8);
+  // Все копии должны влезть в экран и на телефоне стоя (узкий кадр).
+  const r = Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) / 2;
+  const vHalf = (camera.fov || 50) * Math.PI / 360;
+  const hHalf = Math.atan(Math.tan(vHalf) * (camera.aspect || 1));
+  const dist = Math.max(r / Math.sin(Math.min(vHalf, hHalf)) * 1.05, 0.8);
   const dir = camera.position.clone().sub(zoomPartCenter).normalize();
   zoomTarget.set(zoomPartCenter.x + dir.x * dist, zoomPartCenter.y + dir.y * dist, zoomPartCenter.z + dir.z * dist);
   setIsSmoothZoom(true);

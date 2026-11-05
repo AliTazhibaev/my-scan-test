@@ -1338,10 +1338,19 @@ function centerCamera() {
     maxZ = Math.max(maxZ, part._pos.z + part._size.z / 2);
   });
   targetPosition.set((minX + maxX) / 2, (minY2 + maxY) / 2, (minZ + maxZ) / 2);
-  const maxExtent = Math.max(maxX - minX, maxY - minY2, maxZ - minZ);
-  setCamDist(Math.max(maxExtent * 1.5, 2));
+  setCamDist(Math.max(fitDistance(maxX - minX, maxY - minY2, maxZ - minZ), 2));
   _updateContactShadow(minX, maxX, minY2, minZ, maxZ, (minX + maxX) / 2, (minZ + maxZ) / 2);
   updateCamera();
+}
+
+// Расстояние камеры, чтобы модель целиком влезла в экран — и в широкий (компьютер),
+// и в узкий (телефон стоя: раньше широкий шкаф обрезался по бокам).
+function fitDistance(w, h, d) {
+  var r = Math.sqrt(w * w + h * h + d * d) / 2;
+  var aspect = (camera && camera.aspect) || (window.innerWidth / window.innerHeight) || 1;
+  var vHalf = ((camera && camera.fov) || 50) * Math.PI / 360;
+  var hHalf = Math.atan(Math.tan(vHalf) * aspect);
+  return r / Math.sin(Math.min(vHalf, hHalf)) * 0.78;
 }
 
 // === Подсветка: одно «нормальное» состояние панели и сброс подсветки блока ===
@@ -1796,8 +1805,7 @@ function centerCameraOnParts(partsArr) {
     maxZ = Math.max(maxZ, p._pos.z + p._size.z / 2);
   });
   targetPosition.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
-  var maxExtent = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
-  setCamDist(Math.max(maxExtent * 2, 1.5));
+  setCamDist(Math.max(fitDistance(maxX - minX, maxY - minY, maxZ - minZ) * 1.1, 1.5));
   updateCamera();
 }
 function explodeIsolatedModule() {
@@ -2388,6 +2396,14 @@ initNative({
     if (_3dInitialized) openSharedProject(text, name);
     else window._pendingShared = { text: text, name: name };
   }
+});
+// Пример проекта (шкаф): чтобы посмотреть приложение без своего файла из Базиса.
+document.getElementById("demoBtn").addEventListener("click", function() {
+  showToast("Открываем пример…");
+  fetch("demo/primer-shkaf.json")
+    .then(function(r) { if (!r.ok) throw new Error("load"); return r.text(); })
+    .then(function(text) { openSharedProject(text, "Пример.json"); })
+    .catch(function() { showToast("❌ Не удалось открыть пример"); });
 });
 renderProjects();
 
