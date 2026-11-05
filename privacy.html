@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Политика конфиденциальности — Aivo Scan</title>
+  <meta name="description" content="Какие данные собирает Aivo Scan, зачем, где они хранятся и как удалить аккаунт.">
+  <link rel="canonical" href="https://aivoscan.work/privacy.html">
+  <meta name="theme-color" content="#07090b">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap">
+  <style>
+    :root {
+      --bg: #07090b; --line: rgba(255, 255, 255, 0.08); --line-2: rgba(255, 255, 255, 0.14);
+      --text: #f2f5f4; --text-2: rgba(242, 245, 244, 0.74); --text-3: rgba(242, 245, 244, 0.55);
+      --accent: #00D4AA; --accent-dim: rgba(0, 212, 170, 0.14);
+      --display: 'Unbounded', 'Inter', system-ui, sans-serif;
+      --body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --gutter: clamp(16px, 4vw, 48px);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: var(--body); background: var(--bg); color: var(--text); line-height: 1.65; font-size: 16px; overflow-x: clip; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+    .wrap { width: 100%; max-width: 780px; margin: 0 auto; padding: 0 var(--gutter); }
+    .backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background: radial-gradient(60% 40% at 80% 0%, rgba(0, 212, 170, 0.12), transparent 70%), var(--bg); }
+    .nav { height: 68px; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+    .nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 1080px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); font-family: var(--display); font-weight: 700; font-size: 15px; min-height: 44px; }
+    .brand img { width: 32px; height: 32px; border-radius: 9px; }
+    .nav-link { text-decoration: none; color: var(--text-2); font-size: 14px; font-weight: 500; min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 12px; }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .eyebrow { display: inline-flex; align-items: center; gap: 10px; font: 700 12px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+    .eyebrow::before { content: ''; width: 22px; height: 1px; background: currentColor; }
+    h1 { font-family: var(--display); font-weight: 800; font-size: clamp(28px, 5vw, 46px); line-height: 1.08; letter-spacing: -0.03em; margin: 16px 0 12px; text-wrap: balance; }
+    .head { padding: clamp(36px, 6vw, 64px) 0 clamp(20px, 3vw, 32px); border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+    .date { color: var(--text-3); font-size: 14px; }
+    .short { margin: 24px 0 8px; padding: 18px 20px; border-radius: 16px; background: var(--accent-dim); border: 1px solid rgba(0, 212, 170, 0.3); }
+    .short p { color: var(--text); }
+    h2 { font-family: var(--display); font-weight: 700; font-size: clamp(18px, 2.4vw, 22px); letter-spacing: -0.01em; margin: 40px 0 12px; scroll-margin-top: 16px; }
+    p, li { color: var(--text-2); }
+    p + p { margin-top: 10px; }
+    ul { padding-left: 22px; display: grid; gap: 6px; margin: 10px 0; }
+    li::marker { color: var(--accent); }
+    strong { color: var(--text); font-weight: 600; }
+    .table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 15px; }
+    .table th, .table td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    .table th { color: var(--text-3); font-weight: 600; font-size: 13px; }
+    .table td:first-child { color: var(--text); font-weight: 500; }
+    .table td { color: var(--text-2); }
+    @media (max-width: 600px) {
+      .table thead { display: none; }
+      .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
+      .table tr { padding: 10px 0; border-bottom: 1px solid var(--line); }
+      .table td { border: 0; padding: 2px 0; }
+    }
+    footer { border-top: 1px solid var(--line); padding: 24px 0 36px; color: var(--text-3); font-size: 14px; margin-top: 56px; }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+    footer a { color: inherit; text-decoration: none; }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="logo.svg" alt="" width="32" height="32">Aivo Scan</a>
+    <a class="nav-link" href="/">На главную</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="head">
+    <span class="eyebrow">Документ</span>
+    <h1>Политика конфиденциальности</h1>
+    <p class="date">Действует с 6 ноября 2026 года</p>
+  </div>
+
+  <div class="short">
+    <p><strong>Коротко:</strong> ваши проекты (файлы из Базиса) не уходят с телефона или компьютера, а камера используется только для чтения QR-кодов, видео никуда не отправляется. На сервере хранится только то, что нужно для входа: email, срок доступа и список ваших устройств. Рекламы и слежки нет. Аккаунт можно удалить в любой момент.</p>
+  </div>
+
+  <h2 id="who">1. Кто мы</h2>
+  <p>Aivo Scan — сайт <a href="https://aivoscan.work">aivoscan.work</a> и приложение для iPhone и Android. Сервис помогает собирать мебель: показывает 3D-модель изделия из Базис-Мебельщика и находит детали по QR-коду на этикетке.</p>
+  <p>Сервис ведёт индивидуальный предприниматель Али Тажибаев, Кыргызская Республика, г. Бишкек (далее «мы»). Связаться с нами: телефон и WhatsApp <a href="tel:+996990551884">+996 990 551 884</a>.</p>
+
+  <h2 id="data">2. Какие данные мы собираем и зачем</h2>
+  <table class="table">
+    <thead><tr><th>Данные</th><th>Зачем</th><th>Где хранятся</th></tr></thead>
+    <tbody>
+      <tr><td>Email и пароль</td><td>Вход в аккаунт. Пароль хранится только в зашифрованном виде, мы его не видим.</td><td>Firebase Authentication (Google)</td></tr>
+      <tr><td>Срок оплаченного доступа, тариф, отметка о заморозке</td><td>Проверить, оплачен ли доступ</td><td>Firebase Firestore (Google)</td></tr>
+      <tr><td>Устройства: название (например, «iPhone» или модель Android), служебный номер устройства, дата первого и последнего входа</td><td>Соблюдать лимит устройств по тарифу. Устройство отвязывается кнопкой «Выйти» на нём или по вашей просьбе.</td><td>Firebase Firestore (Google)</td></tr>
+      <tr><td>Заявка на оплату: email, имя, телефон, тариф, сумма, код платежа</td><td>Сопоставить ваш перевод с заявкой и включить доступ</td><td>Firebase Firestore (Google)</td></tr>
+      <tr><td>Заявка на удаление аккаунта</td><td>Удалить аккаунт по вашей просьбе</td><td>Firebase Firestore (Google)</td></tr>
+    </tbody>
+  </table>
+  <p>Оплата проходит в вашем банковском приложении (M Bank) по QR-коду. Данные карты и счёта мы не получаем и не храним.</p>
+
+  <h2 id="local">3. Что остаётся только на вашем устройстве</h2>
+  <ul>
+    <li><strong>Проекты.</strong> JSON-файлы из Базиса, 3D-модель, список деталей и отметки, какие детали найдены, хранятся в памяти браузера или приложения на вашем устройстве. На наш сервер они не отправляются.</li>
+    <li><strong>Камера.</strong> Изображение с камеры обрабатывается прямо на устройстве, только чтобы прочитать QR-код. Фото и видео не сохраняются и не отправляются.</li>
+    <li><strong>Пропуск для работы без интернета.</strong> На устройстве хранятся срок доступа и время последней проверки, чтобы приложение работало без интернета до 7 дней.</li>
+    <li><strong>Настройки:</strong> тема, вид и т. п.</li>
+  </ul>
+  <p>Если вы удалите приложение или очистите данные браузера, проекты на этом устройстве удалятся.</p>
+
+  <h2 id="no">4. Чего мы не делаем</h2>
+  <ul>
+    <li>Не показываем рекламу и не используем рекламные идентификаторы.</li>
+    <li>Не подключаем счётчики посещений и аналитику, не отслеживаем вас в других приложениях и на других сайтах.</li>
+    <li>Не продаём и не передаём ваши данные третьим лицам для маркетинга.</li>
+    <li>Не получаем доступ к контактам, фото, геолокации и микрофону.</li>
+  </ul>
+
+  <h2 id="third">5. Сторонние сервисы</h2>
+  <p>Чтобы сервис работал, мы пользуемся услугами компаний, которые обрабатывают данные по нашему поручению:</p>
+  <ul>
+    <li><strong>Google Firebase</strong> — вход в аккаунт и хранение данных из раздела 2. Серверы Google могут находиться в разных странах. <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Конфиденциальность Firebase</a>.</li>
+    <li><strong>GitHub Pages</strong> — хостинг сайта. Как любой хостинг, он видит технические данные запроса (IP-адрес, тип браузера).</li>
+    <li><strong>Google Fonts</strong> — шрифты на страницах сайта (не в приложении).</li>
+  </ul>
+
+  <h2 id="keep">6. Сколько мы храним данные</h2>
+  <ul>
+    <li>Данные аккаунта и устройств хранятся, пока существует аккаунт.</li>
+    <li>Заявки на оплату хранятся столько, сколько требуется для учёта платежей по законодательству Кыргызской Республики.</li>
+    <li>После удаления аккаунта мы удаляем его данные в течение 7 дней.</li>
+  </ul>
+
+  <h2 id="delete">7. Как удалить аккаунт</h2>
+  <p><strong>В приложении:</strong> откройте меню (список деталей), нажмите «Удалить аккаунт» и подтвердите паролем. Мы удалим аккаунт, список устройств и данные доступа в течение 7 дней.</p>
+  <p><strong>Без приложения:</strong> напишите в WhatsApp на <a href="https://wa.me/996990551884" target="_blank" rel="noopener">+996 990 551 884</a> с того email, на который зарегистрирован аккаунт.</p>
+  <p>Проекты на устройстве удаляются вместе с приложением или при очистке данных браузера.</p>
+
+  <h2 id="rights">8. Ваши права</h2>
+  <p>Вы можете узнать, какие данные о вас хранятся, исправить их, отвязать устройство, отказаться от сервиса и удалить аккаунт. Для этого свяжитесь с нами по контактам из раздела 1. Обычно мы отвечаем в течение нескольких дней.</p>
+
+  <h2 id="safe">9. Защита данных</h2>
+  <p>Данные передаются по защищённому соединению (HTTPS). Доступ к базе ограничен правилами: каждый пользователь видит только свои данные, а управлять аккаунтами может только администратор сервиса.</p>
+
+  <h2 id="kids">10. Дети</h2>
+  <p>Сервис сделан для мебельных цехов и сборщиков. Он не предназначен для детей до 16 лет, и мы сознательно не собираем их данные.</p>
+
+  <h2 id="changes">11. Изменения</h2>
+  <p>Если политика изменится, мы обновим эту страницу и дату вверху. О существенных изменениях сообщим в приложении или на сайте.</p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© Aivo Scan</span>
+    <span><a href="/">Главная</a> · <a href="buy.html">Тарифы</a> · <a href="tel:+996990551884">+996 990 551 884</a></span>
+  </div>
+</footer>
+</body>
+</html>

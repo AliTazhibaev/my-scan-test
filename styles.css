@@ -2185,3 +2185,10 @@ body.light-theme .project-bar { background: rgba(0, 0, 0, 0.08); }
 .pw-input { width: 100%; min-height: 46px; padding: 0 12px; margin-bottom: 6px; border-radius: 10px;
   border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text-primary); font-size: 16px; font-family: inherit; }
 .pw-error { min-height: 18px; color: #ef4444; font-size: 12px; margin-bottom: 8px; }
+
+/* ссылка на политику конфиденциальности (вход и меню) */
+.login-privacy { display: flex; align-items: center; justify-content: center; min-height: 36px; margin-top: 2px;
+  color: var(--text-tertiary); font-size: 11px; text-decoration: underline; }
+.account-privacy { display: block; width: max-content; margin: -8px 0 12px auto; padding: 4px;
+  color: var(--text-tertiary); font-size: 11px; text-decoration: underline; }
+.login-privacy:hover, .account-privacy:hover { color: var(--text-secondary); }
