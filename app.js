@@ -9,6 +9,7 @@ import { applyPockets as csgApplyPockets, buildPocketDecals, clearPocketCache } 
 import { handleLogin, initAuth } from './src/auth.js';
 import { initQR, wireQRListeners, openScanner, closeScanner } from './src/qr.js';
 import { initNative } from './src/native.js';
+import { fastenerSummary, grooveSummary, holeSummary, materialSummary, massKg } from './src/stats.js';
 import {
   initCamera, setupCameraControls, updateCamera,
   startSmoothZoom, animateSmoothZoom, invalidateVisibleCache,
@@ -1893,35 +1894,42 @@ function showStats() {
     showToast("📁 Сначала загрузите JSON");
     return;
   }
-  const materialCounts = {};
-  let totalMass = 0;
-  let totalArea = 0;
-  parts.forEach(part => {
-    const matName = part.material || "Неизвестно";
-    if (!materialCounts[matName]) {
-      materialCounts[matName] = 0;
-    }
-    materialCounts[matName]++;
-    if (part.L && part.W && part.T) {
-      totalMass += part.L * part.W * part.T / 1000 * 6.5e-7;
-      totalArea += part.L * part.W / 1000000;
-    }
-  });
-  let html = "\n      <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px\">\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + parts.length + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">деталей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--accent)\">" + moduleMap.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">модулей</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--success)\">" + scannedSet.size + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">собрано</div>\n        </div>\n        <div style=\"background:var(--bg-tertiary);padding:10px;border-radius:8px;text-align:center\">\n          <div style=\"font-size:20px;font-weight:800;color:var(--warning)\">≈" + totalMass.toFixed(1) + "</div>\n          <div style=\"font-size:9px;color:var(--text-secondary)\">кг масса</div>\n        </div>\n      </div>\n      <div style=\"font-size:10px;font-weight:700;color:var(--accent);margin-bottom:6px\">МАТЕРИАЛЫ:</div>\n    ";
-  Object.entries(materialCounts).sort((a, b) => b[1] - a[1]).forEach(([mat, count]) => {
-    html += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:var(--text-primary)\">" + escapeHtml(mat) + "</span>\n        <span style=\"color:var(--accent);font-weight:600\">" + count + " шт</span>\n      </div>";
-  });
-  if (fastenerData.length) {
-    const fastenerTypeCounts = {};
-    fastenerData.forEach(f => {
-      const t = f.type || "Прочее";
-      if (!fastenerTypeCounts[t]) fastenerTypeCounts[t] = 0;
-      fastenerTypeCounts[t]++;
-    });
-    html += "<div style=\"font-size:10px;font-weight:700;color:#ff9800;margin:10px 0 6px\">ФУРНИТУРА (" + fastenerData.length + "):</div>";
-    Object.entries(fastenerTypeCounts).sort((a, b) => b[1] - a[1]).forEach(([type, count]) => {
-      html += "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid var(--border)\">\n        <span style=\"color:var(--text-primary)\">" + escapeHtml(type) + "</span>\n        <span style=\"color:#ff9800;font-weight:600\">" + count + " шт</span>\n      </div>";
-    });
+  var totalMass = massKg(parts);
+  var mats = materialSummary(parts);
+  var furn = fastenerSummary(fastenerData);
+  var grooves = grooveSummary(parts);
+  var holes = holeSummary(window._loadedHoles || []);
+  function tile(value, label, color) {
+    return '<div class="stat-tile"><div class="stat-tile-num" style="color:' + color + '">' + value + '</div><div class="stat-tile-label">' + label + '</div></div>';
+  }
+  function head(title, total, color) {
+    return '<div class="stat-head" style="color:' + color + '"><span>' + title + '</span><span>' + total + '</span></div>';
+  }
+  function row(name, value, color) {
+    return '<div class="stat-row"><span>' + escapeHtml(name) + '</span><span style="color:' + color + '">' + value + '</span></div>';
+  }
+  var m = function(mm) { return (mm / 1000).toFixed(2) + ' м'; };
+  var html = '<div class="stat-tiles">' +
+    tile(parts.length, 'деталей', 'var(--accent)') +
+    tile(moduleMap.size, 'модулей', 'var(--accent)') +
+    tile(scannedSet.size, 'собрано', 'var(--success)') +
+    tile('≈' + totalMass.toFixed(1), 'кг масса', 'var(--warning)') +
+    '</div>';
+  html += head('МАТЕРИАЛЫ', mats.reduce(function(s, x) { return s + x.area; }, 0).toFixed(2) + ' м²', 'var(--accent)');
+  mats.forEach(function(x) { html += row(x.name, x.count + ' шт · ' + x.area.toFixed(2) + ' м²', 'var(--accent)'); });
+  html += head('ФУРНИТУРА', furn.total + ' шт', '#ff9800');
+  if (furn.list.length) furn.list.forEach(function(x) { html += row(x.name, x.count + ' шт', '#ff9800'); });
+  else html += '<div class="stat-empty">В файле нет фурнитуры</div>';
+  html += head('ПАЗЫ', grooves.count ? grooves.count + ' шт · ' + m(grooves.totalLen) : '0', '#F5B800');
+  if (grooves.list.length) grooves.list.forEach(function(x) { html += row(x.name, x.count + ' шт · ' + m(x.len), '#F5B800'); });
+  else html += '<div class="stat-empty">Пазов нет</div>';
+  if (grooves.cups.length) {
+    html += head('ВЫБОРКИ', grooves.cupCount + ' шт', '#F5B800');
+    grooves.cups.forEach(function(x) { html += row(x.name, x.count + ' шт', '#F5B800'); });
+  }
+  if (holes.total) {
+    html += head('ОТВЕРСТИЯ (Ø × глубина, мм)', holes.total + ' шт', 'var(--text-secondary)');
+    holes.list.forEach(function(x) { html += row(x.name, x.count + ' шт', 'var(--text-secondary)'); });
   }
   document.getElementById("statsContent").innerHTML = html;
   document.getElementById("statsModal").classList.remove("hidden");
@@ -2066,14 +2074,28 @@ function renderChecklist() {
     var isChecked = scannedSet.has(part.id);
     var row = document.createElement("div");
     row.className = "checklist-row" + (isChecked ? " checked" : "");
-    row.innerHTML = '<div class="cl-status">' + (isChecked ? "✅" : "○") + '</div>' +
+    row.innerHTML = '<button type="button" class="cl-status" aria-pressed="' + isChecked + '" aria-label="' + (isChecked ? 'Снять отметку' : 'Отметить вручную') + '">' + (isChecked ? "✓" : "") + '</button>' +
       '<div class="cl-code">' + escapeHtml(displayCode) + '</div>' +
       '<div class="cl-name">' + escapeHtml(part.name || "—") + '</div>';
+    // Галочка — отметить/снять вручную (деталь нашли без QR); остальная строка — показать деталь.
+    row.querySelector(".cl-status").addEventListener("click", function(e) {
+      e.stopPropagation();
+      toggleScannedManually(part.id);
+    });
     row.addEventListener("click", function() { selectPart(part.id); startSmoothZoom(part.id); });
     frag.appendChild(row);
   });
   body.innerHTML = "";
   body.appendChild(frag);
+}
+function toggleScannedManually(partId) {
+  if (scannedSet.has(partId)) scannedSet.delete(partId);
+  else scannedSet.add(partId);
+  updateStats();
+  saveProgress();
+  renderChecklist();
+  renderPartsList();
+  setNeedsRender(true);
 }
 function handleChecklistScan(scanData) {
   var found = findPartByScan(parts, scannedSet, scanData, idMode);

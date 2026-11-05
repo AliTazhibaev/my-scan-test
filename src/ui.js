@@ -12,6 +12,7 @@ import {
 } from './state.js';
 import { getModuleKey, getModuleName, getModuleColor } from './state.js';
 import { classifyMaterial } from './materials.js';
+import { densityOf } from './stats.js';
 
 // Dependencies injected via initUI()
 let _selectPart, _startSmoothZoom, _toggleVisibility, _isolateModule, _applyXray;
@@ -96,7 +97,7 @@ export function updateSummary() {
     if (!materialStats[matName]) materialStats[matName] = { count: 0, totalArea: 0 };
     materialStats[matName].count++;
     if (part.L && part.W) materialStats[matName].totalArea += part.L * part.W / 1000000;
-    if (part.L && part.W && part.T) totalMass += part.L * part.W * part.T / 1000 * 6.5e-7;
+    if (part.L && part.W && part.T) totalMass += (part.L * part.W * part.T / 1e9) * densityOf(part.material);
   });
   let html = '<div class="summary-row"><span class="summary-label">Всего деталей:</span><span class="summary-val">' + parts.length + '</span></div>';
   html += '<div class="summary-row"><span class="summary-label">Модулей:</span><span class="summary-val">' + moduleMap.size + '</span></div>';
