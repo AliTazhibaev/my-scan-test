@@ -224,10 +224,9 @@ function initThree() {
     alpha: false,
     powerPreference: 'high-performance'
   });
-  _renderer.setSize(window.innerWidth, window.innerHeight);
-  // DetalQR-style pixel ratio cap: sqrt(6M pixels) — saves fill rate on 4K/retina
-  var bestPR = Math.min(window.devicePixelRatio, Math.max(1.75, Math.sqrt(6000000 / (window.innerWidth * window.innerHeight))));
-  _renderer.setPixelRatio(bestPR);
+  // Размер — по настоящему размеру поля (CSS 100%), а не по ширине окна в момент запуска:
+  // на iPhone после входа ширина окна бывает ещё старой, и справа оставалась чёрная полоса.
+  _fitRenderer(_renderer, null);
   _renderer.shadowMap.enabled = false; // No real shadows — use fake contact shadow (DetalQR pattern)
   _renderer.toneMapping = THREE.NoToneMapping; // Simpler pipeline, correct with sRGB textures
   _renderer.outputEncoding = THREE.sRGBEncoding;
@@ -241,7 +240,8 @@ function initThree() {
   // Minimal fog — just enough to fade distant parts, not obscure the model
   _scene.fog = new THREE.FogExp2(_fogColor, deviceQuality === 'low' ? 0.001 : 0.0015);
   setScene(_scene);
-  const _camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 500);
+  var _size = _canvasSize();
+  const _camera = new THREE.PerspectiveCamera(50, _size.w / _size.h, 0.01, 500);
   _camera.position.set(3, 2.5, 3);
   setCamera(_camera);
   setTargetPosition(new THREE.Vector3(0, 0.5, 0));
@@ -2435,19 +2435,38 @@ function animate(now) {
     setNeedsRender(false);
   }
 }
+// Настоящий размер поля 3D (CSS 100% экрана); пока поле скрыто — размер окна.
+function _canvasSize() {
+  var cv = document.getElementById('canvas3d');
+  var w = (cv && cv.clientWidth) || window.innerWidth || 1;
+  var h = (cv && cv.clientHeight) || window.innerHeight || 1;
+  return { w: w, h: h };
+}
+function _fitRenderer(r, cam) {
+  var size = _canvasSize();
+  // DetalQR-style pixel ratio cap: sqrt(6M pixels) — saves fill rate on 4K/retina
+  var bestPR = Math.min(window.devicePixelRatio, Math.max(1.75, Math.sqrt(6000000 / (size.w * size.h))));
+  r.setPixelRatio(bestPR);
+  r.setSize(size.w, size.h, false); // false: не трогаем CSS, поле всегда на весь экран
+  if (cam) { cam.aspect = size.w / size.h; cam.updateProjectionMatrix(); }
+}
 let _resizeTimer = null;
-window.addEventListener("resize", () => {
+function _scheduleFit() {
   clearTimeout(_resizeTimer);
   _resizeTimer = setTimeout(() => {
     if (!renderer || !camera) return; // 3D ещё не создан (экран входа)
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    var bestPR = Math.min(window.devicePixelRatio, Math.max(1.75, Math.sqrt(6000000 / (window.innerWidth * window.innerHeight))));
-    renderer.setPixelRatio(bestPR);
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    _fitRenderer(renderer, camera);
     setNeedsRender(true);
   }, 100);
-});
+}
+window.addEventListener("resize", _scheduleFit);
+window.addEventListener("orientationchange", _scheduleFit);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", _scheduleFit);
+// Поле 3D поменяло размер (появилось после входа, поворот, панели) — подгоняем картинку.
+if (window.ResizeObserver) {
+  var _cv = document.getElementById('canvas3d');
+  if (_cv) new ResizeObserver(_scheduleFit).observe(_cv);
+}
 initTheme();
 // 3D initialization is deferred until after login (showMainApp calls init3D)
 var _3dInitialized = false;
