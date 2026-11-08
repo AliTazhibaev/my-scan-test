@@ -150,6 +150,9 @@
     .btn-ghost { border-color: var(--line-2); color: var(--text); background: rgba(255,255,255,0.03); }
     .btn-ghost:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.06); }
     .btn:active { transform: translateY(0) scale(0.98); }
+    .store-badge { display: inline-flex; align-items: center; border-radius: 10px; transition: transform .2s var(--ease); }
+    .store-badge img { display: block; height: 52px; width: auto; }
+    .store-badge:hover { transform: translateY(-2px); }
 
     /* ---------- общие заголовки ---------- */
     .eyebrow { display: inline-flex; align-items: center; gap: 10px; font: 700 12px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
@@ -361,6 +364,9 @@
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
           Открыть приложение
         </a>
+        <a href="https://apps.apple.com/kg/app/aivo-scan/id6831321228" class="store-badge" target="_blank" rel="noopener" aria-label="Загрузить Aivo Scan в App Store">
+          <img src="img/app-store-badge.svg" alt="Download on the App Store" width="156" height="52">
+        </a>
         <a href="#story" class="btn btn-ghost">Как это работает</a>
       </div>
       <div class="hero-meta">
@@ -554,6 +560,9 @@
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
         Запустить Aivo Scan
       </a>
+      <a href="https://apps.apple.com/kg/app/aivo-scan/id6831321228" class="store-badge" target="_blank" rel="noopener" aria-label="Загрузить Aivo Scan в App Store">
+        <img src="img/app-store-badge.svg" alt="Download on the App Store" width="156" height="52">
+      </a>
       <a href="buy.html" class="btn btn-ghost">Тарифы и оплата</a>
     </div>
     <div class="contacts rv">
@@ -570,6 +579,7 @@
     <span>© Aivo Scan</span>
     <nav aria-label="Ссылки в подвале">
       <a href="app.html">Приложение</a>
+      <a href="https://apps.apple.com/kg/app/aivo-scan/id6831321228" target="_blank" rel="noopener">App Store</a>
       <a href="buy.html">Тарифы</a>
       <a href="milling.html">Фрезеровка</a>
       <a href="privacy.html">Конфиденциальность</a>
