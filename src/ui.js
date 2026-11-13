@@ -70,6 +70,8 @@ export function updateStats() {
   document.getElementById('totalCount').textContent = total;
   document.getElementById('scannedCount').textContent = scanned;
   document.getElementById('progressFill').style.width = percent + '%';
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.hidden = total > 0;
 }
 
 var _summaryCacheHtml = null;

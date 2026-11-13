@@ -103,8 +103,6 @@ export async function handleLogin() {
     }
     setStoredDeviceId(cred.user.uid, deviceResult.id);
     currentUser = cred.user;
-    if (deviceResult.deviceCount) document.getElementById('deviceCountInfo').textContent = deviceResult.deviceCount;
-    if (deviceResult.deviceLimit) document.getElementById('deviceLimitInfo').textContent = deviceResult.deviceLimit;
     // Дальше доступ проверяет runGate (onAuthStateChanged).
   } catch (authErr) {
     let errMsg = 'Ошибка авторизации';

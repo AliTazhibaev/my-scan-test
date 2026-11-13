@@ -2118,7 +2118,7 @@ function renderChecklist() {
   document.getElementById("checklistBarFill").style.width = (total > 0 ? Math.round(scanned / total * 100) : 0) + "%";
   document.getElementById("checklistDone").style.display = (scanned >= total && total > 0) ? "block" : "none";
   var frag = document.createDocumentFragment();
-  parts.forEach(function(part) {
+  function addRow(part, target) {
     var displayCode = idMode === "position" ? part.position || part.code || "—" : part.code || "—";
     var isChecked = scannedSet.has(part.id);
     var row = document.createElement("div");
@@ -2132,10 +2132,53 @@ function renderChecklist() {
       toggleScannedManually(part.id);
     });
     row.addEventListener("click", function() { selectPart(part.id); startSmoothZoom(part.id); });
-    frag.appendChild(row);
-  });
+    target.appendChild(row);
+  }
+  if (moduleMap.size === 0) buildModuleMap();
+  if (moduleMap.size <= 1) {
+    parts.forEach(function(part) { addRow(part, frag); });
+  } else {
+    // По модулям: у каждого свой счётчик, модуль открывается по нажатию.
+    moduleMap.forEach(function(list, name) {
+      var done = 0;
+      list.forEach(function(p) { if (scannedSet.has(p.id)) done++; });
+      var full = done >= list.length;
+      var open = _clOpenModules.has(name);
+      var group = document.createElement("div");
+      group.className = "cl-group" + (open ? " open" : "") + (full ? " full" : "");
+      var head = document.createElement("button");
+      head.type = "button";
+      head.className = "cl-group-head";
+      head.setAttribute("aria-expanded", open);
+      head.innerHTML = '<span class="cl-group-arrow" aria-hidden="true"></span>' +
+        '<span class="cl-group-name">' + escapeHtml(name) + '</span>' +
+        '<span class="cl-group-count">' + (full ? "✓ " : "") + done + " из " + list.length + '</span>' +
+        '<span class="cl-group-bar"><i style="width:' + Math.round(done / list.length * 100) + '%"></i></span>';
+      head.addEventListener("click", function() {
+        if (_clOpenModules.has(name)) _clOpenModules.delete(name); else _clOpenModules.add(name);
+        renderChecklist();
+      });
+      group.appendChild(head);
+      if (open) {
+        var rows = document.createElement("div");
+        rows.className = "cl-group-rows";
+        list.forEach(function(part) { addRow(part, rows); });
+        group.appendChild(rows);
+      }
+      frag.appendChild(group);
+    });
+  }
+  var scrollTop = body.scrollTop;
   body.innerHTML = "";
   body.appendChild(frag);
+  body.scrollTop = scrollTop;
+}
+// Модули, открытые в чеклисте (остальные свёрнуты).
+var _clOpenModules = new Set();
+function openChecklistModuleOf(partId) {
+  moduleMap.forEach(function(list, name) {
+    if (list.some(function(p) { return p.id === partId; })) _clOpenModules.add(name);
+  });
 }
 function toggleScannedManually(partId) {
   if (scannedSet.has(partId)) scannedSet.delete(partId);
@@ -2154,6 +2197,7 @@ function handleChecklistScan(scanData) {
     return;
   }
   scannedSet.add(foundPart.id);
+  openChecklistModuleOf(foundPart.id);
   updateStats();
   saveProgress();
   selectCopies(found);
@@ -2310,6 +2354,8 @@ function renderProjects() {
   return listProjects().then(function(list) {
     var wrap = document.getElementById("projectsBlock");
     if (wrap) wrap.style.display = list.length ? "" : "none";
+    var emptyProjects = document.getElementById("emptyProjectsBtn");
+    if (emptyProjects) emptyProjects.hidden = !list.length;
     box.textContent = "";
     list.forEach(function(p) {
       var done = (p.scanned || []).length;
@@ -2398,6 +2444,10 @@ initNative({
   }
 });
 // Пример проекта (шкаф): чтобы посмотреть приложение без своего файла из Базиса.
+// Стартовый экран (проект не открыт): те же действия, что в меню.
+document.getElementById("emptyUploadBtn").addEventListener("click", function() { document.getElementById("fileInput").click(); });
+document.getElementById("emptyDemoBtn").addEventListener("click", function() { document.getElementById("demoBtn").click(); });
+document.getElementById("emptyProjectsBtn").addEventListener("click", function() { openDrawer(); });
 document.getElementById("demoBtn").addEventListener("click", function() {
   showToast("Открываем пример…");
   fetch("demo/primer-shkaf.json")
