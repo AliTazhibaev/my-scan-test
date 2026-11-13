@@ -1883,13 +1883,14 @@ function toggleExplode() {
     animateExplodeTo(1);
   }
 }
-function animateExplodeTo(target) {
+function animateExplodeTo(target, duration, easeOut) {
   const startVal = explodeProgress;
   const startTime = performance.now();
-  const duration = 600;
+  duration = duration || 600;
   function step(now) {
     const progress = Math.min((now - startTime) / duration, 1);
-    const eased = progress < 0.5 ? progress * 2 * progress : 1 - Math.pow(progress * -2 + 2, 2) / 2;
+    const eased = easeOut ? 1 - Math.pow(1 - progress, 4)
+      : progress < 0.5 ? progress * 2 * progress : 1 - Math.pow(progress * -2 + 2, 2) / 2;
     setExplodeProgress(startVal + (target - startVal) * eased);
     applyExplode();
     setNeedsRender(true);
@@ -2122,7 +2123,7 @@ function renderChecklist() {
     var displayCode = idMode === "position" ? part.position || part.code || "—" : part.code || "—";
     var isChecked = scannedSet.has(part.id);
     var row = document.createElement("div");
-    row.className = "checklist-row" + (isChecked ? " checked" : "");
+    row.className = "checklist-row" + (isChecked ? " checked" : "") + (isChecked && part.id === _clJustChecked ? " just-checked" : "");
     row.innerHTML = '<button type="button" class="cl-status" aria-pressed="' + isChecked + '" aria-label="' + (isChecked ? 'Снять отметку' : 'Отметить вручную') + '">' + (isChecked ? "✓" : "") + '</button>' +
       '<div class="cl-code">' + escapeHtml(displayCode) + '</div>' +
       '<div class="cl-name">' + escapeHtml(part.name || "—") + '</div>';
@@ -2155,13 +2156,13 @@ function renderChecklist() {
         '<span class="cl-group-count">' + (full ? "✓ " : "") + done + " из " + list.length + '</span>' +
         '<span class="cl-group-bar"><i style="width:' + Math.round(done / list.length * 100) + '%"></i></span>';
       head.addEventListener("click", function() {
-        if (_clOpenModules.has(name)) _clOpenModules.delete(name); else _clOpenModules.add(name);
+        if (_clOpenModules.has(name)) _clOpenModules.delete(name); else { _clOpenModules.add(name); _clJustOpened = name; }
         renderChecklist();
       });
       group.appendChild(head);
       if (open) {
         var rows = document.createElement("div");
-        rows.className = "cl-group-rows";
+        rows.className = "cl-group-rows" + (_clJustOpened === name ? " appear" : "");
         list.forEach(function(part) { addRow(part, rows); });
         group.appendChild(rows);
       }
@@ -2172,7 +2173,10 @@ function renderChecklist() {
   body.innerHTML = "";
   body.appendChild(frag);
   body.scrollTop = scrollTop;
+  _clJustChecked = null;
+  _clJustOpened = null;
 }
+var _clJustChecked = null, _clJustOpened = null;
 // Модули, открытые в чеклисте (остальные свёрнуты).
 var _clOpenModules = new Set();
 function openChecklistModuleOf(partId) {
@@ -2182,7 +2186,7 @@ function openChecklistModuleOf(partId) {
 }
 function toggleScannedManually(partId) {
   if (scannedSet.has(partId)) scannedSet.delete(partId);
-  else scannedSet.add(partId);
+  else { scannedSet.add(partId); afterChecked(partId); }
   updateStats();
   saveProgress();
   renderChecklist();
@@ -2196,7 +2200,9 @@ function handleChecklistScan(scanData) {
     showChecklistFlash(null, true, scanData);
     return;
   }
+  var wasChecked = scannedSet.has(foundPart.id);
   scannedSet.add(foundPart.id);
+  if (!wasChecked) afterChecked(foundPart.id);
   openChecklistModuleOf(foundPart.id);
   updateStats();
   saveProgress();
@@ -2324,6 +2330,7 @@ function openProjectText(text, title, id) {
       updateStats();
       renderPartsList();
       renderProjects();
+      playAssembleIntro();
       if (progressFill) progressFill.style.width = "100%";
       showToast("✅ Загружено " + parts.length + " деталей" + (scannedSet.size ? " · собрано " + scannedSet.size : ""));
       if (dimsData.length) showToast("📐 " + dimsData.length + " размеров из БАЗИС");
@@ -2337,6 +2344,73 @@ function openProjectText(text, title, id) {
       hideOverlay();
     });
   }, 30);
+}
+
+// Эффект при открытии проекта: детали слетаются из разлёта на свои места.
+function reducedMotion() {
+  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; }
+}
+function playAssembleIntro() {
+  if (explodeActive || reducedMotion() || !originalPositions.size) return;
+  setExplodeModuleKey(null);
+  setExplodeProgress(0.85);
+  applyExplode();
+  setTimeout(function() { animateExplodeTo(0, 1300, true); }, 120);
+}
+
+// Праздник: короткий салют, когда модуль или весь проект проверен.
+function celebrate(big) {
+  if (reducedMotion()) return;
+  var cv = document.createElement("canvas");
+  cv.className = "confetti-canvas";
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var w = window.innerWidth, h = window.innerHeight;
+  cv.width = w * dpr; cv.height = h * dpr;
+  document.body.appendChild(cv);
+  var g = cv.getContext("2d");
+  g.scale(dpr, dpr);
+  var colors = ["#00D4AA", "#3dffd0", "#F5C542", "#ffffff", "#4ade80"];
+  var n = big ? 140 : 60, bits = [];
+  for (var i = 0; i < n; i++) {
+    var a = -Math.PI / 2 + (Math.random() - 0.5) * (big ? 2.2 : 1.4);
+    var v = (big ? 9 : 7) + Math.random() * 6;
+    bits.push({ x: w / 2, y: h * 0.62, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+      r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.4,
+      s: 5 + Math.random() * 6, c: colors[i % colors.length], round: Math.random() < 0.3 });
+  }
+  var start = performance.now(), life = big ? 2200 : 1500;
+  function frame(now) {
+    var t = now - start;
+    g.clearRect(0, 0, w, h);
+    g.globalAlpha = Math.max(0, 1 - t / life);
+    bits.forEach(function(b) {
+      b.vy += 0.28; b.vx *= 0.985; b.x += b.vx; b.y += b.vy; b.r += b.vr;
+      g.save(); g.translate(b.x, b.y); g.rotate(b.r); g.fillStyle = b.c;
+      if (b.round) { g.beginPath(); g.arc(0, 0, b.s / 2.4, 0, 7); g.fill(); }
+      else g.fillRect(-b.s / 2, -b.s / 4, b.s, b.s / 2);
+      g.restore();
+    });
+    if (t < life) requestAnimationFrame(frame); else cv.remove();
+  }
+  requestAnimationFrame(frame);
+}
+// Сколько проверено в модуле детали (для салюта на последней детали модуля).
+function moduleDoneOf(partId) {
+  var res = null;
+  moduleMap.forEach(function(list, name) {
+    if (res || !list.some(function(p) { return p.id === partId; })) return;
+    var done = 0;
+    list.forEach(function(p) { if (scannedSet.has(p.id)) done++; });
+    res = { name: name, done: done, total: list.length };
+  });
+  return res;
+}
+function afterChecked(partId) {
+  _clJustChecked = partId;
+  if (navigator.vibrate) { try { navigator.vibrate(18); } catch (e) {} }
+  if (scannedSet.size >= parts.length && parts.length) { celebrate(true); showToast("🎉 Все детали проверены!"); return; }
+  var m = moduleMap.size > 1 ? moduleDoneOf(partId) : null;
+  if (m && m.done >= m.total) { celebrate(false); showToast("✓ Модуль " + m.name + " проверен"); }
 }
 
 // === Мои проекты (список в меню) ===

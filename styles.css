@@ -2260,3 +2260,91 @@ body.light-theme .empty-card { background: rgba(255, 255, 255, 0.82); box-shadow
 .cl-group-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 .cl-group.full .cl-group-bar i { background: var(--success, #22c55e); }
 .cl-group-rows { padding: 0 0 6px 10px; }
+
+/* ===== 14.11.2026: анимации и эффекты ===== */
+:root { --spring: cubic-bezier(0.34, 1.56, 0.64, 1); --out-expo: cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* стартовый экран: карточка всплывает, значок мягко «дышит» светом */
+.empty-state:not([hidden]) .empty-card { animation: aivoRise 0.7s var(--out-expo) both; }
+.empty-state:not([hidden]) .empty-card > * { animation: aivoRise 0.6s var(--out-expo) both; }
+.empty-card > :nth-child(2) { animation-delay: 0.08s !important; }
+.empty-card > :nth-child(3) { animation-delay: 0.14s !important; }
+.empty-card > :nth-child(4) { animation-delay: 0.2s !important; }
+.empty-card > :nth-child(5) { animation-delay: 0.26s !important; }
+.empty-icon { position: relative; }
+.empty-icon::after { content: ""; position: absolute; inset: -1px; border-radius: inherit;
+  box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.45); animation: aivoBreath 2.8s ease-out infinite 0.8s; }
+.empty-icon svg { animation: aivoFloat 4s ease-in-out infinite; }
+.empty-main { position: relative; overflow: hidden; }
+.empty-main::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-18deg); animation: aivoSheen 3.6s ease-in-out infinite 1.2s; }
+
+/* полоса прогресса сверху: бегущий блик */
+.progress-fill { position: relative; overflow: hidden; }
+.progress-fill::after { content: ""; position: absolute; inset: 0; width: 50%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: aivoRun 2.4s ease-in-out infinite; }
+
+/* нижняя панель: пружинный отклик и светящаяся точка у включённого режима */
+.toolbar-btn svg { transition: transform 0.35s var(--spring); }
+.toolbar-btn:active svg { transform: scale(0.82); }
+.toolbar-btn.active svg { transform: translateY(-1px) scale(1.08); filter: drop-shadow(0 0 6px rgba(0, 212, 170, 0.6)); }
+@media (max-width: 600px) {
+  .toolbar-btn::before { content: ""; display: block !important; position: absolute; top: 3px; left: 50%;
+    width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 8px var(--accent); opacity: 0; transform: scale(0); transition: transform 0.35s var(--spring), opacity 0.2s; }
+  .toolbar-btn.active::before { opacity: 1; transform: scale(1); }
+}
+
+/* верхние кнопки: тот же отклик */
+.top-btn svg { transition: transform 0.35s var(--spring); }
+.top-btn:active svg { transform: scale(0.8); }
+
+/* меню: разделы выезжают лесенкой */
+.drawer.open .drawer-content > * { animation: aivoSlideIn 0.5s var(--out-expo) both; }
+.drawer.open .drawer-content > :nth-child(2) { animation-delay: 0.03s; }
+.drawer.open .drawer-content > :nth-child(3) { animation-delay: 0.06s; }
+.drawer.open .drawer-content > :nth-child(4) { animation-delay: 0.09s; }
+.drawer.open .drawer-content > :nth-child(5) { animation-delay: 0.12s; }
+.drawer.open .drawer-content > :nth-child(6) { animation-delay: 0.15s; }
+.drawer.open .drawer-content > :nth-child(7) { animation-delay: 0.18s; }
+.drawer.open .drawer-content > :nth-child(8) { animation-delay: 0.21s; }
+.drawer.open .drawer-content > :nth-child(n+9) { animation-delay: 0.24s; }
+.drawer-action-btn, .upload-btn, .project-open { transition: transform 0.3s var(--spring), background 0.2s, border-color 0.2s; }
+.drawer-action-btn:active, .upload-btn:active, .project-open:active { transform: scale(0.95); }
+
+/* чеклист: панель всплывает, строки модуля появляются лесенкой, галочка «щёлкает» */
+.checklist-panel[style*="flex"] { animation: aivoPop 0.45s var(--out-expo) both; }
+.cl-group-rows.appear .checklist-row { animation: aivoSlideIn 0.4s var(--out-expo) both; }
+.cl-group-rows.appear .checklist-row:nth-child(2) { animation-delay: 0.025s; }
+.cl-group-rows.appear .checklist-row:nth-child(3) { animation-delay: 0.05s; }
+.cl-group-rows.appear .checklist-row:nth-child(4) { animation-delay: 0.075s; }
+.cl-group-rows.appear .checklist-row:nth-child(5) { animation-delay: 0.1s; }
+.cl-group-rows.appear .checklist-row:nth-child(6) { animation-delay: 0.125s; }
+.cl-group-rows.appear .checklist-row:nth-child(n+7) { animation-delay: 0.15s; }
+.cl-group-bar i, .checklist-bar i { transition: width 0.6s var(--out-expo); }
+.checklist-row.just-checked .cl-status { animation: aivoCheck 0.5s var(--spring); }
+.checklist-row.just-checked { animation: aivoRowFlash 0.9s ease-out; }
+.cl-group.full .cl-group-count { animation: aivoPop 0.4s var(--spring); }
+
+/* салют */
+.confetti-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 400; }
+
+/* тосты: мягкое всплытие с пружиной */
+.toast { transition: opacity 0.3s, transform 0.45s var(--spring) !important; }
+
+@keyframes aivoRise { from { opacity: 0; transform: translateY(18px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes aivoSlideIn { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+@keyframes aivoPop { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes aivoBreath { 0% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.45); } 70%, 100% { box-shadow: 0 0 0 16px rgba(0, 212, 170, 0); } }
+@keyframes aivoFloat { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-3px) rotate(-4deg); } }
+@keyframes aivoSheen { 0% { left: -60%; } 40%, 100% { left: 130%; } }
+@keyframes aivoRun { 0% { transform: translateX(-120%); } 100% { transform: translateX(260%); } }
+@keyframes aivoCheck { 0% { transform: scale(0.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes aivoRowFlash { from { background: rgba(34, 197, 94, 0.28); } to { background: rgba(34, 197, 94, 0.06); } }
+
+/* кто отключил анимации в настройках телефона — без движения */
+@media (prefers-reduced-motion: reduce) {
+  .empty-icon::after, .empty-icon svg, .empty-main::after, .progress-fill::after { animation: none !important; }
+}

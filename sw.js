@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aivo-scan-v34';
+const CACHE_NAME = 'aivo-scan-v35';
 // Всё, что нужно приложению для работы без интернета (после первого открытия).
 const STATIC_ASSETS = [
   '/',
