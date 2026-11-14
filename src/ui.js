@@ -283,28 +283,38 @@ function initSheetSwipe() {
   if (!sheet || !isMobileSheet()) return;
 
   var COLLAPSED = 48;
-  var startY = 0, baseH = 0, dragging = false, startTime = 0;
+  var startY = 0, baseH = 0, dragging = false, startTime = 0, fromCollapsed = false, moved = false;
+  // После раскрытия карточки палец ещё на экране: его «клик» не должен
+  // попасть в кнопки Скан / Фокус / Скрыть, которые оказались под ним.
+  function guardClicks() { sheet._guardUntil = Date.now() + 450; }
+  sheet.addEventListener('click', function(e) {
+    if (Date.now() < (sheet._guardUntil || 0)) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
 
   function halfH() { return window.innerHeight * 0.40; }
   function fullH() { return window.innerHeight * 0.70; }
 
   function onStart(e) {
     if (!sheet.classList.contains('open') || e.touches.length !== 1) return;
-    // If collapsed, expand to show content for dragging
-    if (sheet.dataset.state === 'collapsed') {
-      delete sheet.dataset.state;
-      sheet.offsetHeight; // force reflow
-    }
+    // Свёрнутую карточку раскрываем не в момент касания, а когда палец
+    // отпущен (простое нажатие) или потянут вверх.
+    fromCollapsed = sheet.dataset.state === 'collapsed';
+    moved = false;
     startY = e.touches[0].clientY;
     startTime = Date.now();
-    baseH = sheet.offsetHeight || halfH();
+    baseH = fromCollapsed ? COLLAPSED : (sheet.offsetHeight || halfH());
     dragging = true;
-    sheet.style.transition = 'none';
   }
 
   function onMove(e) {
     if (!dragging) return;
     var dy = startY - e.touches[0].clientY;
+    if (!moved) {
+      if (Math.abs(dy) < 8) return;
+      moved = true;
+      if (fromCollapsed) delete sheet.dataset.state;
+      sheet.style.transition = 'none';
+    }
     var h = Math.max(COLLAPSED * 0.5, Math.min(fullH() + 30, baseH + dy));
     sheet.style.maxHeight = h + 'px';
     sheet.style.minHeight = h + 'px';
@@ -314,6 +324,13 @@ function initSheetSwipe() {
   function onEnd(e) {
     if (!dragging) return;
     dragging = false;
+    guardClicks();
+    if (!moved) {
+      // Простое нажатие: свёрнутая — раскрыть, открытая — ничего.
+      if (fromCollapsed) delete sheet.dataset.state;
+      else sheet._guardUntil = 0;
+      return;
+    }
     var touch = e.changedTouches[0];
     var dy = startY - touch.clientY;
     var elapsed = Date.now() - startTime;

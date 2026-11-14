@@ -30,7 +30,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap&subset=cyrillic">
-  <link rel="stylesheet" href="styles.css?v=21">
+  <link rel="stylesheet" href="styles.css?v=22">
 </head>
 <body>
 
@@ -284,7 +284,12 @@
 <div id="scannerModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Сканер QR-кода">
   <div class="modal-box">
     <div class="modal-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> НАВЕДИТЕ НА QR</div>
-    <video id="video" autoplay playsinline aria-label="Камера для сканирования QR"></video>
+    <div class="scan-view" id="scanView">
+      <video id="video" autoplay playsinline aria-label="Камера для сканирования QR"></video>
+      <div class="scan-zoom" id="scanZoom" role="group" aria-label="Приближение камеры">
+        <button type="button" data-zoom="1" class="active">1×</button><button type="button" data-zoom="2">2×</button><button type="button" data-zoom="3">3×</button>
+      </div>
+    </div>
     <canvas id="qrCanvas" hidden></canvas>
     <input type="text" id="manualCode" placeholder="Или введите артикул вручную" class="input-field" aria-label="Артикул детали">
     <button id="manualSubmit" class="modal-btn">✓ Проверить</button>
@@ -374,7 +379,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 </script>
-<script type="module" src="app.js?v=24"></script>
+<script type="module" src="app.js?v=25"></script>
 <script>
 // Register Service Worker + auto-update
 if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {

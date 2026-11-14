@@ -2410,3 +2410,49 @@ body:not(.light-theme) .id-mode-toggle,
 body:not(.light-theme) .project-open { background: rgba(0, 212, 170, 0.06) !important; border-color: rgba(0, 212, 170, 0.16) !important; }
 body:not(.light-theme) .login-card,
 body:not(.light-theme) .login-container { background: linear-gradient(160deg, rgba(12, 28, 66, 0.7), rgba(4, 9, 24, 0.8)); border-color: rgba(0, 212, 170, 0.2); }
+
+/* ===== Камера сканера: окно с приближением ===== */
+.scan-view {
+  position: relative; overflow: hidden; aspect-ratio: 1/1;
+  border-radius: var(--rad-lg); margin-bottom: 16px; background: #000;
+  border: 2px solid rgba(0, 212, 170, 0.2);
+  box-shadow: 0 0 0 4px rgba(0, 212, 170, 0.05), 0 8px 24px rgba(0, 0, 0, 0.3);
+  touch-action: none;
+}
+.scan-view #video {
+  display: block; width: 100%; height: 100%; aspect-ratio: auto;
+  margin: 0; border: 0; border-radius: 0; box-shadow: none;
+  transform-origin: center; transition: transform 0.18s ease-out;
+}
+.scan-zoom {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  display: flex; gap: 4px; padding: 4px; border-radius: 999px;
+  background: rgba(3, 7, 20, 0.6);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.scan-zoom button {
+  min-width: 46px; height: 36px; padding: 0 10px; border: 0; border-radius: 999px;
+  background: transparent; color: #fff; font: 600 13px 'Inter', system-ui, sans-serif;
+  cursor: pointer; transition: background 0.2s, color 0.2s;
+}
+.scan-zoom button.active { background: #00D4AA; color: #03130f; }
+
+/* ===== Карточка детали: раскрывается плавно, без рывка ===== */
+@media (max-width: 600px) {
+  .bottom-sheet {
+    overflow: hidden;
+    transition: transform var(--dur-slow) var(--ease-bounce),
+                max-height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+                min-height 0.42s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+  .bottom-sheet:not([data-state="collapsed"]) .sheet-header,
+  .bottom-sheet:not([data-state="collapsed"]) .sheet-content {
+    animation: aivoSheetIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes aivoSheetIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet:not([data-state="collapsed"]) .sheet-header,
+  .bottom-sheet:not([data-state="collapsed"]) .sheet-content { animation: none; }
+}
