@@ -2348,3 +2348,65 @@ body.light-theme .empty-card { background: rgba(255, 255, 255, 0.82); box-shadow
 @media (prefers-reduced-motion: reduce) {
   .empty-icon::after, .empty-icon svg, .empty-main::after, .progress-fill::after { animation: none !important; }
 }
+
+/* ============================================================
+   СТИЛЬ «ПОЛНОЧЬ» (14.11.2026, выбор владельца): тёмно-синий фон,
+   изумрудные акценты и свечение. Только тёмная тема; светлая — прежняя.
+   ============================================================ */
+body:not(.light-theme) {
+  --bg-primary: #030714; --bg-secondary: #071029; --bg-tertiary: #13204a; --bg-card: #0a1636;
+  --canvas-bg: #030714;
+  --panel: rgba(6, 14, 34, 0.66); --panel-solid: rgba(7, 15, 38, 0.97);
+  --border: rgba(0, 212, 170, 0.16); --line-2: rgba(120, 200, 255, 0.18);
+  --text-primary: #f1f6ff; --text-secondary: rgba(226, 236, 255, 0.74); --text-tertiary: rgba(200, 216, 245, 0.56);
+  background: #030714;
+}
+/* фон входа и вокруг 3D: синяя ночь с изумрудным сиянием сверху */
+body:not(.light-theme) .bg-layer {
+  background:
+    radial-gradient(70% 45% at 50% 0%, rgba(0, 212, 170, 0.22), transparent 70%),
+    radial-gradient(60% 50% at 100% 60%, rgba(40, 90, 220, 0.20), transparent 70%),
+    radial-gradient(50% 40% at 0% 90%, rgba(0, 160, 200, 0.12), transparent 70%),
+    linear-gradient(180deg, #050b20, #030714 60%, #02040c);
+}
+body:not(.light-theme) .top-panel {
+  background: linear-gradient(180deg, rgba(4, 10, 28, 0.88), rgba(4, 10, 28, 0.55)) !important;
+  border-bottom: 1px solid transparent !important;
+  border-image: linear-gradient(90deg, transparent, rgba(0, 212, 170, 0.55), transparent) 1 !important;
+  backdrop-filter: blur(24px) saturate(1.6); -webkit-backdrop-filter: blur(24px) saturate(1.6);
+}
+body:not(.light-theme) .bottom-toolbar {
+  background: linear-gradient(0deg, rgba(3, 8, 22, 0.94), rgba(6, 14, 34, 0.66)) !important;
+  border-top: 1px solid transparent !important;
+  border-image: linear-gradient(90deg, transparent, rgba(0, 212, 170, 0.6), transparent) 1 !important;
+  box-shadow: 0 -12px 40px rgba(0, 212, 170, 0.08) !important;
+}
+body:not(.light-theme) .project-title { background: linear-gradient(90deg, #ffffff, #7dffe0); -webkit-background-clip: text; background-clip: text; color: transparent !important; }
+body:not(.light-theme) .stat-value { color: #3dffd0 !important; text-shadow: 0 0 12px rgba(0, 212, 170, 0.6); }
+body:not(.light-theme) .progress-bar { height: 3px; background: rgba(0, 212, 170, 0.16); }
+body:not(.light-theme) .progress-fill { background: linear-gradient(90deg, #00a884, #3dffd0); box-shadow: 0 0 10px rgba(61, 255, 208, 0.7); }
+body:not(.light-theme) .top-btn { background: rgba(0, 212, 170, 0.07) !important; border-color: rgba(0, 212, 170, 0.2) !important; }
+body:not(.light-theme) .top-btn.active { background: rgba(0, 212, 170, 0.22) !important; box-shadow: 0 0 16px rgba(0, 212, 170, 0.35) !important; }
+body:not(.light-theme) .toolbar-btn { color: #5fffd9; }
+body:not(.light-theme) .drawer,
+body:not(.light-theme) .checklist-panel,
+body:not(.light-theme) .empty-card,
+body:not(.light-theme) .bottom-sheet,
+body:not(.light-theme) .modal-content {
+  background: linear-gradient(160deg, rgba(12, 28, 66, 0.92), rgba(4, 9, 24, 0.95)) !important;
+  border: 1px solid rgba(0, 212, 170, 0.2) !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 60px rgba(0, 212, 170, 0.08) !important;
+}
+body:not(.light-theme) .checklist-num { color: #fff; }
+body:not(.light-theme) .checklist-num > span:first-child { color: #3dffd0; text-shadow: 0 0 18px rgba(0, 212, 170, 0.6); }
+body:not(.light-theme) .checklist-scan-btn,
+body:not(.light-theme) .empty-main,
+body:not(.light-theme) .login-btn { background: linear-gradient(135deg, #00D4AA, #3dffd0) !important; box-shadow: 0 10px 30px rgba(0, 212, 170, 0.35) !important; }
+body:not(.light-theme) .drawer-section-title { color: #3dffd0; opacity: 0.8; }
+body:not(.light-theme) .cl-group-bar { background: rgba(120, 160, 255, 0.12); }
+body:not(.light-theme) .cl-group-bar i { background: linear-gradient(90deg, #00a884, #3dffd0); box-shadow: 0 0 8px rgba(61, 255, 208, 0.6); }
+body:not(.light-theme) .drawer-action-btn,
+body:not(.light-theme) .id-mode-toggle,
+body:not(.light-theme) .project-open { background: rgba(0, 212, 170, 0.06) !important; border-color: rgba(0, 212, 170, 0.16) !important; }
+body:not(.light-theme) .login-card,
+body:not(.light-theme) .login-container { background: linear-gradient(160deg, rgba(12, 28, 66, 0.7), rgba(4, 9, 24, 0.8)); border-color: rgba(0, 212, 170, 0.2); }

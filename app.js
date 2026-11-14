@@ -129,7 +129,7 @@ function toggleTheme() {
 // plus a soft radial "sun halo" near the top. Flat Color() looked like a boxed-in void —
 // the gradient reads as an environment, and its horizon stop doubles as the fog color.
 var _bgTexDark = null, _bgTexLight = null;
-var FOG_COLOR_DARK = 0x222c33;  // horizon-zone stop of the dark gradient (кино-стиль главной)
+var FOG_COLOR_DARK = 0x12245a;  // horizon-zone stop of the dark gradient (кино-стиль главной)
 var FOG_COLOR_LIGHT = 0xc8d2da; // horizon-zone stop of the light gradient
 function _buildBgTexture(stops, haloAlpha, haloRGB) {
   haloRGB = haloRGB || '255,255,255';
@@ -153,13 +153,13 @@ function _buildBgTexture(stops, haloAlpha, haloRGB) {
 function _darkBgTexture() {
   if (!_bgTexDark) {
     _bgTexDark = _buildBgTexture([
-      [0, '#0d1316'],
-      [0.28, '#172025'],
-      [0.46, '#222c33'], // = FOG_COLOR_DARK
-      [0.64, '#1a2227'],
-      [0.84, '#0f1417'],
-      [1, '#090c0e']
-    ], 0.14, '0,212,170');
+      // стиль «Полночь»: тёмно-синяя ночь, изумрудное сияние сверху
+      [0, '#030714'],
+      [0.3, '#0a1638'],
+      [0.5, '#12245a'], // = FOG_COLOR_DARK
+      [0.7, '#0a1638'],
+      [1, '#02040c']
+    ], 0.4, '0,212,170');
   }
   return _bgTexDark;
 }
