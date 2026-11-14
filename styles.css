@@ -2456,3 +2456,18 @@ body:not(.light-theme) .login-container { background: linear-gradient(160deg, rg
   .bottom-sheet:not([data-state="collapsed"]) .sheet-header,
   .bottom-sheet:not([data-state="collapsed"]) .sheet-content { animation: none; }
 }
+
+/* ===== Панели «Дымчатое стекло» (14.11.2026, выбор владельца вместо синих панелей) =====
+   Прозрачное стекло с сильным размытием: сквозь панель виден 3D-фон. Только тёмная тема. */
+body:not(.light-theme) { --bg-tertiary:rgba(255,255,255,0.07); --bg-card:rgba(255,255,255,0.05); --border:rgba(255,255,255,0.12);
+  --text-primary:#ffffff; --text-secondary:rgba(255,255,255,0.74); --text-tertiary:rgba(255,255,255,0.52); }
+body:not(.light-theme) .drawer, body:not(.light-theme) .checklist-panel, body:not(.light-theme) .empty-card, body:not(.light-theme) .bottom-sheet, body:not(.light-theme) .modal-content, body:not(.light-theme) .modal-box { background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04)), rgba(8,12,20,0.42) !important;
+  backdrop-filter: blur(40px) saturate(1.8) !important; -webkit-backdrop-filter: blur(40px) saturate(1.8) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important; box-shadow: 0 24px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18) !important; }
+body:not(.light-theme) .top-panel, body:not(.light-theme) .bottom-toolbar { background: rgba(8,12,20,0.38) !important; backdrop-filter: blur(30px) saturate(1.8) !important; -webkit-backdrop-filter: blur(30px) saturate(1.8) !important; border-image:none !important; border-color: rgba(255,255,255,0.12) !important; box-shadow:none !important; }
+body:not(.light-theme) .drawer-action-btn, body:not(.light-theme) .id-mode-toggle, body:not(.light-theme) .project-open, body:not(.light-theme) .top-btn { background: rgba(255,255,255,0.08) !important; border-color: rgba(255,255,255,0.14) !important; box-shadow:none !important; }
+body:not(.light-theme) .detail-card, body:not(.light-theme) .sheet-preview { background: rgba(255,255,255,0.06) !important; }
+body:not(.light-theme) .stat-value, body:not(.light-theme) .checklist-num > span:first-child { text-shadow:none !important; }
+
+/* Закрытая карточка детали не выглядывает над нижней панелью (на iPhone с «чёлкой» снизу) */
+.bottom-sheet:not(.open) { visibility: hidden; transition: transform var(--dur-slow) var(--ease-bounce), visibility 0s linear var(--dur-slow) !important; }
